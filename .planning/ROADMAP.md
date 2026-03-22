@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Live Message Viewer** - Subscribe to topics and watch messages arrive in real-time with filtering (completed 2026-03-22)
 - [x] **Phase 4: Plugin System** - Plugin lifecycle management, dynamic config UI, and sidebar status indicators (completed 2026-03-22)
 - [x] **Phase 5: Loxone Bridge Plugin** - Bidirectional Loxone-MQTT bridge with auto-discovery, basic auth, and human-readable topics (completed 2026-03-22)
-- [ ] **Phase 6: Installer and Deployment** - One-command Debian installer with systemd service and idempotent updates
+- [x] **Phase 6: Installer and Deployment** - One-command Debian installer with systemd service and idempotent updates (completed 2026-03-22)
 
 ## Phase Details
 
@@ -112,7 +112,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 06-01-PLAN.md -- Install script (install.sh) with dependency setup, Mosquitto config, systemd service, idempotent updates + README.md documentation
+- [x] 06-01-PLAN.md -- Install script (install.sh) with dependency setup, Mosquitto config, systemd service, idempotent updates + README.md documentation
 
 ## Progress
 
@@ -126,4 +126,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 3. Live Message Viewer | 2/2 | Complete   | 2026-03-22 |
 | 4. Plugin System | 2/2 | Complete   | 2026-03-22 |
 | 5. Loxone Bridge Plugin | 3/3 | Complete   | 2026-03-22 |
-| 6. Installer and Deployment | 0/1 | Not started | - |
+| 6. Installer and Deployment | 1/1 | Complete   | 2026-03-22 |

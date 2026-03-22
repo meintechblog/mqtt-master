@@ -57,11 +57,11 @@
 
 ### Deployment
 
-- [ ] **DEP-01**: User can install MQTT Master with a single wget command on Debian/Ubuntu
-- [ ] **DEP-02**: Installer sets up Mosquitto broker with open LAN access and WebSocket support
-- [ ] **DEP-03**: Installer creates a systemd service for auto-start
-- [ ] **DEP-04**: User can update to the latest version by running the same install command
-- [ ] **DEP-05**: Installer is idempotent (safe to run multiple times)
+- [x] **DEP-01**: User can install MQTT Master with a single wget command on Debian/Ubuntu
+- [x] **DEP-02**: Installer sets up Mosquitto broker with open LAN access and WebSocket support
+- [x] **DEP-03**: Installer creates a systemd service for auto-start
+- [x] **DEP-04**: User can update to the latest version by running the same install command
+- [x] **DEP-05**: Installer is idempotent (safe to run multiple times)
 
 ## v2 Requirements
 
@@ -132,11 +132,11 @@
 | UI-02 | Phase 1 | Complete |
 | UI-03 | Phase 1 | Complete |
 | UI-04 | Phase 1 | Complete |
-| DEP-01 | Phase 6 | Pending |
-| DEP-02 | Phase 6 | Pending |
-| DEP-03 | Phase 6 | Pending |
-| DEP-04 | Phase 6 | Pending |
-| DEP-05 | Phase 6 | Pending |
+| DEP-01 | Phase 6 | Complete |
+| DEP-02 | Phase 6 | Complete |
+| DEP-03 | Phase 6 | Complete |
+| DEP-04 | Phase 6 | Complete |
+| DEP-05 | Phase 6 | Complete |
 
 **Coverage:**
 - v1 requirements: 40 total

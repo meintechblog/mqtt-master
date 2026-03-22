@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-03-22T08:18:17.512Z"
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-03-22T08:26:31.979Z"
 last_activity: 2026-03-22
 progress:
   total_phases: 6
-  completed_phases: 5
-  total_plans: 11
-  completed_plans: 11
+  completed_phases: 6
+  total_plans: 12
+  completed_plans: 12
   percent: 88
 ---
 
@@ -63,6 +63,7 @@ Progress: [█████████░] 88%
 | Phase 05 P01 | 5min | 2 tasks | 4 files |
 | Phase 05 P02 | 25min | 2 tasks | 4 files |
 | Phase 05 P03 | 30min | 2 tasks | 7 files |
+| Phase 06 P01 | 10min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,8 @@ Recent decisions affecting current work:
 - [Phase Phase 05]: Plugin instance accessed in route handlers via app.pluginManager.getInstance('loxone') to keep plugin business logic self-contained
 - [Phase Phase 05]: Topic route subscriptions stored in Map<routeId, handler> on plugin instance for clean individual unsubscribe
 - [Phase Phase 05]: disabledControls array persisted to plugin config JSON so control toggles survive plugin restart
+- [Phase 06]: install.sh uses apt-get (not apt) for non-interactive compatibility with DEBIAN_FRONTEND=noninteractive
+- [Phase 06]: Config preservation: installer writes default config.json only if file does not exist, never overwrites
 
 ### Pending Todos
 
@@ -116,6 +119,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-22T08:18:17.509Z
-Stopped at: Completed 05-03-PLAN.md
+Last session: 2026-03-22T08:26:31.977Z
+Stopped at: Completed 06-01-PLAN.md
 Resume file: None
