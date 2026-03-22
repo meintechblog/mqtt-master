@@ -81,4 +81,62 @@ export default async function apiPlugins(app) {
       return reply.status(500).send({ error: err.message });
     }
   });
+
+  // --- Loxone-specific endpoints ---
+
+  // GET /api/plugins/loxone/controls -- list all discovered controls
+  app.get('/api/plugins/loxone/controls', async (request, reply) => {
+    try {
+      const instance = app.pluginManager.getInstance('loxone');
+      if (!instance || typeof instance.getControls !== 'function') {
+        return reply.status(400).send({ error: 'Loxone plugin is not running' });
+      }
+      return instance.getControls();
+    } catch (err) {
+      return reply.status(500).send({ error: err.message });
+    }
+  });
+
+  // PUT /api/plugins/loxone/controls/:uuid -- toggle control enabled state
+  app.put('/api/plugins/loxone/controls/:uuid', async (request, reply) => {
+    try {
+      const instance = app.pluginManager.getInstance('loxone');
+      if (!instance || typeof instance.setControlEnabled !== 'function') {
+        return reply.status(400).send({ error: 'Loxone plugin is not running' });
+      }
+      const { uuid } = request.params;
+      const { enabled } = request.body || {};
+      await instance.setControlEnabled(uuid, !!enabled);
+      return { ok: true };
+    } catch (err) {
+      return reply.status(500).send({ error: err.message });
+    }
+  });
+
+  // GET /api/plugins/loxone/routes -- list topic routes
+  app.get('/api/plugins/loxone/routes', async (request, reply) => {
+    try {
+      const instance = app.pluginManager.getInstance('loxone');
+      if (!instance || typeof instance.getTopicRoutes !== 'function') {
+        return reply.status(400).send({ error: 'Loxone plugin is not running' });
+      }
+      return instance.getTopicRoutes();
+    } catch (err) {
+      return reply.status(500).send({ error: err.message });
+    }
+  });
+
+  // PUT /api/plugins/loxone/routes -- save topic routes
+  app.put('/api/plugins/loxone/routes', async (request, reply) => {
+    try {
+      const instance = app.pluginManager.getInstance('loxone');
+      if (!instance || typeof instance.setTopicRoutes !== 'function') {
+        return reply.status(400).send({ error: 'Loxone plugin is not running' });
+      }
+      await instance.setTopicRoutes(request.body || []);
+      return { ok: true };
+    } catch (err) {
+      return reply.status(500).send({ error: err.message });
+    }
+  });
 }

@@ -5,6 +5,8 @@ import { Hamburger } from './components/hamburger.js';
 import { Dashboard } from './pages/dashboard.js';
 import { Messages } from './pages/messages.js';
 import { PluginConfig } from './pages/plugin-config.js';
+import { LoxoneControls } from './pages/loxone-controls.js';
+import { TopicRoutes } from './pages/topic-routes.js';
 import { NotFound } from './pages/not-found.js';
 
 const currentHash = signal(window.location.hash || '#/dashboard');
@@ -36,6 +38,14 @@ const currentRoute = computed(() => {
   // Static routes
   if (routes[hash]) {
     return { component: routes[hash], props: {} };
+  }
+
+  // Loxone-specific sub-pages
+  if (hash === '#/loxone/controls') {
+    return { component: LoxoneControls, props: {} };
+  }
+  if (hash === '#/loxone/routes') {
+    return { component: TopicRoutes, props: {} };
   }
 
   // Dynamic plugin route: #/plugins/:id

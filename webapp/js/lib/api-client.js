@@ -47,3 +47,31 @@ export function savePluginConfig(id, config) {
     body: JSON.stringify(config),
   });
 }
+
+// --- Loxone-specific endpoints ---
+
+/** GET /api/plugins/loxone/controls -- list all discovered controls */
+export function fetchLoxoneControls() {
+  return request('/api/plugins/loxone/controls');
+}
+
+/** PUT /api/plugins/loxone/controls/:uuid -- toggle control enabled state */
+export function toggleLoxoneControl(uuid, enabled) {
+  return request(`/api/plugins/loxone/controls/${encodeURIComponent(uuid)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ enabled }),
+  });
+}
+
+/** GET /api/plugins/loxone/routes -- list topic routes */
+export function fetchTopicRoutes() {
+  return request('/api/plugins/loxone/routes');
+}
+
+/** PUT /api/plugins/loxone/routes -- save topic routes */
+export function saveTopicRoutes(routes) {
+  return request('/api/plugins/loxone/routes', {
+    method: 'PUT',
+    body: JSON.stringify(routes),
+  });
+}

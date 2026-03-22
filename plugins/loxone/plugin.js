@@ -33,6 +33,15 @@ export default class LoxonePlugin {
 
     /** @type {Function|null} bound MQTT message handler for cleanup */
     this._mqttHandler = null;
+
+    /** @type {string[]} UUIDs of disabled controls */
+    this._disabledControls = [];
+
+    /** @type {Array<object>} active topic route definitions */
+    this._topicRoutes = [];
+
+    /** @type {Map<string, Function>} active topic route subscription handlers for cleanup */
+    this._routeHandlers = new Map();
   }
 
   /**
@@ -55,6 +64,7 @@ export default class LoxonePlugin {
     } = this._config;
 
     this._prefix = prefix;
+    this._disabledControls = this._config.disabledControls || [];
 
     // 2. Create structure parser and fetch structure
     this._structure = new LoxoneStructure(prefix);
@@ -117,6 +127,10 @@ export default class LoxonePlugin {
     // 11. Publish bridge status online
     mqttService.publish(`${prefix}/bridge/status`, 'online', { retain: true });
 
+    // 12. Set up topic routes
+    this._topicRoutes = this._config.topicRoutes || [];
+    this._applyTopicRoutes();
+
     this._running = true;
     logger.info('Loxone bridge plugin started');
   }
@@ -151,6 +165,9 @@ export default class LoxonePlugin {
       mqttService.removeListener('message', this._mqttHandler);
       this._mqttHandler = null;
     }
+
+    // 4b. Clean up topic route subscriptions
+    this._cleanupRouteHandlers();
 
     // 5. Clear state
     this._running = false;
@@ -223,6 +240,69 @@ export default class LoxonePlugin {
         },
       },
     };
+  }
+
+  // --- Controls management ---
+
+  /**
+   * Get all controls with their enabled state.
+   * @returns {Array<{ uuid: string, name: string, type: string, room: string, topic: string, enabled: boolean }>}
+   */
+  getControls() {
+    if (!this._structure) return [];
+    return this._structure.getAll().map(ctrl => ({
+      uuid: ctrl.uuid,
+      name: ctrl.name,
+      type: ctrl.type,
+      room: ctrl.room,
+      topic: ctrl.topic,
+      enabled: !this._disabledControls.includes(ctrl.uuid),
+    }));
+  }
+
+  /**
+   * Set a control's enabled state. Updates config and persists.
+   * @param {string} uuid
+   * @param {boolean} enabled
+   */
+  async setControlEnabled(uuid, enabled) {
+    if (enabled) {
+      this._disabledControls = this._disabledControls.filter(id => id !== uuid);
+    } else {
+      if (!this._disabledControls.includes(uuid)) {
+        this._disabledControls.push(uuid);
+      }
+    }
+    // Persist to config
+    this._config.disabledControls = this._disabledControls;
+    if (this._ctx) {
+      this._ctx.configService.set('plugins.loxone', this._config);
+      await this._ctx.configService.save();
+    }
+  }
+
+  // --- Topic routes management ---
+
+  /**
+   * Get current topic routes.
+   * @returns {Array<object>}
+   */
+  getTopicRoutes() {
+    return [...this._topicRoutes];
+  }
+
+  /**
+   * Set topic routes, persist, and re-apply subscriptions.
+   * @param {Array<object>} routes
+   */
+  async setTopicRoutes(routes) {
+    this._topicRoutes = routes;
+    this._config.topicRoutes = routes;
+    if (this._ctx) {
+      this._ctx.configService.set('plugins.loxone', this._config);
+      await this._ctx.configService.save();
+    }
+    this._applyTopicRoutes();
   }
 
   // --- Internal methods ---
@@ -355,5 +435,63 @@ export default class LoxonePlugin {
    */
   _loxoneTypeToHaComponent(type) {
     return HA_TYPE_MAP[type] || 'sensor';
+  }
+
+  /**
+   * Apply topic routes: subscribe to source topics and set up forwarding.
+   * Cleans up previous route handlers first.
+   */
+  _applyTopicRoutes() {
+    if (!this._ctx) return;
+    const { mqttService, logger } = this._ctx;
+
+    // Clean up existing route handlers
+    this._cleanupRouteHandlers();
+
+    for (const route of this._topicRoutes) {
+      if (!route.enabled) continue;
+
+      if (route.direction === 'inbound') {
+        // External -> Loxone: subscribe to sourceTopic, forward to targetTopic
+        mqttService.subscribe(route.sourceTopic);
+
+        const handler = (msg) => {
+          if (msg.topic === route.sourceTopic) {
+            mqttService.publish(route.targetTopic, msg.payload);
+          }
+        };
+        mqttService.on('message', handler);
+        this._routeHandlers.set(`inbound:${route.id}`, { handler, topic: route.sourceTopic });
+
+        logger.info(`Topic route: ${route.sourceTopic} -> ${route.targetTopic} (inbound)`);
+      } else if (route.direction === 'outbound') {
+        // Loxone -> External: subscribe to sourceTopic, forward to targetTopic
+        mqttService.subscribe(route.sourceTopic);
+
+        const handler = (msg) => {
+          if (msg.topic === route.sourceTopic) {
+            mqttService.publish(route.targetTopic, msg.payload);
+          }
+        };
+        mqttService.on('message', handler);
+        this._routeHandlers.set(`outbound:${route.id}`, { handler, topic: route.sourceTopic });
+
+        logger.info(`Topic route: ${route.sourceTopic} -> ${route.targetTopic} (outbound)`);
+      }
+    }
+  }
+
+  /**
+   * Clean up all route subscription handlers.
+   */
+  _cleanupRouteHandlers() {
+    if (!this._ctx) return;
+    const { mqttService } = this._ctx;
+
+    for (const [, entry] of this._routeHandlers) {
+      mqttService.removeListener('message', entry.handler);
+      mqttService.unsubscribe(entry.topic);
+    }
+    this._routeHandlers.clear();
   }
 }

@@ -101,6 +101,24 @@ export function Sidebar({ currentHash }) {
                 ${item.label}
               </span>
             </a>
+            ${item.hash === '#/plugins/loxone' && item.status === 'running' && html`
+              <a
+                class="sidebar-nav-item ${currentHash.value === '#/loxone/controls' ? 'active' : ''}"
+                href="#/loxone/controls"
+                style="padding-left:36px;font-size:13px;"
+                onClick=${() => { menuOpen.value = false; }}
+              >
+                Controls
+              </a>
+              <a
+                class="sidebar-nav-item ${currentHash.value === '#/loxone/routes' ? 'active' : ''}"
+                href="#/loxone/routes"
+                style="padding-left:36px;font-size:13px;"
+                onClick=${() => { menuOpen.value = false; }}
+              >
+                Topic Routes
+              </a>
+            `}
           `)
         }
       </div>
