@@ -1,6 +1,5 @@
 import { html } from 'htm/preact';
-import { signal } from '@preact/signals';
-import { useEffect } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { StatusDot } from '../components/status-dot.js';
 import {
   fetchPlugins,
@@ -18,12 +17,12 @@ import {
  * @param {{ pluginId: string }} props
  */
 export function PluginConfig({ pluginId }) {
-  const pluginStatus = signal('stopped');
-  const pluginName = signal(pluginId);
-  const schema = signal(null);
-  const configData = signal({});
-  const feedback = signal(null);
-  const loading = signal(true);
+  const [pluginStatus, setPluginStatus] = useState('stopped');
+  const [pluginName, setPluginName] = useState(pluginId);
+  const [schema, setSchema] = useState(null);
+  const [configData, setConfigData] = useState({});
+  const [feedback, setFeedback] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   /** Map plugin status to StatusDot status */
   function dotStatus(s) {
@@ -41,15 +40,15 @@ export function PluginConfig({ pluginId }) {
       ]);
       const plugin = plugins.find(p => p.id === pluginId);
       if (plugin) {
-        pluginStatus.value = plugin.status;
-        pluginName.value = plugin.name || plugin.id;
+        setPluginStatus(plugin.status);
+        setPluginName(plugin.name || plugin.id);
       }
-      schema.value = configResult.schema;
-      configData.value = { ...configResult.config };
+      setSchema(configResult.schema);
+      setConfigData({ ...configResult.config });
     } catch (err) {
-      feedback.value = { type: 'error', text: err.message };
+      setFeedback({ type: 'error', text: err.message });
     } finally {
-      loading.value = false;
+      setLoading(false);
     }
   }
 
@@ -59,7 +58,7 @@ export function PluginConfig({ pluginId }) {
       const plugins = await fetchPlugins();
       const plugin = plugins.find(p => p.id === pluginId);
       if (plugin) {
-        pluginStatus.value = plugin.status;
+        setPluginStatus(plugin.status);
       }
     } catch (_) {
       // Silently ignore refresh errors
@@ -68,8 +67,8 @@ export function PluginConfig({ pluginId }) {
 
   /** Show temporary feedback message */
   function showFeedback(type, text) {
-    feedback.value = { type, text };
-    setTimeout(() => { feedback.value = null; }, 3000);
+    setFeedback({ type, text });
+    setTimeout(() => { setFeedback(null); }, 3000);
   }
 
   async function handleStart() {
@@ -104,7 +103,7 @@ export function PluginConfig({ pluginId }) {
 
   async function handleSave() {
     try {
-      await savePluginConfig(pluginId, configData.value);
+      await savePluginConfig(pluginId, configData);
       showFeedback('success', 'Configuration saved');
     } catch (err) {
       showFeedback('error', err.message);
@@ -113,34 +112,34 @@ export function PluginConfig({ pluginId }) {
 
   /** Update a config field value */
   function setField(key, value) {
-    configData.value = { ...configData.value, [key]: value };
+    setConfigData(prev => ({ ...prev, [key]: value }));
   }
 
   useEffect(() => { loadPlugin(); }, [pluginId]);
 
-  if (loading.value) {
+  if (loading) {
     return html`<div class="page-placeholder">Loading plugin...</div>`;
   }
 
-  const props = (schema.value && schema.value.properties) || {};
+  const props = (schema && schema.properties) || {};
 
   return html`
     <div>
       <div class="page-header" style="display:flex;align-items:center;gap:10px;">
-        <${StatusDot} status=${dotStatus(pluginStatus.value)} />
-        <span>${pluginName.value}</span>
-        <span style="font-size:13px;color:var(--ve-text-dim);font-weight:400;">(${pluginStatus.value})</span>
+        <${StatusDot} status=${dotStatus(pluginStatus)} />
+        <span>${pluginName}</span>
+        <span style="font-size:13px;color:var(--ve-text-dim);font-weight:400;">(${pluginStatus})</span>
       </div>
 
-      ${feedback.value && html`
-        <div class="ve-card" style="margin-bottom:12px;padding:10px 14px;background:${feedback.value.type === 'error' ? 'var(--ve-red)' : 'var(--ve-green)'};color:#fff;border-radius:var(--ve-radius-sm);font-size:14px;">
-          ${feedback.value.text}
+      ${feedback && html`
+        <div class="ve-card" style="margin-bottom:12px;padding:10px 14px;background:${feedback.type === 'error' ? 'var(--ve-red)' : 'var(--ve-green)'};color:#fff;border-radius:var(--ve-radius-sm);font-size:14px;">
+          ${feedback.text}
         </div>
       `}
 
       <div class="ve-panel" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-        <button class="msg-btn msg-btn--subscribe" disabled=${pluginStatus.value === 'running'} onClick=${handleStart}>Start</button>
-        <button class="msg-btn msg-btn--unsubscribe" disabled=${pluginStatus.value === 'stopped'} onClick=${handleStop}>Stop</button>
+        <button class="msg-btn msg-btn--subscribe" disabled=${pluginStatus === 'running'} onClick=${handleStart}>Start</button>
+        <button class="msg-btn msg-btn--unsubscribe" disabled=${pluginStatus === 'stopped'} onClick=${handleStop}>Stop</button>
         <button class="msg-btn msg-btn--clear" onClick=${handleReload}>Reload</button>
       </div>
 
@@ -151,7 +150,7 @@ export function PluginConfig({ pluginId }) {
           : html`
             <div>
               ${Object.entries(props).map(([key, prop]) => {
-                const value = configData.value[key] !== undefined ? configData.value[key] : (prop.default || '');
+                const value = configData[key] !== undefined ? configData[key] : (prop.default || '');
                 const label = prop.title || key;
 
                 if (prop.type === 'boolean') {
