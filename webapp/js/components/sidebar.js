@@ -1,7 +1,9 @@
 import { html } from 'htm/preact';
 import { signal } from '@preact/signals';
+import { useEffect } from 'preact/hooks';
 import { StatusDot } from './status-dot.js';
 import { brokerConnected } from '../lib/ws-client.js';
+import { fetchPlugins } from '../lib/api-client.js';
 
 export const menuOpen = signal(false);
 
@@ -9,21 +11,49 @@ export function toggleMenu() {
   menuOpen.value = !menuOpen.value;
 }
 
-const sections = [
-  {
-    title: 'Broker',
-    items: [
-      { label: 'Dashboard', hash: '#/dashboard' },
-      { label: 'Live Messages', hash: '#/messages' },
-    ],
-  },
-  {
-    title: 'Plugins',
-    items: [], // Populated dynamically in Phase 4
-  },
-];
+/** Dynamic plugin items loaded from /api/plugins */
+const pluginItems = signal([]);
+
+const brokerSection = {
+  title: 'Broker',
+  items: [
+    { label: 'Dashboard', hash: '#/dashboard' },
+    { label: 'Live Messages', hash: '#/messages' },
+  ],
+};
+
+/** Map plugin API status to StatusDot status */
+function pluginDotStatus(status) {
+  if (status === 'running') return 'connected';
+  if (status === 'error') return 'error';
+  return 'stopped';
+}
 
 export function Sidebar({ currentHash }) {
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const plugins = await fetchPlugins();
+        if (!cancelled) {
+          pluginItems.value = plugins.map(p => ({
+            label: p.name || p.id,
+            hash: '#/plugins/' + p.id,
+            status: p.status,
+          }));
+        }
+      } catch (_) {
+        // API not available yet -- keep empty
+      }
+    }
+
+    load();
+    const interval = setInterval(load, 5000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
   return html`
     <aside class="sidebar ${menuOpen.value ? 'open' : ''}">
       <div class="sidebar-header">
@@ -44,20 +74,36 @@ export function Sidebar({ currentHash }) {
           <span>Broker</span>
         </div>
       </div>
-      ${sections.filter(s => s.items.length > 0).map(section => html`
-        <div class="sidebar-section">
-          <div class="sidebar-section-title">${section.title}</div>
-          ${section.items.map(item => html`
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">${brokerSection.title}</div>
+        ${brokerSection.items.map(item => html`
+          <a
+            class="sidebar-nav-item ${currentHash.value === item.hash ? 'active' : ''}"
+            href=${item.hash}
+            onClick=${() => { menuOpen.value = false; }}
+          >
+            ${item.label}
+          </a>
+        `)}
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Plugins</div>
+        ${pluginItems.value.length === 0
+          ? html`<div style="padding:6px 16px;font-size:13px;color:var(--ve-text-dim);">No plugins</div>`
+          : pluginItems.value.map(item => html`
             <a
               class="sidebar-nav-item ${currentHash.value === item.hash ? 'active' : ''}"
               href=${item.hash}
               onClick=${() => { menuOpen.value = false; }}
             >
-              ${item.label}
+              <span class="sidebar-plugin-status">
+                <${StatusDot} status=${pluginDotStatus(item.status)} />
+                ${item.label}
+              </span>
             </a>
-          `)}
-        </div>
-      `)}
+          `)
+        }
+      </div>
     </aside>
     ${menuOpen.value && html`
       <div class="sidebar-backdrop" onClick=${toggleMenu}></div>

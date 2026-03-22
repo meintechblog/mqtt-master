@@ -4,6 +4,7 @@ import { Sidebar, menuOpen, toggleMenu } from './components/sidebar.js';
 import { Hamburger } from './components/hamburger.js';
 import { Dashboard } from './pages/dashboard.js';
 import { Messages } from './pages/messages.js';
+import { PluginConfig } from './pages/plugin-config.js';
 import { NotFound } from './pages/not-found.js';
 
 const currentHash = signal(window.location.hash || '#/dashboard');
@@ -19,22 +20,43 @@ window.addEventListener('hashchange', () => {
   menuOpen.value = false;
 });
 
-// Route map
+// Static route map
 const routes = {
   '#/dashboard': Dashboard,
   '#/messages': Messages,
 };
 
-const currentPage = computed(() => routes[currentHash.value] || NotFound);
+/**
+ * Resolve route: static routes first, then #/plugins/:id pattern, then NotFound.
+ * Returns { component, props } to support parameterized routes.
+ */
+const currentRoute = computed(() => {
+  const hash = currentHash.value;
+
+  // Static routes
+  if (routes[hash]) {
+    return { component: routes[hash], props: {} };
+  }
+
+  // Dynamic plugin route: #/plugins/:id
+  if (hash.startsWith('#/plugins/')) {
+    const pluginId = hash.slice('#/plugins/'.length);
+    if (pluginId) {
+      return { component: PluginConfig, props: { pluginId } };
+    }
+  }
+
+  return { component: NotFound, props: {} };
+});
 
 function App() {
-  const Page = currentPage.value;
+  const { component: Page, props } = currentRoute.value;
   return html`
     <${Hamburger} onClick=${toggleMenu} />
     <div class="app-layout">
       <${Sidebar} currentHash=${currentHash} />
       <main class="content">
-        <${Page} />
+        <${Page} ...${props} />
       </main>
     </div>
   `;

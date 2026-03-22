@@ -170,6 +170,17 @@ body {
   background: var(--ve-orange);
 }
 
+.status-dot--stopped {
+  background: var(--ve-text-dim);
+}
+
+/* Sidebar plugin item with status dot */
+.sidebar-plugin-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* Hamburger menu button */
 .hamburger {
   position: fixed;
