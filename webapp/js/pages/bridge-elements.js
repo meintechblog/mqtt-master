@@ -2,23 +2,124 @@ import { html } from 'htm/preact';
 import { useEffect, useState } from 'preact/hooks';
 
 function fmtNum(v) {
-  if (v == null) return '--';
-  if (typeof v !== 'number') return String(v);
-  if (Number.isInteger(v)) return String(v);
+  if (v == null || v === '' || v === 'None') return '--';
+  if (typeof v === 'boolean') return v ? 'true' : 'false';
+  if (typeof v !== 'number') return String(v).substring(0, 60);
+  if (Number.isInteger(v)) return v.toLocaleString();
   return Math.abs(v) < 10 ? v.toFixed(3) : v.toFixed(1);
 }
 
-/** Group topics by category (first path segment after prefix) */
-function groupByCategory(elements) {
-  const groups = {};
+/** Priority order for categories - important ones first */
+const CAT_ORDER = ['grid', 'pvinverter', 'system', 'battery', 'solarcharger', 'vebus', 'tank', 'temperature'];
+
+function catPriority(cat) {
+  const idx = CAT_ORDER.indexOf(cat);
+  return idx >= 0 ? idx : 100;
+}
+
+/** Human-readable category labels */
+const CAT_LABELS = {
+  grid: 'Grid / Netz',
+  pvinverter: 'PV Inverter',
+  system: 'System',
+  battery: 'Battery',
+  solarcharger: 'Solar Charger',
+  vebus: 'VE.Bus',
+  tank: 'Tank',
+  temperature: 'Temperature',
+  settings: 'Settings',
+  platform: 'Platform',
+  logger: 'Logger',
+  fronius: 'Fronius',
+  shelly: 'Shelly',
+  modbusclient: 'Modbus Client',
+};
+
+/** Build tree structure from flat topic list */
+function buildTree(elements) {
+  const categories = {};
+
   for (const el of elements) {
     const parts = el.localTopic.split('/');
-    // venus/system/0/... → category = "system"
-    const cat = parts.length >= 2 ? parts[1] : 'other';
-    if (!groups[cat]) groups[cat] = [];
-    groups[cat].push(el);
+    // venus/{category}/{instanceId}/...
+    if (parts.length < 2) continue;
+    const prefix = parts[0]; // "venus"
+    const cat = parts[1];
+    const instanceId = parts.length >= 3 ? parts[2] : '';
+    const rest = parts.slice(3).join('/');
+
+    if (!categories[cat]) {
+      categories[cat] = {
+        name: cat,
+        label: CAT_LABELS[cat] || cat,
+        elements: [],
+        count: 0,
+      };
+    }
+    categories[cat].elements.push({
+      ...el,
+      shortPath: rest || cat,
+      instanceId,
+    });
+    categories[cat].count++;
   }
-  return groups;
+
+  // Sort categories by priority
+  return Object.values(categories).sort((a, b) => catPriority(a.name) - catPriority(b.name));
+}
+
+/** Further group elements within a category by sub-path prefix */
+function groupElements(elements) {
+  const groups = {};
+  for (const el of elements) {
+    // Group by first segment of shortPath: e.g. "Ac/Consumption/L1/Power" → "Ac/Consumption"
+    const parts = el.shortPath.split('/');
+    let groupKey;
+    if (parts.length <= 2) {
+      groupKey = '';
+    } else {
+      groupKey = parts.slice(0, 2).join('/');
+    }
+    if (!groups[groupKey]) groups[groupKey] = [];
+    groups[groupKey].push(el);
+  }
+  return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+function CategorySection({ cat, search, defaultOpen }) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  // Filter elements by search
+  const filtered = search
+    ? cat.elements.filter(el => el.localTopic.toLowerCase().includes(search) || el.shortPath.toLowerCase().includes(search))
+    : cat.elements;
+
+  if (search && filtered.length === 0) return null;
+
+  const groups = groupElements(filtered);
+
+  return html`
+    <div class="bridge-cat">
+      <div class="bridge-cat-header" onClick=${() => setOpen(!open)}>
+        <span class="bridge-cat-expand ${open ? 'open' : ''}">\u25B6</span>
+        <span class="bridge-cat-label">${cat.label}</span>
+        <span class="bridge-cat-count">${filtered.length}</span>
+      </div>
+      ${open && html`
+        <div class="bridge-cat-body">
+          ${groups.map(([groupKey, els]) => html`
+            ${groupKey && html`<div class="bridge-group-label">${groupKey}</div>`}
+            ${els.map(el => html`
+              <div class="bridge-el" key=${el.localTopic}>
+                <span class="bridge-el-path" title=${el.localTopic}>${el.shortPath}</span>
+                <span class="bridge-el-value">${fmtNum(el.value)}</span>
+              </div>
+            `)}
+          `)}
+        </div>
+      `}
+    </div>
+  `;
 }
 
 export function BridgeElements() {
@@ -26,7 +127,6 @@ export function BridgeElements() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [catFilter, setCatFilter] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -63,30 +163,20 @@ export function BridgeElements() {
     `;
   }
 
-  const cats = [...new Set(elements.map(el => {
-    const parts = el.localTopic.split('/');
-    return parts.length >= 2 ? parts[1] : 'other';
-  }))].sort();
+  const tree = buildTree(elements);
+  const lowerSearch = search.toLowerCase();
 
-  const filtered = elements.filter(el => {
-    if (catFilter) {
-      const parts = el.localTopic.split('/');
-      const cat = parts.length >= 2 ? parts[1] : 'other';
-      if (cat !== catFilter) return false;
-    }
-    if (search) {
-      const s = search.toLowerCase();
-      if (!el.localTopic.toLowerCase().includes(s)) return false;
-    }
-    return true;
-  });
+  // Count visible elements
+  const visibleCount = search
+    ? elements.filter(el => el.localTopic.toLowerCase().includes(lowerSearch) || el.localTopic.toLowerCase().includes(lowerSearch)).length
+    : elements.length;
 
   return html`
     <div>
       <div class="page-header">
         MQTT-Bridge Elements
         <span style="font-size:14px;color:var(--ve-text-dim);font-weight:400;margin-left:8px;">
-          (${filtered.length}${filtered.length !== elements.length ? ' / ' + elements.length : ''})
+          (${visibleCount}${visibleCount !== elements.length ? ' / ' + elements.length : ''})
         </span>
       </div>
       <div class="wiz-filters">
@@ -98,39 +188,18 @@ export function BridgeElements() {
           value=${search}
           onInput=${(e) => setSearch(e.target.value)}
         />
-        ${cats.length > 1 && html`
-          <select class="bind-select" value=${catFilter} onChange=${(e) => setCatFilter(e.target.value)}>
-            <option value="">All (${cats.join(', ')})</option>
-            ${cats.map(c => html`<option key=${c} value=${c}>${c}</option>`)}
-          </select>
-        `}
-        ${(search || catFilter) && html`
-          <button class="lox-push-btn" onClick=${() => { setSearch(''); setCatFilter(''); }}>Reset</button>
+        ${search && html`
+          <button class="lox-push-btn" onClick=${() => setSearch('')}>Reset</button>
         `}
       </div>
-      ${filtered.length === 0 && html`
-        <div class="ve-card" style="padding:20px;text-align:center;color:var(--ve-text-dim);">
-          ${elements.length === 0 ? 'No topics bridged yet. Is the bridge connected?' : 'No topics match the filter.'}
-        </div>
-      `}
-      <div class="lox-list">
-        ${filtered.map(el => {
-          // Extract short name from topic: last meaningful segment(s)
-          const parts = el.localTopic.split('/');
-          const shortName = parts.slice(-2).join('/');
-          const category = parts.length >= 2 ? parts[1] : '';
-
-          return html`
-            <div class="lox-item" key=${el.localTopic}>
-              <div class="lox-item-info">
-                <span class="lox-item-name">${shortName}</span>
-                <span class="lox-item-meta">${el.localTopic}</span>
-              </div>
-              <div class="lox-item-value">${fmtNum(el.value)}</div>
-            </div>
-          `;
-        })}
-      </div>
+      ${tree.map(cat => html`
+        <${CategorySection}
+          key=${cat.name}
+          cat=${cat}
+          search=${lowerSearch}
+          defaultOpen=${false}
+        />
+      `)}
     </div>
   `;
 }

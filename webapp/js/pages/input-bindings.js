@@ -127,8 +127,8 @@ function BindingCard({ binding, controls, onRemove, onToggle, onUpdate }) {
 }
 
 // ── Wizard: Step 1 - Discover MQTT topics ──────────────────────
-function StepDiscover({ onSelect }) {
-  const [pattern, setPattern] = useState('pv-inverter-proxy/#');
+function StepDiscover({ onSelect, defaultPattern }) {
+  const [pattern, setPattern] = useState(defaultPattern || 'pv-inverter-proxy/#');
   const [scanning, setScanning] = useState(false);
   const [topics, setTopics] = useState([]);
 
@@ -385,7 +385,7 @@ function StepReview({ source, field, target, onSave, onBack }) {
 }
 
 // ── Main page ──────────────────────────────────────────────────
-export function InputBindings() {
+export function InputBindings({ defaultPattern } = {}) {
   const [bindings, setBindings] = useState([]);
   const [controls, setControls] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -513,7 +513,7 @@ export function InputBindings() {
           </div>
 
           ${wizStep === 1 && html`
-            <${StepDiscover} onSelect=${(source) => { setWizSource(source); setWizStep(2); }} />
+            <${StepDiscover} defaultPattern=${defaultPattern} onSelect=${(source) => { setWizSource(source); setWizStep(2); }} />
           `}
           ${wizStep === 2 && wizSource && html`
             <${StepPickField}

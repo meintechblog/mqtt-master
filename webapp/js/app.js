@@ -46,7 +46,7 @@ const currentRoute = computed(() => {
     return { component: LoxoneControls, props: {} };
   }
   if (hash === '#/loxone/bindings') {
-    return { component: InputBindings, props: {} };
+    return { component: InputBindings, props: { defaultPattern: 'pv-inverter-proxy/#' } };
   }
 
   // MQTT Bridge sub-pages
@@ -54,7 +54,7 @@ const currentRoute = computed(() => {
     return { component: BridgeElements, props: {} };
   }
   if (hash === '#/bridge/bindings') {
-    return { component: InputBindings, props: {} };
+    return { component: InputBindings, props: { defaultPattern: 'venus/#' } };
   }
 
   // Dynamic plugin route: #/plugins/:id

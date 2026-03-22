@@ -122,9 +122,9 @@ export default async function apiPlugins(app) {
   app.put('/api/plugins/:id/config', async (request, reply) => {
     const { id } = request.params;
     try {
-      const newConfig = { ...request.body };
-      // Preserve existing passwords when the masked placeholder is sent back
       const existingConfig = app.pluginManager.getConfig(id);
+      // Merge: existing config as base, new values on top (preserves inputBindings, disabledControls etc.)
+      const newConfig = { ...existingConfig, ...request.body };
       const instance = app.pluginManager.getInstance(id);
       const schema = (instance && typeof instance.getConfigSchema === 'function')
         ? instance.getConfigSchema()
