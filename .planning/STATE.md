@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-03-22T07:02:19.116Z"
+status: executing
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-03-22T07:07:19.617Z"
 last_activity: 2026-03-22
 progress:
   total_phases: 6
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
-  percent: 100
+  completed_plans: 4
+  percent: 75
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 ## Current Position
 
 Phase: 2 of 6 (Broker Dashboard)
-Plan: 1 of 2 in current phase
+Plan: 2 of 2 in current phase
 Status: In progress
-Last activity: 2026-03-22 -- Completed 02-01 (broker dashboard backend)
+Last activity: 2026-03-22
 
 Progress: [████████░░] 75%
 
@@ -55,6 +55,7 @@ Progress: [████████░░] 75%
 | Phase 01 P01 | 4min | 2 tasks | 16 files |
 | Phase 01 P02 | 4min | 3 tasks | 10 files |
 | Phase 02 P01 | 6min | 2 tasks | 5 files |
+| Phase 02 P02 | 15min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,9 @@ Recent decisions affecting current work:
 - [Phase 02]: structuredClone for deep-copying hierarchical topics state to prevent mutation
 - [Phase 02]: 500ms debounce via clearTimeout/setTimeout for batching  updates
 - [Phase 02]: WebSocket route pattern: Fastify plugin with client Set, safeSend helper, broadcast function
+- [Phase 02]: ws-client auto-connects on module import as singleton — no useEffect lifecycle management needed in Dashboard
+- [Phase 02]: brokerConnected signal imported directly into sidebar to avoid prop drilling through app shell
+- [Phase 02]: TopicTree depth=0 nodes expand by default, deeper levels collapsed for usable initial view
 
 ### Pending Todos
 
@@ -85,6 +89,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-22T07:02:19.114Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-03-22T07:07:19.615Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None

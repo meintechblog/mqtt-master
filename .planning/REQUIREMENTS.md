@@ -14,7 +14,7 @@
 - [x] **DASH-05**: User can see message load averages (1/5/15 min)
 - [x] **DASH-06**: User can see broker version and uptime
 - [x] **DASH-07**: User can see broker connection status indicator (connected/disconnected with visual dot)
-- [ ] **DASH-08**: User can see a hierarchical topic tree of all active MQTT topics
+- [x] **DASH-08**: User can see a hierarchical topic tree of all active MQTT topics
 
 ### Live Messages
 
@@ -104,7 +104,7 @@
 | DASH-05 | Phase 2 | Complete |
 | DASH-06 | Phase 2 | Complete |
 | DASH-07 | Phase 2 | Complete |
-| DASH-08 | Phase 2 | Pending |
+| DASH-08 | Phase 2 | Complete |
 | LIVE-01 | Phase 3 | Pending |
 | LIVE-02 | Phase 3 | Pending |
 | LIVE-03 | Phase 3 | Pending |
