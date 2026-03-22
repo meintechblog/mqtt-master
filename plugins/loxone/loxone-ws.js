@@ -2,14 +2,14 @@
  * Loxone WebSocket client with token-based authentication, binary protocol
  * parser, and reconnection.
  *
- * Implements the full Loxone v16.x auth flow:
+ * Implements the full Loxone v16.x token-based auth flow:
  *   1. Fetch RSA public key via HTTP
  *   2. Open WebSocket (no auth headers)
  *   3. Generate AES-256-CBC session key + IV
  *   4. RSA-encrypt and exchange session key
- *   5. Request getkey2 for user
- *   6. Compute password hash (SHA1/SHA256)
- *   7. Compute HMAC token hash
+ *   5. Request getkey2 for user (encrypted)
+ *   6. Compute password hash (SHA1/SHA256) using raw salt from getkey2
+ *   7. Compute HMAC token hash using hex-decoded key from getkey2
  *   8. Request JWT via AES-encrypted command
  *   9. Enable binary status updates
  */
@@ -28,6 +28,7 @@ const CMD_TIMEOUT = 10_000;
 
 const CLIENT_UUID = '098802e1-02b4-603c-ffffeee000d80cfd';
 const CLIENT_INFO = 'mqtt-master';
+const SALT_BYTES = 16;
 
 export class LoxoneWs extends EventEmitter {
   /**
@@ -53,8 +54,10 @@ export class LoxoneWs extends EventEmitter {
     this._aesKey = null;   // Buffer, 32 bytes
     this._aesIv = null;    // Buffer, 16 bytes
     this._currentSalt = null;
-    this._nextSalt = null;
-    this._saltUsed = false; // tracks whether the first encrypted cmd has been sent
+    this._saltUsageCount = 0;
+    this._maxSaltUsage = 20;
+    this._nextSaltTime = 0;
+    this._maxSaltTime = 30_000;
 
     // RSA public key (PEM)
     this._publicKey = null;
@@ -150,7 +153,8 @@ export class LoxoneWs extends EventEmitter {
 
   /**
    * Fetch the RSA public key from the Miniserver via HTTP.
-   * GET /jdev/sys/getPublicKey -- returns X.509/PKCS8 PEM certificate.
+   * GET /jdev/sys/getPublicKey -- Loxone returns the SubjectPublicKeyInfo
+   * wrapped in CERTIFICATE tags (it is NOT an X.509 cert).
    * @returns {Promise<string>} PEM-formatted public key
    */
   _fetchPublicKey() {
@@ -164,27 +168,13 @@ export class LoxoneWs extends EventEmitter {
           res.on('end', () => {
             try {
               const json = JSON.parse(body);
-              // Response: { LL: { control: "dev/sys/getPublicKey", value: "-----BEGIN CERTIFICATE-----\n...", code: 200 } }
               let pem = json.LL?.value || '';
-
-              // The Miniserver returns the key in various forms. Normalize it.
-              // Strip any surrounding quotes
               pem = pem.replace(/^"/, '').replace(/"$/, '');
-
-              // If it's a certificate, extract the public key portion
-              // Some firmware returns the raw base64 without headers
-              if (!pem.includes('-----BEGIN')) {
-                // Raw base64 -- wrap as PKCS8 public key
-                const b64 = pem.replace(/\s/g, '');
-                pem = `-----BEGIN PUBLIC KEY-----\n${b64}\n-----END PUBLIC KEY-----`;
-              } else if (pem.includes('CERTIFICATE')) {
-                // It's an X.509 certificate; Node can extract the public key
-                // by using createPublicKey
-                pem = pem.replace(/\\n/g, '\n');
-              } else {
-                pem = pem.replace(/\\n/g, '\n');
-              }
-
+              // Replace CERTIFICATE with PUBLIC KEY (Loxone uses wrong tags)
+              pem = pem.replace(/CERTIFICATE/g, 'PUBLIC KEY');
+              // Ensure line breaks around headers
+              pem = pem.replace(/^(-+BEGIN PUBLIC KEY-+)(\w)/, '$1\n$2');
+              pem = pem.replace(/(-+END PUBLIC KEY-+)/, '\n$1');
               resolve(pem);
             } catch (err) {
               reject(new Error(`Failed to parse public key response: ${err.message}`));
@@ -262,34 +252,40 @@ export class LoxoneWs extends EventEmitter {
 
   /**
    * Perform the full authentication handshake on an already-open WebSocket.
-   * Steps 3-9 from the Loxone token auth spec.
    * @returns {Promise<void>}
    */
   async _authenticate() {
     // Step 3: generate AES session key and IV
-    this._aesKey = crypto.randomBytes(32);
     this._aesIv = crypto.randomBytes(16);
+    this._aesKey = crypto.createHash('sha256')
+      .update(crypto.randomBytes(16).toString('hex'))
+      .digest();
     const sessionKeyStr = `${this._aesKey.toString('hex')}:${this._aesIv.toString('hex')}`;
 
     // Step 4: RSA-encrypt session key and exchange
-    const publicKey = crypto.createPublicKey(this._publicKey);
+    const publicKey = {
+      key: this._publicKey,
+      padding: crypto.constants.RSA_PKCS1_PADDING,
+    };
     const encrypted = crypto.publicEncrypt(
-      { key: publicKey, padding: crypto.constants.RSA_PKCS1_PADDING },
-      Buffer.from(sessionKeyStr, 'utf-8'),
+      publicKey,
+      Buffer.from(sessionKeyStr),
     );
-    const b64Key = encrypted.toString('base64');
 
-    const keyExResp = await this._sendAndWait(`jdev/sys/keyexchange/${b64Key}`);
+    const keyExResp = await this._sendAndWait(
+      `jdev/sys/keyexchange/${encrypted.toString('base64')}`,
+    );
     if (keyExResp.code !== '200' && keyExResp.code !== 200) {
       throw new Error(`Key exchange failed: code ${keyExResp.code}`);
     }
 
-    // Step 5: generate salt
-    this._currentSalt = crypto.randomBytes(2).toString('hex');
-    this._saltUsed = false;
+    // Step 5: initialize salt
+    this._currentSalt = this._generateSalt();
+    this._saltUsageCount = 0;
+    this._nextSaltTime = Date.now() + this._maxSaltTime;
 
-    // Step 6: get key2 (plaintext, NOT encrypted)
-    const key2Resp = await this._sendAndWait(`jdev/sys/getkey2/${this._user}`);
+    // Step 6: get key2 (MUST be sent encrypted)
+    const key2Resp = await this._sendEncrypted(`jdev/sys/getkey2/${this._user}`);
     if (key2Resp.code !== '200' && key2Resp.code !== 200) {
       throw new Error(`getkey2 failed: code ${key2Resp.code}`);
     }
@@ -301,37 +297,35 @@ export class LoxoneWs extends EventEmitter {
       key2Data = key2Resp.value;
     }
 
-    const serverKey = key2Data.key;    // hex-encoded, decode to ASCII = HMAC key
-    const userSalt = key2Data.salt;    // hex-encoded, decode to ASCII
+    // Key: hex-decode from JSON to get the ASCII hex key string
+    const oneTimeKey = Buffer.from(key2Data.key, 'hex').toString('utf8');
+    // Salt: use AS-IS from JSON (do NOT hex-decode)
+    const userSalt = key2Data.salt;
     const hashAlg = (key2Data.hashAlg || 'SHA1').toUpperCase();
-
-    // Decode hex to ASCII strings
-    const hmacKeyBuf = Buffer.from(serverKey, 'hex');
-    const userSaltStr = Buffer.from(userSalt, 'hex').toString('utf-8');
+    const nodeHashAlg = hashAlg === 'SHA1' ? 'sha1' : 'sha256';
 
     // Step 7: compute password hash
-    const nodeHashAlg = hashAlg === 'SHA1' ? 'sha1' : 'sha256';
-    const pwCombined = `${this._pass}:${userSaltStr}`;
+    // pwHash = UPPERCASE(HEX(SHA1("{password}:{salt}")))
     const pwHash = crypto.createHash(nodeHashAlg)
-      .update(pwCombined, 'utf-8')
+      .update(`${this._pass}:${userSalt}`)
       .digest('hex')
       .toUpperCase();
 
-    // Step 8: compute HMAC hash
-    const hmacInput = `${this._user}:${pwHash}`;
-    const hash = crypto.createHmac(nodeHashAlg, hmacKeyBuf)
-      .update(hmacInput, 'utf-8')
+    // Step 8: compute HMAC token hash
+    // hash = HEX(HMAC-SHA1("{user}:{pwHash}", oneTimeKey))
+    // oneTimeKey is the HMAC key as a UTF-8 string
+    const hash = crypto.createHmac(nodeHashAlg, oneTimeKey)
+      .update(`${this._user}:${pwHash}`)
       .digest('hex');
-    // Leave case as-is (do NOT uppercase or lowercase)
 
     // Step 9: request JWT token (AES-encrypted)
-    const permission = 4; // App permission
+    const permission = 4; // App permission (long-lived)
     const info = encodeURIComponent(CLIENT_INFO);
     const jwtCmd = `jdev/sys/getjwt/${hash}/${this._user}/${permission}/${CLIENT_UUID}/${info}`;
 
     const jwtResp = await this._sendEncrypted(jwtCmd);
     if (jwtResp.code !== '200' && jwtResp.code !== 200) {
-      throw new Error(`getjwt failed: code ${jwtResp.code} — ${JSON.stringify(jwtResp.value)}`);
+      throw new Error(`getjwt failed: code ${jwtResp.code}`);
     }
 
     this._authenticated = true;
@@ -346,59 +340,69 @@ export class LoxoneWs extends EventEmitter {
   }
 
   // ---------------------------------------------------------------------------
-  // AES encryption (ZeroBytePadding, AES-256-CBC)
+  // AES encryption (PKCS7 padding, AES-256-CBC)
   // ---------------------------------------------------------------------------
 
   /**
-   * AES-256-CBC encrypt with ZeroBytePadding.
+   * Generate a random salt string.
+   * @returns {string}
+   */
+  _generateSalt() {
+    return encodeURIComponent(crypto.randomBytes(SALT_BYTES).toString('hex'));
+  }
+
+  /**
+   * Check if a new salt is needed (after max usage count or timeout).
+   * @returns {boolean}
+   */
+  _isNewSaltNeeded() {
+    if (this._saltUsageCount <= 0) {
+      this._nextSaltTime = Date.now() + this._maxSaltTime;
+    }
+    this._saltUsageCount++;
+    if (
+      this._saltUsageCount >= this._maxSaltUsage
+      || this._nextSaltTime < Date.now()
+    ) {
+      this._saltUsageCount = 0;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * AES-256-CBC encrypt with PKCS7 padding (Node.js default).
+   * Appends a \0 byte to the plaintext before encryption (Loxone convention).
    * @param {string} plaintext
    * @returns {string} base64 ciphertext
    */
   _aesEncrypt(plaintext) {
-    const buf = Buffer.from(plaintext, 'utf-8');
-    // Pad to multiple of 16 with 0x00
-    const padLen = (16 - (buf.length % 16)) % 16;
-    const padded = padLen > 0
-      ? Buffer.concat([buf, Buffer.alloc(padLen, 0x00)])
-      : buf;
-
     const cipher = crypto.createCipheriv('aes-256-cbc', this._aesKey, this._aesIv);
-    cipher.setAutoPadding(false);
-    const encrypted = Buffer.concat([cipher.update(padded), cipher.final()]);
-    return encrypted.toString('base64');
+    let encrypted = cipher.update(plaintext + '\0', 'utf-8', 'base64');
+    encrypted += cipher.final('base64');
+    return encrypted;
   }
 
   /**
    * Send an AES-encrypted command with salt prefix.
    * First command:  salt/{currentSalt}/{cmd}
-   * Subsequent:     nextSalt/{currentSalt}/{nextSalt}/{cmd}
-   *
-   * After sending, rotate salt.
+   * Subsequent (when salt needs rotation): nextSalt/{currentSalt}/{newSalt}/{cmd}
    *
    * @param {string} cmd
    * @returns {Promise<{code: string|number, value: any}>}
    */
   async _sendEncrypted(cmd) {
-    let plaintext;
-    if (!this._saltUsed) {
-      plaintext = `salt/${this._currentSalt}/${cmd}`;
-      this._saltUsed = true;
-    } else {
-      this._nextSalt = crypto.randomBytes(2).toString('hex');
-      plaintext = `nextSalt/${this._currentSalt}/${this._nextSalt}/${cmd}`;
+    let saltPart = `salt/${this._currentSalt}`;
+    if (this._isNewSaltNeeded()) {
+      saltPart = `nextSalt/${this._currentSalt}/`;
+      this._currentSalt = this._generateSalt();
+      saltPart += this._currentSalt;
     }
 
-    const cipher = this._aesEncrypt(plaintext);
-    const encoded = encodeURIComponent(cipher);
-    const resp = await this._sendAndWait(`jdev/sys/enc/${encoded}`);
-
-    // Rotate salt
-    if (this._nextSalt) {
-      this._currentSalt = this._nextSalt;
-      this._nextSalt = null;
-    }
-
-    return resp;
+    const plaintext = `${saltPart}/${cmd}`;
+    const ciphertext = this._aesEncrypt(plaintext);
+    const encoded = encodeURIComponent(ciphertext);
+    return this._sendAndWait(`jdev/sys/enc/${encoded}`);
   }
 
   // ---------------------------------------------------------------------------
@@ -415,7 +419,7 @@ export class LoxoneWs extends EventEmitter {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         this._pendingCmd = null;
-        reject(new Error(`Command timeout: ${cmd}`));
+        reject(new Error(`Command timeout: ${cmd.substring(0, 80)}`));
       }, CMD_TIMEOUT);
 
       this._pendingCmd = { resolve, reject, timeout };
@@ -445,9 +449,9 @@ export class LoxoneWs extends EventEmitter {
           this._pendingCmd = null;
           clearTimeout(timeout);
           resolve({
-            control: json.LL.control,
-            code: json.LL.code,
-            value: json.LL.value,
+            control: json.LL.control || json.LL.Control,
+            code: json.LL.code ?? json.LL.Code,
+            value: json.LL.value ?? json.LL.Value,
           });
           return;
         }
