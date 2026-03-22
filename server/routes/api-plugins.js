@@ -54,7 +54,7 @@ export default async function apiPlugins(app) {
   app.get('/api/plugins/:id/config', async (request, reply) => {
     const { id } = request.params;
     try {
-      const config = app.pluginManager.getConfig(id);
+      const config = { ...app.pluginManager.getConfig(id) };
       // Try live instance first, fall back to schema cached at discovery time
       const instance = app.pluginManager.getInstance(id);
       let schema = {};
@@ -62,6 +62,13 @@ export default async function apiPlugins(app) {
         schema = instance.getConfigSchema();
       } else {
         schema = app.pluginManager.getSchema(id);
+      }
+      // Mask sensitive fields in API response — never send passwords/tokens to the browser
+      const props = (schema && schema.properties) || {};
+      for (const [key, prop] of Object.entries(props)) {
+        if (prop.format === 'password' && config[key]) {
+          config[key] = '••••••••';
+        }
       }
       return { config, schema };
     } catch (err) {
@@ -76,7 +83,20 @@ export default async function apiPlugins(app) {
   app.put('/api/plugins/:id/config', async (request, reply) => {
     const { id } = request.params;
     try {
-      await app.pluginManager.setConfig(id, request.body);
+      const newConfig = { ...request.body };
+      // Preserve existing passwords when the masked placeholder is sent back
+      const existingConfig = app.pluginManager.getConfig(id);
+      const instance = app.pluginManager.getInstance(id);
+      const schema = (instance && typeof instance.getConfigSchema === 'function')
+        ? instance.getConfigSchema()
+        : app.pluginManager.getSchema(id);
+      const props = (schema && schema.properties) || {};
+      for (const [key, prop] of Object.entries(props)) {
+        if (prop.format === 'password' && newConfig[key] === '••••••••') {
+          newConfig[key] = existingConfig[key] || '';
+        }
+      }
+      await app.pluginManager.setConfig(id, newConfig);
       return { ok: true };
     } catch (err) {
       if (err.message.includes('not found')) {

@@ -167,7 +167,8 @@ export function PluginConfig({ pluginId }) {
                   `;
                 }
 
-                const inputType = (prop.type === 'number' || prop.type === 'integer') ? 'number' : 'text';
+                const inputType = prop.format === 'password' ? 'password'
+                  : (prop.type === 'number' || prop.type === 'integer') ? 'number' : 'text';
                 return html`
                   <div style="margin-bottom:12px;">
                     <label style="display:block;font-size:12px;color:var(--ve-text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">${label}</label>
