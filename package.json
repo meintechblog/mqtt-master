@@ -1,0 +1,21 @@
+{
+  "name": "mqtt-master",
+  "version": "1.0.0",
+  "description": "MQTT Master Web Dashboard",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "vitest run --reporter=verbose",
+    "dev": "node --watch server/index.js"
+  },
+  "dependencies": {
+    "fastify": "^5.8.0",
+    "@fastify/static": "^9.0.0",
+    "@fastify/websocket": "^11.2.0",
+    "mqtt": "^5.15.0"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0"
+  }
+}
