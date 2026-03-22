@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { ConfigService } from './services/config-service.js';
 import { MqttService } from './services/mqtt-service.js';
+import { SysBrokerService } from './services/sys-broker-service.js';
+import wsDashboard from './routes/ws-dashboard.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -35,6 +37,13 @@ export async function start(opts = {}) {
   // Decorate Fastify with shared services
   app.decorate('mqttService', mqttService);
   app.decorate('configService', config);
+
+  // SysBrokerService -- aggregates $SYS metrics from broker
+  const sysBrokerService = new SysBrokerService(mqttService);
+  app.decorate('sysBrokerService', sysBrokerService);
+
+  // WebSocket routes
+  await app.register(wsDashboard);
 
   // SPA fallback: serve index.html for unmatched routes
   app.setNotFoundHandler((request, reply) => {
