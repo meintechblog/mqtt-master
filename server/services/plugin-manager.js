@@ -158,19 +158,15 @@ export class PluginManager {
     const result = [];
     for (const meta of this.plugins.values()) {
       const config = this.configService.get(`plugins.${meta.id}`, {});
+      const TYPE_LABELS = { 'loxone': 'Loxone', 'mqtt-bridge': 'MQTT-Bridge' };
       const entry = {
         id: meta.id,
-        name: meta.name,
+        name: TYPE_LABELS[meta.id] || TYPE_LABELS[meta.name] || meta.name,
         displayName: config.displayName || '',
         status: meta.status,
         error: meta.error,
-        deletable: false,
+        deletable: true,
       };
-      // Check if this is a user-created instance (re-export file)
-      try {
-        const content = await readFile(meta.modulePath, 'utf-8');
-        if (content.includes('export { default } from')) entry.deletable = true;
-      } catch { /* ignore */ }
       // Include plugin stats if running
       if (meta.instance && typeof meta.instance.getStatus === 'function') {
         try {
@@ -274,31 +270,30 @@ export class PluginManager {
   }
 
   /**
-   * Delete a user-created plugin instance. Stops it, removes files and config.
+   * Delete a plugin instance. Stops it, removes config.
+   * User-created instances: also removes the plugin directory.
+   * Core plugins: keeps the directory (can be re-added), only removes config.
    */
   async deleteInstance(id) {
     const meta = this.plugins.get(id);
     if (!meta) throw new Error(`Plugin '${id}' not found`);
-
-    // Safety: only allow deleting user-created instances
-    try {
-      const content = await readFile(meta.modulePath, 'utf-8');
-      if (!content.includes('export { default } from')) {
-        throw new Error(`Plugin '${id}' is a core plugin and cannot be deleted`);
-      }
-    } catch (err) {
-      if (err.message.includes('core plugin')) throw err;
-      throw new Error(`Cannot read plugin '${id}'`);
-    }
 
     // Stop if running
     if (meta.status === 'running') {
       await this.stop(id);
     }
 
-    // Remove plugin directory
-    const pluginDir = join(this.pluginDir, id);
-    await rm(pluginDir, { recursive: true, force: true });
+    // Check if user-created instance (re-export file) → remove directory too
+    let isUserCreated = false;
+    try {
+      const content = await readFile(meta.modulePath, 'utf-8');
+      isUserCreated = content.includes('export { default } from');
+    } catch { /* ignore */ }
+
+    if (isUserCreated) {
+      const pluginDir = join(this.pluginDir, id);
+      await rm(pluginDir, { recursive: true, force: true });
+    }
 
     // Remove config
     this.configService.set(`plugins.${id}`, undefined);
@@ -307,7 +302,7 @@ export class PluginManager {
     // Remove from registry
     this.plugins.delete(id);
 
-    this.logger.info(`Deleted plugin instance '${id}'`);
+    this.logger.info(`Deleted plugin '${id}'${isUserCreated ? ' (instance removed)' : ' (config cleared)'}`);
   }
 
   /**

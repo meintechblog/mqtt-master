@@ -151,7 +151,9 @@ export function Sidebar({ currentHash }) {
               pluginMsgCounts[p.id] = { count: p.messageCount, ts: now };
             }
             // Plugin type label (technical name)
-            const typeLabel = p.id === 'mqtt-bridge' ? 'MQTT-Bridge' : (p.name || p.id).charAt(0).toUpperCase() + (p.name || p.id).slice(1);
+            // Fixed type labels - always properly capitalized
+            const TYPE_LABELS = { 'loxone': 'Loxone', 'mqtt-bridge': 'MQTT-Bridge' };
+            const typeLabel = TYPE_LABELS[p.id] || TYPE_LABELS[p.name] || (p.name || p.id).charAt(0).toUpperCase() + (p.name || p.id).slice(1);
             return {
               id: p.id,
               label: p.displayName || typeLabel,
