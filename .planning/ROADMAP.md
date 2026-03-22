@@ -109,10 +109,10 @@ Plans:
   2. Installer configures Mosquitto with open LAN access and WebSocket support if not already configured
   3. MQTT Master starts automatically on boot via systemd and restarts on failure
   4. Running the same install command again updates to the latest version without breaking the existing installation
-**Plans**: 2 plans
+**Plans**: 1 plan
 
 Plans:
-- [ ] 06-01: TBD
+- [ ] 06-01-PLAN.md -- Install script (install.sh) with dependency setup, Mosquitto config, systemd service, idempotent updates + README.md documentation
 
 ## Progress
 
@@ -126,4 +126,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 3. Live Message Viewer | 2/2 | Complete   | 2026-03-22 |
 | 4. Plugin System | 2/2 | Complete   | 2026-03-22 |
 | 5. Loxone Bridge Plugin | 3/3 | Complete   | 2026-03-22 |
-| 6. Installer and Deployment | 0/? | Not started | - |
+| 6. Installer and Deployment | 0/1 | Not started | - |
