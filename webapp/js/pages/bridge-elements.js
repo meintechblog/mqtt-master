@@ -1,5 +1,5 @@
 import { html } from 'htm/preact';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useState, useRef } from 'preact/hooks';
 
 function fmtNum(v) {
   if (v == null || v === '' || v === 'None') return '--';
@@ -86,7 +86,7 @@ function groupElements(elements) {
   return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
 }
 
-function CategorySection({ cat, search, defaultOpen }) {
+function CategorySection({ cat, search, defaultOpen, prevValues }) {
   const [open, setOpen] = useState(defaultOpen);
 
   // Filter elements by search
@@ -109,12 +109,17 @@ function CategorySection({ cat, search, defaultOpen }) {
         <div class="bridge-cat-body">
           ${groups.map(([groupKey, els]) => html`
             ${groupKey && html`<div class="bridge-group-label">${groupKey}</div>`}
-            ${els.map(el => html`
-              <div class="bridge-el" key=${el.localTopic}>
-                <span class="bridge-el-path" title=${el.localTopic}>${el.shortPath}</span>
-                <span class="bridge-el-value">${fmtNum(el.value)}</span>
-              </div>
-            `)}
+            ${els.map(el => {
+              const prev = prevValues.current[el.localTopic];
+              const changed = prev !== undefined && prev !== el.value;
+              prevValues.current[el.localTopic] = el.value;
+              return html`
+                <div class="bridge-el ${changed ? 'val-ping' : ''}" key=${el.localTopic}>
+                  <span class="bridge-el-path" title=${el.localTopic}>${el.shortPath}</span>
+                  <span class="bridge-el-value">${fmtNum(el.value)}</span>
+                </div>
+              `;
+            })}
           `)}
         </div>
       `}
@@ -127,6 +132,7 @@ export function BridgeElements() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const prevValues = useRef({});
 
   useEffect(() => {
     async function load() {
@@ -198,6 +204,7 @@ export function BridgeElements() {
           cat=${cat}
           search=${lowerSearch}
           defaultOpen=${false}
+          prevValues=${prevValues}
         />
       `)}
     </div>

@@ -490,6 +490,8 @@ body {
 }
 .lox-push-btn:hover { border-color: var(--ve-blue); background: var(--ve-bg-widget); color: var(--ve-text-primary); }
 .lox-push-btn:active { background: var(--ve-blue); color: #fff; border-color: var(--ve-blue); }
+@keyframes val-ping { 0% { background: rgba(56,125,197,0.15); } 100% { background: transparent; } }
+.val-ping { animation: val-ping 1.2s ease-out; }
 .lox-item-wrap { margin-bottom: 4px; }
 .lox-item-topics {
   background: var(--ve-bg-surface);

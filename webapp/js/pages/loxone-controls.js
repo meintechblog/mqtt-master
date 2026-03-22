@@ -1,5 +1,5 @@
 import { html } from 'htm/preact';
-import { useEffect, useState, useCallback } from 'preact/hooks';
+import { useEffect, useState, useCallback, useRef } from 'preact/hooks';
 import { fetchLoxoneControlsDetailed, sendLoxoneCommand } from '../lib/api-client.js';
 
 /** Extract the primary display value from states */
@@ -26,25 +26,22 @@ function primaryValue(type, states) {
 function fmtNum(v) {
   if (v == null) return '--';
   if (Number.isInteger(v)) return String(v);
-  return v.toFixed(Math.abs(v) < 10 ? 3 : 1);
+  return Math.abs(v) < 10 ? v.toFixed(3) : v.toFixed(1);
 }
 
-/** Is this type something we can switch on/off? */
 function isControllable(type) {
   return ['Switch', 'Dimmer', 'LightControllerV2'].includes(type);
 }
 
-/** Is this type a sensor/read-only? */
 function isSensor(type) {
   return ['InfoOnlyAnalog', 'InfoOnlyDigital', 'Meter'].includes(type);
 }
 
-/** Flatten controls + subcontrols into a single list of displayable items */
+/** Flatten controls + subcontrols into a single list */
 function flattenControls(controls) {
   const items = [];
   for (const ctrl of controls) {
     if (ctrl.subControls && ctrl.subControls.length > 0) {
-      // For LightControllerV2 etc: show subcontrols as individual items
       for (const sub of ctrl.subControls) {
         items.push({
           uuid: sub.uuid,
@@ -70,16 +67,141 @@ function flattenControls(controls) {
       });
     }
   }
-  // Filter: only items with actual values or that are controllable
-  // Sort: controllable first, then sensors, alphabetically within each group
-  return items
-    .filter(item => isControllable(item.type) || isSensor(item.type))
-    .sort((a, b) => {
-      const ac = isControllable(a.type) ? 0 : 1;
-      const bc = isControllable(b.type) ? 0 : 1;
-      if (ac !== bc) return ac - bc;
-      return a.name.localeCompare(b.name);
-    });
+  return items.filter(item => isControllable(item.type) || isSensor(item.type));
+}
+
+/** Group items by category, then by room within each category */
+function buildGroups(items) {
+  const catMap = {};
+  for (const item of items) {
+    const cat = item.category || 'Other';
+    if (!catMap[cat]) catMap[cat] = {};
+    const room = item.room || 'Unknown';
+    if (!catMap[cat][room]) catMap[cat][room] = [];
+    catMap[cat][room].push(item);
+  }
+  // Sort categories, rooms, items
+  return Object.entries(catMap)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([cat, rooms]) => ({
+      category: cat,
+      rooms: Object.entries(rooms)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([room, items]) => ({
+          room,
+          items: items.sort((a, b) => {
+            const ac = isControllable(a.type) ? 0 : 1;
+            const bc = isControllable(b.type) ? 0 : 1;
+            if (ac !== bc) return ac - bc;
+            return a.name.localeCompare(b.name);
+          }),
+        })),
+      count: Object.values(rooms).reduce((s, r) => s + r.length, 0),
+    }));
+}
+
+function CategorySection({ group, search, typeFilter, expanded, setExpanded, onCmd, prevValues }) {
+  const [open, setOpen] = useState(false);
+
+  const filtered = group.rooms.map(r => ({
+    ...r,
+    items: r.items.filter(item => {
+      if (typeFilter && item.type !== typeFilter) return false;
+      if (search) {
+        const s = search.toLowerCase();
+        if (!item.name.toLowerCase().includes(s)
+          && !(item.parentName || '').toLowerCase().includes(s)
+          && !item.type.toLowerCase().includes(s)) return false;
+      }
+      return true;
+    }),
+  })).filter(r => r.items.length > 0);
+
+  const totalFiltered = filtered.reduce((s, r) => s + r.items.length, 0);
+  if (totalFiltered === 0) return null;
+
+  return html`
+    <div class="bridge-cat">
+      <div class="bridge-cat-header" onClick=${() => setOpen(!open)}>
+        <span class="bridge-cat-expand ${open ? 'open' : ''}">\u25B6</span>
+        <span class="bridge-cat-label">${group.category}</span>
+        <span class="bridge-cat-count">${totalFiltered}</span>
+      </div>
+      ${open && html`
+        <div class="bridge-cat-body">
+          ${filtered.map(r => html`
+            ${filtered.length > 1 && html`<div class="bridge-group-label">${r.room}</div>`}
+            ${r.items.map(item => {
+              const val = primaryValue(item.type, item.states);
+              const controllable = isControllable(item.type);
+              const isOn = item.type === 'Switch' ? item.states?.active?.value > 0
+                : item.type === 'Dimmer' ? item.states?.position?.value > 0
+                : false;
+              const isExpanded = expanded === item.uuid;
+
+              const prevVal = prevValues.current[item.uuid];
+              const changed = prevVal !== undefined && prevVal !== val;
+              prevValues.current[item.uuid] = val;
+
+              const topics = [];
+              if (item.topic) {
+                if (item.states) {
+                  for (const [key, state] of Object.entries(item.states)) {
+                    if (state) {
+                      const v = state.value != null ? state.value : state.text;
+                      topics.push({ topic: item.topic + '/' + key + '/state', label: key, value: v, dir: 'out' });
+                    }
+                  }
+                }
+                if (controllable) {
+                  topics.push({ topic: item.topic + '/cmd', label: 'command', value: null, dir: 'in' });
+                }
+              }
+
+              return html`
+                <div class="lox-item-wrap" key=${item.uuid}>
+                  <div class="lox-item ${changed ? 'val-ping' : ''}" onClick=${() => setExpanded(isExpanded ? null : item.uuid)} style="cursor:pointer">
+                    <div class="lox-item-info">
+                      <span class="lox-item-name">
+                        ${item.name}
+                        ${item.parentName && html`<span class="lox-item-parent">${item.parentName}</span>`}
+                      </span>
+                      <span class="lox-item-meta">${item.type}</span>
+                    </div>
+                    <div class="lox-item-value ${val && (val === 'ON' || val === 'Active' || (controllable && isOn)) ? 'on' : ''}">${val || '--'}</div>
+                    ${controllable && html`
+                      <div class="lox-item-actions">
+                        <button class="lox-push-btn" onClick=${(e) => { e.stopPropagation(); onCmd(item.uuid, 'on'); }}>On</button>
+                        <button class="lox-push-btn" onClick=${(e) => { e.stopPropagation(); onCmd(item.uuid, 'off'); }}>Off</button>
+                      </div>
+                    `}
+                  </div>
+                  ${isExpanded && topics.length > 0 && html`
+                    <div class="lox-item-topics">
+                      ${topics.map(t => html`
+                        <div class="lox-topic-row" key=${t.topic}>
+                          <span class="lox-topic-dir" title=${t.dir === 'out' ? 'Loxone → MQTT (outgoing)' : 'MQTT → Loxone (incoming)'}>
+                            <svg class="lox-topic-mqtt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="5" r="2.5"/><circle cx="19" cy="5" r="2.5"/><circle cx="12" cy="19" r="2.5"/><circle cx="12" cy="12" r="1.5"/><line x1="7" y1="6.5" x2="10.5" y2="11"/><line x1="17" y1="6.5" x2="13.5" y2="11"/><line x1="12" y1="13.5" x2="12" y2="16.5"/></svg>
+                            <span class="lox-topic-arrow lox-topic-dir--${t.dir}">${t.dir === 'out' ? '\u2190' : '\u2192'}</span>
+                          </span>
+                          <span class="lox-topic-path">${t.topic}</span>
+                          <span class="lox-topic-label">${t.label}</span>
+                          ${t.value != null && html`
+                            <span class="lox-topic-val">${typeof t.value === 'number' ? (Number.isInteger(t.value) ? t.value : t.value.toFixed(3)) : t.value}</span>
+                          `}
+                          ${t.value == null && html`<span class="lox-topic-val" style="color:var(--ve-text-dim)">writable</span>`}
+                        </div>
+                      `)}
+                    </div>
+                  `}
+                </div>
+              `;
+            })}
+          `)}
+        </div>
+      `}
+    </div>
+  `;
 }
 
 export function LoxoneControls() {
@@ -89,9 +211,8 @@ export function LoxoneControls() {
   const [toast, setToast] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const [search, setSearch] = useState('');
-  const [roomFilter, setRoomFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
-  const [catFilter, setCatFilter] = useState('');
+  const prevValues = useRef({});
 
   async function loadControls() {
     try {
@@ -127,12 +248,12 @@ export function LoxoneControls() {
     setTimeout(() => setToast(null), 2000);
   }, []);
 
-  if (loading) return html`<div class="page-placeholder">Loading controls...</div>`;
+  if (loading) return html`<div class="page-placeholder">Loading...</div>`;
 
   if (error) {
     return html`
       <div>
-        <div class="page-header">Loxone Controls</div>
+        <div class="page-header">Loxone Elements</div>
         <div class="ve-card" style="padding:20px;color:var(--ve-text-dim);">
           Plugin not running or unavailable: ${error}
         </div>
@@ -141,31 +262,27 @@ export function LoxoneControls() {
   }
 
   const allItems = flattenControls(controls);
+  const types = [...new Set(allItems.map(i => i.type))].sort();
+  const groups = buildGroups(allItems);
 
-  const rooms = [...new Set(allItems.map(i => i.room).filter(Boolean))].sort();
-  const types = [...new Set(allItems.map(i => i.type).filter(Boolean))].sort();
-  const cats = [...new Set(allItems.map(i => i.category).filter(Boolean))].sort();
-
-  const items = allItems.filter(item => {
-    if (roomFilter && item.room !== roomFilter) return false;
+  // Count filtered items
+  const filteredCount = allItems.filter(item => {
     if (typeFilter && item.type !== typeFilter) return false;
-    if (catFilter && item.category !== catFilter) return false;
     if (search) {
       const s = search.toLowerCase();
       if (!item.name.toLowerCase().includes(s)
         && !(item.parentName || '').toLowerCase().includes(s)
-        && !item.room.toLowerCase().includes(s)
         && !item.type.toLowerCase().includes(s)) return false;
     }
     return true;
-  });
+  }).length;
 
   return html`
     <div>
       <div class="page-header">
         Loxone Elements
         <span style="font-size:14px;color:var(--ve-text-dim);font-weight:400;margin-left:8px;">
-          (${items.length}${items.length !== allItems.length ? ' / ' + allItems.length : ''})
+          (${filteredCount}${filteredCount !== allItems.length ? ' / ' + allItems.length : ''})
         </span>
       </div>
       <div class="wiz-filters">
@@ -177,102 +294,28 @@ export function LoxoneControls() {
           value=${search}
           onInput=${(e) => setSearch(e.target.value)}
         />
-        ${rooms.length > 1 && html`
-          <select class="bind-select" value=${roomFilter} onChange=${(e) => setRoomFilter(e.target.value)}>
-            <option value="">All rooms</option>
-            ${rooms.map(r => html`<option key=${r} value=${r}>${r}</option>`)}
-          </select>
-        `}
-        ${cats.length > 1 && html`
-          <select class="bind-select" value=${catFilter} onChange=${(e) => setCatFilter(e.target.value)}>
-            <option value="">All categories</option>
-            ${cats.map(c => html`<option key=${c} value=${c}>${c}</option>`)}
-          </select>
-        `}
         ${types.length > 1 && html`
           <select class="bind-select" value=${typeFilter} onChange=${(e) => setTypeFilter(e.target.value)}>
             <option value="">All types</option>
             ${types.map(t => html`<option key=${t} value=${t}>${t}</option>`)}
           </select>
         `}
-        ${(search || roomFilter || catFilter || typeFilter) && html`
-          <button class="lox-push-btn" onClick=${() => { setSearch(''); setRoomFilter(''); setCatFilter(''); setTypeFilter(''); }}>Reset</button>
+        ${(search || typeFilter) && html`
+          <button class="lox-push-btn" onClick=${() => { setSearch(''); setTypeFilter(''); }}>Reset</button>
         `}
       </div>
-      ${items.length === 0 && html`
-        <div class="ve-card" style="padding:20px;text-align:center;color:var(--ve-text-dim);">
-          ${allItems.length === 0 ? 'No elements discovered.' : 'No elements match the filter.'}
-        </div>
-      `}
-      <div class="lox-list">
-        ${items.map(item => {
-          const val = primaryValue(item.type, item.states);
-          const controllable = isControllable(item.type);
-          const isOn = item.type === 'Switch' ? item.states?.active?.value > 0
-            : item.type === 'Dimmer' ? item.states?.position?.value > 0
-            : false;
-          const isExpanded = expanded === item.uuid;
-
-          // Build MQTT topic list for this element
-          const topics = [];
-          if (item.topic) {
-            // State topics (outgoing from Loxone → MQTT)
-            if (item.states) {
-              for (const [key, state] of Object.entries(item.states)) {
-                if (state) {
-                  const v = state.value != null ? state.value : state.text;
-                  topics.push({ topic: item.topic + '/' + key + '/state', label: key, value: v, dir: 'out' });
-                }
-              }
-            }
-            // Command topic (incoming MQTT → Loxone)
-            if (controllable) {
-              topics.push({ topic: item.topic + '/cmd', label: 'command', value: null, dir: 'in' });
-            }
-          }
-
-          return html`
-            <div class="lox-item-wrap" key=${item.uuid}>
-              <div class="lox-item" onClick=${() => setExpanded(isExpanded ? null : item.uuid)} style="cursor:pointer">
-                <div class="lox-item-info">
-                  <span class="lox-item-name">
-                    ${item.name}
-                    ${item.parentName && html`<span class="lox-item-parent">${item.parentName}</span>`}
-                  </span>
-                  <span class="lox-item-meta">
-                    ${item.room}${item.category ? ' · ' + item.category : ''} · ${item.type}
-                  </span>
-                </div>
-                <div class="lox-item-value ${val && (val === 'ON' || val === 'Active' || (controllable && isOn)) ? 'on' : ''}">${val || '--'}</div>
-                ${controllable && html`
-                  <div class="lox-item-actions">
-                    <button class="lox-push-btn" onClick=${(e) => { e.stopPropagation(); handleCmd(item.uuid, 'on'); }}>On</button>
-                    <button class="lox-push-btn" onClick=${(e) => { e.stopPropagation(); handleCmd(item.uuid, 'off'); }}>Off</button>
-                  </div>
-                `}
-              </div>
-              ${isExpanded && topics.length > 0 && html`
-                <div class="lox-item-topics">
-                  ${topics.map(t => html`
-                    <div class="lox-topic-row" key=${t.topic}>
-                      <span class="lox-topic-dir" title=${t.dir === 'out' ? 'Loxone → MQTT (outgoing)' : 'MQTT → Loxone (incoming)'}>
-                        <svg class="lox-topic-mqtt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="5" r="2.5"/><circle cx="19" cy="5" r="2.5"/><circle cx="12" cy="19" r="2.5"/><circle cx="12" cy="12" r="1.5"/><line x1="7" y1="6.5" x2="10.5" y2="11"/><line x1="17" y1="6.5" x2="13.5" y2="11"/><line x1="12" y1="13.5" x2="12" y2="16.5"/></svg>
-                        <span class="lox-topic-arrow lox-topic-dir--${t.dir}">${t.dir === 'out' ? '←' : '→'}</span>
-                      </span>
-                      <span class="lox-topic-path">${t.topic}</span>
-                      <span class="lox-topic-label">${t.label}</span>
-                      ${t.value != null && html`
-                        <span class="lox-topic-val">${typeof t.value === 'number' ? (Number.isInteger(t.value) ? t.value : t.value.toFixed(3)) : t.value}</span>
-                      `}
-                      ${t.value == null && html`<span class="lox-topic-val" style="color:var(--ve-text-dim)">writable</span>`}
-                    </div>
-                  `)}
-                </div>
-              `}
-            </div>
-          `;
-        })}
-      </div>
+      ${groups.map(group => html`
+        <${CategorySection}
+          key=${group.category}
+          group=${group}
+          search=${search}
+          typeFilter=${typeFilter}
+          expanded=${expanded}
+          setExpanded=${setExpanded}
+          onCmd=${handleCmd}
+          prevValues=${prevValues}
+        />
+      `)}
       ${toast && html`<div class="lox-toast lox-toast--${toast.type}">${toast.text}</div>`}
     </div>
   `;

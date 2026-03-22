@@ -109,6 +109,10 @@ export default async function apiPlugins(app) {
           config[key] = '••••••••';
         }
       }
+      // Strip internal fields managed by their own endpoints
+      delete config.inputBindings;
+      delete config.disabledControls;
+      delete config.topicRoutes;
       return { config, schema };
     } catch (err) {
       if (err.message.includes('not found')) {
@@ -123,8 +127,13 @@ export default async function apiPlugins(app) {
     const { id } = request.params;
     try {
       const existingConfig = app.pluginManager.getConfig(id);
-      // Merge: existing config as base, new values on top (preserves inputBindings, disabledControls etc.)
-      const newConfig = { ...existingConfig, ...request.body };
+      // Strip internal fields that have their own API endpoints
+      const body = { ...request.body };
+      delete body.inputBindings;
+      delete body.disabledControls;
+      delete body.topicRoutes;
+      // Merge: existing config as base, UI fields on top
+      const newConfig = { ...existingConfig, ...body };
       const instance = app.pluginManager.getInstance(id);
       const schema = (instance && typeof instance.getConfigSchema === 'function')
         ? instance.getConfigSchema()
