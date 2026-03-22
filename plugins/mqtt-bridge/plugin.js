@@ -22,6 +22,8 @@ export default class MqttBridgePlugin {
     this._lastMessage = null;
     /** @type {string|null} detected portal ID for Venus OS */
     this._portalId = null;
+    /** @type {Map<string, { localTopic: string, value: any, ts: number }>} remote topic -> state */
+    this._topicCache = new Map();
   }
 
   async start(context) {
@@ -108,6 +110,14 @@ export default class MqttBridgePlugin {
         localTopic = `${localPrefix}/${topic}`;
       }
 
+      // Cache value
+      let parsedValue = msg;
+      try {
+        const json = JSON.parse(msg);
+        if (json && json.value !== undefined) parsedValue = json.value;
+      } catch { /* not JSON */ }
+      this._topicCache.set(topic, { localTopic, value: parsedValue, ts: Date.now() });
+
       // Republish on local broker
       context.mqttService.publish(localTopic, msg);
     });
@@ -132,6 +142,7 @@ export default class MqttBridgePlugin {
     this._topicCount = 0;
     this._messageCount = 0;
     this._portalId = null;
+    this._topicCache.clear();
 
     if (logger) logger.info('MQTT Bridge plugin stopped');
   }
@@ -145,6 +156,25 @@ export default class MqttBridgePlugin {
       lastMessage: this._lastMessage,
       portalId: this._portalId,
     };
+  }
+
+  /**
+   * Get all bridged topics with live values for the Elements view.
+   * @returns {Array<{ remoteTopic: string, localTopic: string, value: any, ts: number }>}
+   */
+  getElements() {
+    const elements = [];
+    for (const [remoteTopic, state] of this._topicCache) {
+      elements.push({
+        remoteTopic,
+        localTopic: state.localTopic,
+        value: state.value,
+        ts: state.ts,
+      });
+    }
+    // Sort by local topic
+    elements.sort((a, b) => a.localTopic.localeCompare(b.localTopic));
+    return elements;
   }
 
   getConfigSchema() {

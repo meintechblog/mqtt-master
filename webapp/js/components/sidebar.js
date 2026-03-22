@@ -39,7 +39,7 @@ export function Sidebar({ currentHash }) {
         const plugins = await fetchPlugins();
         if (!cancelled) {
           pluginItems.value = plugins.map(p => ({
-            label: (p.name || p.id).charAt(0).toUpperCase() + (p.name || p.id).slice(1),
+            label: (p.name || p.id) === 'mqtt-bridge' ? 'MQTT-Bridge' : (p.name || p.id).charAt(0).toUpperCase() + (p.name || p.id).slice(1),
             hash: '#/plugins/' + p.id,
             status: p.status,
           }));
@@ -113,6 +113,24 @@ export function Sidebar({ currentHash }) {
               <a
                 class="sidebar-nav-item ${currentHash.value === '#/loxone/bindings' ? 'active' : ''}"
                 href="#/loxone/bindings"
+                style="padding-left:36px;font-size:13px;"
+                onClick=${() => { menuOpen.value = false; }}
+              >
+                Input Bindings
+              </a>
+            `}
+            ${item.hash === '#/plugins/mqtt-bridge' && item.status === 'running' && html`
+              <a
+                class="sidebar-nav-item ${currentHash.value === '#/bridge/elements' ? 'active' : ''}"
+                href="#/bridge/elements"
+                style="padding-left:36px;font-size:13px;"
+                onClick=${() => { menuOpen.value = false; }}
+              >
+                Elements
+              </a>
+              <a
+                class="sidebar-nav-item ${currentHash.value === '#/bridge/bindings' ? 'active' : ''}"
+                href="#/bridge/bindings"
                 style="padding-left:36px;font-size:13px;"
                 onClick=${() => { menuOpen.value = false; }}
               >

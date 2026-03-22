@@ -277,4 +277,19 @@ export default async function apiPlugins(app) {
     return [...collected.values()];
   });
 
+  // --- MQTT Bridge endpoints ---
+
+  // GET /api/plugins/mqtt-bridge/elements -- list bridged topics with live values
+  app.get('/api/plugins/mqtt-bridge/elements', async (request, reply) => {
+    try {
+      const instance = app.pluginManager.getInstance('mqtt-bridge');
+      if (!instance || typeof instance.getElements !== 'function') {
+        return reply.status(400).send({ error: 'MQTT Bridge plugin is not running' });
+      }
+      return instance.getElements();
+    } catch (err) {
+      return reply.status(500).send({ error: err.message });
+    }
+  });
+
 }

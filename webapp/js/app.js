@@ -7,6 +7,7 @@ import { Messages } from './pages/messages.js';
 import { PluginConfig } from './pages/plugin-config.js';
 import { LoxoneControls } from './pages/loxone-controls.js';
 import { InputBindings } from './pages/input-bindings.js';
+import { BridgeElements } from './pages/bridge-elements.js';
 import { NotFound } from './pages/not-found.js';
 
 const currentHash = signal(window.location.hash || '#/dashboard');
@@ -45,6 +46,14 @@ const currentRoute = computed(() => {
     return { component: LoxoneControls, props: {} };
   }
   if (hash === '#/loxone/bindings') {
+    return { component: InputBindings, props: {} };
+  }
+
+  // MQTT Bridge sub-pages
+  if (hash === '#/bridge/elements') {
+    return { component: BridgeElements, props: {} };
+  }
+  if (hash === '#/bridge/bindings') {
     return { component: InputBindings, props: {} };
   }
 
