@@ -89,10 +89,9 @@ export class LoxoneWs extends EventEmitter {
 
       try {
         const auth = Buffer.from(`${this._user}:${this._pass}`).toString('base64');
-        this._ws = new WebSocket(url, {
+        this._ws = new WebSocket(url, 'remotecontrol', {
           headers: {
             'Authorization': `Basic ${auth}`,
-            'Sec-WebSocket-Protocol': 'remotecontrol',
           },
         });
       } catch (err) {
@@ -122,11 +121,18 @@ export class LoxoneWs extends EventEmitter {
         this._onMessage(data, isBinary);
       });
 
-      this._ws.on('close', () => {
+      this._ws.on('close', (code, reason) => {
         clearTimeout(timeout);
+        const wasConnected = this._connected;
         this._connected = false;
         this._stopTimers();
         this.emit('disconnected');
+
+        if (!wasConnected) {
+          // Never reached 'open' — connection was rejected
+          reject(new Error(`WebSocket closed before open (code: ${code})`));
+          return;
+        }
 
         if (this._shouldReconnect) {
           this._scheduleReconnect();
@@ -137,6 +143,10 @@ export class LoxoneWs extends EventEmitter {
         clearTimeout(timeout);
         if (this.listenerCount('error') > 0) {
           this.emit('error', err);
+        }
+        // Reject the promise if we haven't connected yet
+        if (!this._connected) {
+          reject(err);
         }
       });
     });
