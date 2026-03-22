@@ -20,9 +20,9 @@
 
 - [x] **LIVE-01**: User can subscribe to any MQTT topic pattern via the webapp
 - [x] **LIVE-02**: User can see messages arriving in real-time with topic, payload, and timestamp
-- [ ] **LIVE-03**: User can filter displayed messages by topic pattern
-- [ ] **LIVE-04**: User can scroll back through recent messages (in-memory ring buffer, last N messages)
-- [ ] **LIVE-05**: User can clear the message display
+- [x] **LIVE-03**: User can filter displayed messages by topic pattern
+- [x] **LIVE-04**: User can scroll back through recent messages (in-memory ring buffer, last N messages)
+- [x] **LIVE-05**: User can clear the message display
 
 ### Plugin System
 
@@ -107,9 +107,9 @@
 | DASH-08 | Phase 2 | Complete |
 | LIVE-01 | Phase 3 | Complete |
 | LIVE-02 | Phase 3 | Complete |
-| LIVE-03 | Phase 3 | Pending |
-| LIVE-04 | Phase 3 | Pending |
-| LIVE-05 | Phase 3 | Pending |
+| LIVE-03 | Phase 3 | Complete |
+| LIVE-04 | Phase 3 | Complete |
+| LIVE-05 | Phase 3 | Complete |
 | PLUG-01 | Phase 4 | Pending |
 | PLUG-02 | Phase 4 | Pending |
 | PLUG-03 | Phase 4 | Pending |

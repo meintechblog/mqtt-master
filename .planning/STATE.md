@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-03-22T07:17:18.526Z"
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-03-22T07:23:13.371Z"
 last_activity: 2026-03-22
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
-  percent: 75
+  completed_plans: 6
+  percent: 83
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 ## Current Position
 
 Phase: 3 of 6 (Live Message Viewer)
-Plan: 1 of 2 in current phase
+Plan: 2 of 2 in current phase
 Status: In progress
 Last activity: 2026-03-22
 
@@ -57,6 +57,7 @@ Progress: [████████░░] 83%
 | Phase 02 P01 | 6min | 2 tasks | 5 files |
 | Phase 02 P02 | 15min | 3 tasks | 6 files |
 | Phase 03 P01 | 2min | 1 tasks | 5 files |
+| Phase 03 P02 | 10min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,8 @@ Recent decisions affecting current work:
 - [Phase 02]: TopicTree depth=0 nodes expand by default, deeper levels collapsed for usable initial view
 - [Phase 03]: Inline mqttTopicMatch function instead of adding mqtt-match dependency
 - [Phase 03]: Per-client Map<socket, Set<topic>> for subscription isolation in ws-messages
+- [Phase 03]: Messages WS client lifecycle tied to page mount/unmount (not auto-connect) to avoid background message buffering when page is not active
+- [Phase 03]: Ring buffer uses prepend + slice(0,500) pattern to keep newest-first ordering without render-time reversals
 
 ### Pending Todos
 
@@ -92,6 +95,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-22T07:16:39Z
-Stopped at: Completed 03-01-PLAN.md
+Last session: 2026-03-22T07:23:13.369Z
+Stopped at: Completed 03-02-PLAN.md
 Resume file: None
