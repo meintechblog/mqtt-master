@@ -13,21 +13,30 @@ export class PluginManager {
     this.logger = logger;
     /** @type {Map<string, { id: string, name: string, status: string, instance: object|null, error: string|null, modulePath: string }>} */
     this.plugins = new Map();
+    /** @type {Map<string, { type: string, label: string, description: string, modulePath: string, configSchema: object }>} */
+    this._templates = new Map();
   }
 
   /**
-   * Scan pluginDir for subdirectories containing plugin.js.
-   * Loads each plugin module to extract static metadata (name, configSchema)
-   * so the UI can render config forms even before the plugin is started.
+   * Scan pluginDir for plugin templates and register configured plugins.
+   *
+   * Templates: all directories with plugin.js (available in + menu)
+   * Active plugins: only those with a config entry in config.json
    */
   async discover() {
     let entries;
     try {
       entries = await readdir(this.pluginDir, { withFileTypes: true });
     } catch {
-      // pluginDir doesn't exist or can't be read
       return;
     }
+
+    // Phase 1: scan filesystem for templates
+    const TYPE_LABELS = { 'loxone': 'Loxone', 'mqtt-bridge': 'MQTT-Bridge' };
+    const TYPE_DESCRIPTIONS = {
+      'loxone': 'Bidirectional Loxone Miniserver bridge with auto-discovery',
+      'mqtt-bridge': 'Connect to an external MQTT broker and bridge topics locally',
+    };
 
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
@@ -35,12 +44,18 @@ export class PluginManager {
       try {
         await access(pluginFile);
       } catch {
-        continue; // no plugin.js in this directory
+        continue;
       }
 
-      // Load module to extract schema without starting the plugin
+      // Skip user-created instances (re-export files) — they're not templates
+      let isReExport = false;
+      try {
+        const content = await readFile(pluginFile, 'utf-8');
+        isReExport = content.includes('export { default } from');
+      } catch { /* ignore */ }
+      if (isReExport) continue;
+
       let configSchema = {};
-      let pluginName = entry.name;
       try {
         const moduleUrl = pathToFileURL(pluginFile).href;
         const mod = await import(moduleUrl);
@@ -49,23 +64,60 @@ export class PluginManager {
         if (typeof tempInstance.getConfigSchema === 'function') {
           configSchema = tempInstance.getConfigSchema();
         }
-        pluginName = tempInstance.name || entry.name;
       } catch (err) {
-        this.logger.warn(`Could not load schema for plugin '${entry.name}': ${err.message}`);
+        this.logger.warn(`Could not load schema for template '${entry.name}': ${err.message}`);
       }
 
-      this.plugins.set(entry.name, {
-        id: entry.name,
-        name: pluginName,
-        status: 'stopped',
-        instance: null,
-        error: null,
+      this._templates.set(entry.name, {
+        type: entry.name,
+        label: TYPE_LABELS[entry.name] || entry.name,
+        description: TYPE_DESCRIPTIONS[entry.name] || '',
         modulePath: pluginFile,
         configSchema,
       });
     }
 
-    // Auto-start plugins that have autoStart: true in their config
+    // Phase 2: register plugins that have config entries
+    const allPluginConfig = this.configService.get('plugins', {});
+    for (const [id, pluginConfig] of Object.entries(allPluginConfig)) {
+      if (!pluginConfig || typeof pluginConfig !== 'object') continue;
+
+      // Find the template for this plugin
+      let template = this._templates.get(id);
+      let modulePath;
+
+      if (template) {
+        // Direct match: plugin id matches a template (e.g. "loxone")
+        modulePath = template.modulePath;
+      } else {
+        // Check for user-created instance directory
+        const pluginFile = join(this.pluginDir, id, 'plugin.js');
+        try {
+          await access(pluginFile);
+          modulePath = pluginFile;
+          // Load schema from the re-exported module
+          try {
+            const content = await readFile(pluginFile, 'utf-8');
+            const match = content.match(/from '\.\.\/([^/]+)\//);
+            if (match) template = this._templates.get(match[1]);
+          } catch { /* ignore */ }
+        } catch {
+          continue; // no plugin.js found, skip
+        }
+      }
+
+      this.plugins.set(id, {
+        id,
+        name: id,
+        status: 'stopped',
+        instance: null,
+        error: null,
+        modulePath,
+        configSchema: template ? template.configSchema : {},
+      });
+    }
+
+    // Phase 3: auto-start plugins
     for (const [id] of this.plugins) {
       const pluginConfig = this.configService.get(`plugins.${id}`, {});
       if (pluginConfig.autoStart) {
@@ -209,26 +261,15 @@ export class PluginManager {
 
   /**
    * List available plugin templates (for "Add Plugin" UI).
-   * Returns plugin types that can be instantiated multiple times.
    */
   getTemplates() {
-    const templates = [];
-    for (const meta of this.plugins.values()) {
-      // Only plugins that make sense to have multiple instances
-      if (meta.id === 'mqtt-bridge') {
-        templates.push({
-          type: meta.id,
-          label: 'MQTT Bridge',
-          description: 'Connect to an external MQTT broker and bridge topics locally',
-        });
-      }
-    }
-    return templates;
+    return [...this._templates.values()];
   }
 
   /**
    * Create a new plugin instance from a template.
-   * Copies the plugin code and registers with a unique ID.
+   * For core templates: uses the template directory directly.
+   * For additional instances: creates a re-export directory.
    */
   async createInstance(type, instanceId) {
     if (!instanceId || !/^[a-z0-9-]+$/.test(instanceId)) {
@@ -237,35 +278,44 @@ export class PluginManager {
     if (this.plugins.has(instanceId)) {
       throw new Error(`Plugin '${instanceId}' already exists`);
     }
-    const template = this.plugins.get(type);
+    const template = this._templates.get(type);
     if (!template) {
       throw new Error(`Plugin template '${type}' not found`);
     }
 
-    // Create directory with a re-export module
-    const { mkdir, writeFile } = await import('node:fs/promises');
-    const newDir = join(this.pluginDir, instanceId);
-    await mkdir(newDir, { recursive: true });
+    let modulePath;
 
-    const relPath = '../' + type + '/plugin.js';
-    await writeFile(join(newDir, 'plugin.js'),
-      `// Auto-generated instance of ${type} plugin\nexport { default } from '${relPath}';\n`
-    );
+    if (instanceId === type) {
+      // Using the template directly (e.g. id="loxone" from template "loxone")
+      modulePath = template.modulePath;
+    } else {
+      // Create a new directory with re-export
+      const { mkdir, writeFile } = await import('node:fs/promises');
+      const newDir = join(this.pluginDir, instanceId);
+      await mkdir(newDir, { recursive: true });
+      const relPath = '../' + type + '/plugin.js';
+      await writeFile(join(newDir, 'plugin.js'),
+        `// Auto-generated instance of ${type} plugin\nexport { default } from '${relPath}';\n`
+      );
+      modulePath = join(newDir, 'plugin.js');
+    }
 
-    // Load schema from template
-    let configSchema = template.configSchema || {};
+    // Create config entry (triggers discovery on next restart)
+    this.configService.set(`plugins.${instanceId}`, { displayName: '' });
+    await this.configService.save();
 
+    // Register immediately
     this.plugins.set(instanceId, {
       id: instanceId,
       name: instanceId,
       status: 'stopped',
       instance: null,
       error: null,
-      modulePath: join(newDir, 'plugin.js'),
-      configSchema,
+      modulePath,
+      configSchema: template.configSchema || {},
     });
 
-    this.logger.info(`Created plugin instance '${instanceId}' from template '${type}'`);
+    this.logger.info(`Created plugin '${instanceId}' from template '${type}'`);
     return { id: instanceId, type };
   }
 

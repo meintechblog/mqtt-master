@@ -96,7 +96,7 @@ function AddPluginButton() {
               <div
                 key=${t.type}
                 class="ve-modal-type-card ${selectedType === t.type ? 've-modal-type-card--selected' : ''}"
-                onClick=${() => setSelectedType(t.type)}
+                onClick=${() => { setSelectedType(t.type); if (!newId) setNewId(t.type); }}
               >
                 <div class="ve-modal-type-label">${t.label}</div>
                 <div class="ve-modal-type-desc">${t.description}</div>
