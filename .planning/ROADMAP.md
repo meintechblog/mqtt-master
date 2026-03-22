@@ -30,11 +30,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Webapp layout adapts correctly across desktop, tablet, and mobile screen sizes
   3. Webapp loads without authentication prompts (open LAN access)
   4. Switching between sidebar navigation items changes the visible page content
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md -- Backend scaffold: Fastify server, config service, MQTT service, vendored deps, tests
+- [ ] 01-02-PLAN.md -- Frontend SPA: Venus OS theme, sidebar navigation, hash routing, responsive layout
 
 ### Phase 2: Broker Dashboard
 **Goal**: Users can monitor their Mosquitto broker health at a glance with live-updating metrics
@@ -46,7 +46,7 @@ Plans:
   3. User can see a visual indicator (colored dot) showing whether the broker connection is live or disconnected
   4. User can browse a hierarchical topic tree showing all active MQTT topics
   5. Dashboard metrics reflect actual Mosquitto $SYS values within seconds of change
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 02-01: TBD
@@ -61,7 +61,7 @@ Plans:
   2. User can filter the displayed message stream by topic pattern to focus on specific topics
   3. User can scroll back through previously received messages (ring buffer of recent messages)
   4. User can clear the message display to start fresh
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 03-01: TBD
@@ -75,7 +75,7 @@ Plans:
   2. User can configure a plugin through an auto-generated form derived from the plugin's config schema
   3. User can start and stop individual plugins from the webapp
   4. User can reload a plugin without restarting the entire application
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 04-01: TBD
@@ -92,7 +92,7 @@ Plans:
   4. User can view the UUID-to-name mapping table in the webapp and enable/disable individual controls from being bridged
   5. Home Assistant auto-detects bridged Loxone devices via MQTT Discovery messages
   6. User can create topic routes in the webapp to forward payloads between external MQTT topics and Loxone topics (both directions)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 05-01: TBD
@@ -108,7 +108,7 @@ Plans:
   2. Installer configures Mosquitto with open LAN access and WebSocket support if not already configured
   3. MQTT Master starts automatically on boot via systemd and restarts on failure
   4. Running the same install command again updates to the latest version without breaking the existing installation
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 06-01: TBD
