@@ -18,8 +18,8 @@
 
 ### Live Messages
 
-- [ ] **LIVE-01**: User can subscribe to any MQTT topic pattern via the webapp
-- [ ] **LIVE-02**: User can see messages arriving in real-time with topic, payload, and timestamp
+- [x] **LIVE-01**: User can subscribe to any MQTT topic pattern via the webapp
+- [x] **LIVE-02**: User can see messages arriving in real-time with topic, payload, and timestamp
 - [ ] **LIVE-03**: User can filter displayed messages by topic pattern
 - [ ] **LIVE-04**: User can scroll back through recent messages (in-memory ring buffer, last N messages)
 - [ ] **LIVE-05**: User can clear the message display
@@ -105,8 +105,8 @@
 | DASH-06 | Phase 2 | Complete |
 | DASH-07 | Phase 2 | Complete |
 | DASH-08 | Phase 2 | Complete |
-| LIVE-01 | Phase 3 | Pending |
-| LIVE-02 | Phase 3 | Pending |
+| LIVE-01 | Phase 3 | Complete |
+| LIVE-02 | Phase 3 | Complete |
 | LIVE-03 | Phase 3 | Pending |
 | LIVE-04 | Phase 3 | Pending |
 | LIVE-05 | Phase 3 | Pending |

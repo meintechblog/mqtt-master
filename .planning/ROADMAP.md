@@ -64,7 +64,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md -- Backend: WebSocket /ws/messages route with per-client topic subscriptions, MqttService.unsubscribe, tests
+- [x] 03-01-PLAN.md -- Backend: WebSocket /ws/messages route with per-client topic subscriptions, MqttService.unsubscribe, tests
 - [ ] 03-02-PLAN.md -- Frontend: Messages page UI with subscription controls, message list, filter, clear, rate counter, visual verification
 
 ### Phase 4: Plugin System
@@ -123,7 +123,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 |-------|----------------|--------|-----------|
 | 1. Webapp Shell and Core Services | 2/2 | Complete   | 2026-03-22 |
 | 2. Broker Dashboard | 2/2 | Complete   | 2026-03-22 |
-| 3. Live Message Viewer | 0/2 | Planned | - |
+| 3. Live Message Viewer | 1/2 | In Progress | - |
 | 4. Plugin System | 0/? | Not started | - |
 | 5. Loxone Bridge Plugin | 0/? | Not started | - |
 | 6. Installer and Deployment | 0/? | Not started | - |
