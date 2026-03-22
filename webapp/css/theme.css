@@ -179,6 +179,24 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  width: 100%;
+}
+.sidebar-plugin-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.sidebar-plugin-name {
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-plugin-type {
+  font-size: 10px;
+  color: var(--ve-text-dim);
+  margin-top: -1px;
 }
 
 /* Sidebar add plugin */

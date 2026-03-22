@@ -27,6 +27,7 @@ export default class LoxonePlugin {
     this._connected = false;
     this._controlCount = 0;
     this._lastEvent = null;
+    this._messageCount = 0;
     this._prefix = 'loxone';
     this._config = {};
     this._ctx = null;
@@ -243,6 +244,7 @@ export default class LoxonePlugin {
       connected: this._connected,
       controlCount: this._controlCount,
       lastEvent: this._lastEvent,
+      messageCount: this._messageCount,
     };
   }
 
@@ -254,6 +256,11 @@ export default class LoxonePlugin {
     return {
       type: 'object',
       properties: {
+        displayName: {
+          type: 'string',
+          title: 'Display Name',
+          description: 'Name shown in the sidebar (e.g. "Miniserver Wohnung")',
+        },
         ip: {
           type: 'string',
           title: 'Miniserver IP',
@@ -698,6 +705,7 @@ export default class LoxonePlugin {
 
     this._ctx.mqttService.publish(topic, payload);
     this._lastEvent = Date.now();
+    this._messageCount++;
   }
 
   /**
@@ -729,6 +737,7 @@ export default class LoxonePlugin {
 
     this._ctx.mqttService.publish(topic, payload);
     this._lastEvent = Date.now();
+    this._messageCount++;
   }
 
   /**

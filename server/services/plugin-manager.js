@@ -157,9 +157,11 @@ export class PluginManager {
   async listAll() {
     const result = [];
     for (const meta of this.plugins.values()) {
+      const config = this.configService.get(`plugins.${meta.id}`, {});
       const entry = {
         id: meta.id,
         name: meta.name,
+        displayName: config.displayName || '',
         status: meta.status,
         error: meta.error,
         deletable: false,

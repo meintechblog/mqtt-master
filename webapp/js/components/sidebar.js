@@ -150,9 +150,12 @@ export function Sidebar({ currentHash }) {
               }
               pluginMsgCounts[p.id] = { count: p.messageCount, ts: now };
             }
+            // Plugin type label (technical name)
+            const typeLabel = p.id === 'mqtt-bridge' ? 'MQTT-Bridge' : (p.name || p.id).charAt(0).toUpperCase() + (p.name || p.id).slice(1);
             return {
               id: p.id,
-              label: p.id === 'mqtt-bridge' ? 'MQTT-Bridge' : (p.name || p.id).charAt(0).toUpperCase() + (p.name || p.id).slice(1),
+              label: p.displayName || typeLabel,
+              typeLabel: p.displayName ? typeLabel : '',
               hash: '#/plugins/' + p.id,
               status: p.status,
               rate,
@@ -218,7 +221,10 @@ export function Sidebar({ currentHash }) {
             >
               <span class="sidebar-plugin-status">
                 <${StatusDot} status=${pluginDotStatus(item.status)} />
-                ${item.label}
+                <span class="sidebar-plugin-info">
+                  <span class="sidebar-plugin-name">${item.label}</span>
+                  ${item.typeLabel && html`<span class="sidebar-plugin-type">${item.typeLabel}</span>`}
+                </span>
                 ${item.status === 'running' && html`<span class="sidebar-rate">${item.rate != null ? fmtRate(item.rate) : '0/s'}</span>`}
               </span>
             </a>

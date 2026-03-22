@@ -293,6 +293,11 @@ export default class MqttBridgePlugin {
     return {
       type: 'object',
       properties: {
+        displayName: {
+          type: 'string',
+          title: 'Display Name',
+          description: 'Name shown in the sidebar (e.g. "Venus OS")',
+        },
         brokerUrl: {
           type: 'string',
           title: 'External Broker URL',
