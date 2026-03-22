@@ -30,8 +30,11 @@ export class LoxoneStructure {
    * @returns {Promise<object>} parsed JSON
    */
   async fetchStructure(host, port, user, pass) {
-    const url = `http://${user}:${pass}@${host}:${port}/data/LoxAPP3.json`;
-    const res = await fetch(url);
+    const url = `http://${host}:${port}/data/LoxAPP3.json`;
+    const auth = Buffer.from(`${user}:${pass}`).toString('base64');
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Basic ${auth}` },
+    });
     if (!res.ok) {
       throw new Error(`Failed to fetch LoxAPP3.json: ${res.status} ${res.statusText}`);
     }

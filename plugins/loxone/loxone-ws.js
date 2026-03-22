@@ -63,7 +63,7 @@ export class LoxoneWs extends EventEmitter {
    * @returns {string}
    */
   _buildUrl() {
-    return `ws://${this._user}:${this._pass}@${this._host}:${this._port}/ws/rfc6455`;
+    return `ws://${this._host}:${this._port}/ws/rfc6455`;
   }
 
   /**
@@ -88,8 +88,12 @@ export class LoxoneWs extends EventEmitter {
       }, CONNECT_TIMEOUT);
 
       try {
+        const auth = Buffer.from(`${this._user}:${this._pass}`).toString('base64');
         this._ws = new WebSocket(url, {
-          headers: { 'Sec-WebSocket-Protocol': 'remotecontrol' },
+          headers: {
+            'Authorization': `Basic ${auth}`,
+            'Sec-WebSocket-Protocol': 'remotecontrol',
+          },
         });
       } catch (err) {
         clearTimeout(timeout);

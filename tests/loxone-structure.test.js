@@ -269,7 +269,11 @@ describe('LoxoneStructure', () => {
 
       const result = await structure.fetchStructure('192.168.1.10', 80, 'admin', 'secret');
 
-      expect(global.fetch).toHaveBeenCalledWith('http://admin:secret@192.168.1.10:80/data/LoxAPP3.json');
+      const expectedAuth = Buffer.from('admin:secret').toString('base64');
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://192.168.1.10:80/data/LoxAPP3.json',
+        { headers: { 'Authorization': `Basic ${expectedAuth}` } }
+      );
       expect(result).toEqual(mockJson);
 
       delete global.fetch;

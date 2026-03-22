@@ -245,13 +245,13 @@ describe('LoxoneWs', () => {
   });
 
   describe('connection URL', () => {
-    it('builds correct WebSocket URL with credentials', () => {
-      expect(ws._buildUrl()).toBe('ws://admin:secret@192.168.1.10:80/ws/rfc6455');
+    it('builds correct WebSocket URL without credentials', () => {
+      expect(ws._buildUrl()).toBe('ws://192.168.1.10:80/ws/rfc6455');
     });
 
     it('uses custom port', () => {
       const ws2 = new LoxoneWs({ host: '10.0.0.1', port: 8080, user: 'u', pass: 'p' });
-      expect(ws2._buildUrl()).toBe('ws://u:p@10.0.0.1:8080/ws/rfc6455');
+      expect(ws2._buildUrl()).toBe('ws://10.0.0.1:8080/ws/rfc6455');
     });
   });
 
