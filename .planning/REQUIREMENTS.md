@@ -44,6 +44,9 @@
 - [ ] **LOX-08**: User can configure Miniserver connection (IP, credentials, topic prefix) in webapp
 - [ ] **LOX-09**: Plugin publishes Home Assistant MQTT Discovery messages for auto-detection in HA
 - [ ] **LOX-10**: User can enable/disable individual Loxone controls from being bridged to MQTT
+- [ ] **LOX-11**: User can create MQTT topic routes that forward incoming payloads from one topic to a fixed Loxone MQTT topic (external → Loxone)
+- [ ] **LOX-12**: User can create MQTT topic routes that forward Loxone state changes to a fixed external MQTT topic (Loxone → external)
+- [ ] **LOX-13**: User can configure topic routes via the webapp (source topic, target topic, direction)
 
 ### Webapp & Design
 
@@ -94,13 +97,52 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| *(populated during roadmap creation)* | | |
+| DASH-01 | Phase 2 | Pending |
+| DASH-02 | Phase 2 | Pending |
+| DASH-03 | Phase 2 | Pending |
+| DASH-04 | Phase 2 | Pending |
+| DASH-05 | Phase 2 | Pending |
+| DASH-06 | Phase 2 | Pending |
+| DASH-07 | Phase 2 | Pending |
+| DASH-08 | Phase 2 | Pending |
+| LIVE-01 | Phase 3 | Pending |
+| LIVE-02 | Phase 3 | Pending |
+| LIVE-03 | Phase 3 | Pending |
+| LIVE-04 | Phase 3 | Pending |
+| LIVE-05 | Phase 3 | Pending |
+| PLUG-01 | Phase 4 | Pending |
+| PLUG-02 | Phase 4 | Pending |
+| PLUG-03 | Phase 4 | Pending |
+| PLUG-04 | Phase 4 | Pending |
+| PLUG-05 | Phase 4 | Pending |
+| LOX-01 | Phase 5 | Pending |
+| LOX-02 | Phase 5 | Pending |
+| LOX-03 | Phase 5 | Pending |
+| LOX-04 | Phase 5 | Pending |
+| LOX-05 | Phase 5 | Pending |
+| LOX-06 | Phase 5 | Pending |
+| LOX-07 | Phase 5 | Pending |
+| LOX-08 | Phase 5 | Pending |
+| LOX-09 | Phase 5 | Pending |
+| LOX-10 | Phase 5 | Pending |
+| LOX-11 | Phase 5 | Pending |
+| LOX-12 | Phase 5 | Pending |
+| LOX-13 | Phase 5 | Pending |
+| UI-01 | Phase 1 | Pending |
+| UI-02 | Phase 1 | Pending |
+| UI-03 | Phase 1 | Pending |
+| UI-04 | Phase 1 | Pending |
+| DEP-01 | Phase 6 | Pending |
+| DEP-02 | Phase 6 | Pending |
+| DEP-03 | Phase 6 | Pending |
+| DEP-04 | Phase 6 | Pending |
+| DEP-05 | Phase 6 | Pending |
 
 **Coverage:**
-- v1 requirements: 29 total
-- Mapped to phases: 0
-- Unmapped: 29
+- v1 requirements: 40 total
+- Mapped to phases: 40
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-22*
-*Last updated: 2026-03-22 after initial definition*
+*Last updated: 2026-03-22 after roadmap creation*
