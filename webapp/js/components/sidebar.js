@@ -1,6 +1,7 @@
 import { html } from 'htm/preact';
 import { signal } from '@preact/signals';
 import { StatusDot } from './status-dot.js';
+import { brokerConnected } from '../lib/ws-client.js';
 
 export const menuOpen = signal(false);
 
@@ -39,7 +40,7 @@ export function Sidebar({ currentHash }) {
           <span class="sidebar-title">MQTT Master</span>
         </div>
         <div class="sidebar-status">
-          <${StatusDot} status="disconnected" />
+          <${StatusDot} status=${brokerConnected.value ? 'connected' : 'disconnected'} />
           <span>Broker</span>
         </div>
       </div>

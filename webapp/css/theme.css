@@ -233,3 +233,29 @@ body {
   color: var(--ve-text-dim);
   font-size: 14px;
 }
+
+/* Dashboard stat cards */
+.stat-value { font-size: 28px; font-weight: 600; color: var(--ve-text-primary); line-height: 1.2; }
+.stat-unit { font-size: 14px; color: var(--ve-text-dim); margin-left: 4px; }
+.stat-label { font-size: 13px; color: var(--ve-text-dim); margin-top: 4px; }
+
+/* Broker info panel */
+.broker-info { margin-top: 16px; }
+.broker-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 8px; }
+.broker-info-item { }
+.broker-info-label { font-size: 12px; color: var(--ve-text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+.broker-info-value { font-size: 15px; color: var(--ve-text-primary); margin-top: 2px; }
+
+/* Topic tree */
+.topic-tree { margin-top: 16px; }
+.topic-tree-header { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+.tree-node { font-family: var(--ve-font-mono); font-size: 13px; }
+.tree-branch { cursor: pointer; padding: 3px 0; color: var(--ve-text-secondary); user-select: none; }
+.tree-branch:hover { color: var(--ve-text-primary); }
+.tree-toggle { display: inline-block; width: 16px; color: var(--ve-text-dim); }
+.tree-leaf { padding: 3px 0; color: var(--ve-text-dim); }
+.tree-leaf-value { color: var(--ve-text-secondary); margin-left: 8px; }
+
+/* Dashboard grid spacing */
+.dashboard-section { margin-top: 16px; }
+.dashboard-section:first-child { margin-top: 0; }
