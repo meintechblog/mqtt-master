@@ -79,8 +79,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01-PLAN.md -- Backend: PluginManager service, REST API routes, example plugin, ConfigService.set/save, tests
+- [ ] 04-02-PLAN.md -- Frontend: Sidebar plugin list with status dots, plugin config page with auto-generated form, lifecycle buttons
 
 ### Phase 5: Loxone Bridge Plugin
 **Goal**: Users can bridge their entire Loxone Miniserver into MQTT with human-readable topics, zero manual mapping, and bidirectional control
@@ -124,6 +124,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 1. Webapp Shell and Core Services | 2/2 | Complete   | 2026-03-22 |
 | 2. Broker Dashboard | 2/2 | Complete   | 2026-03-22 |
 | 3. Live Message Viewer | 2/2 | Complete   | 2026-03-22 |
-| 4. Plugin System | 0/? | Not started | - |
+| 4. Plugin System | 0/2 | Not started | - |
 | 5. Loxone Bridge Plugin | 0/? | Not started | - |
 | 6. Installer and Deployment | 0/? | Not started | - |
