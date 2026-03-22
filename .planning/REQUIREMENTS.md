@@ -50,9 +50,9 @@
 
 ### Webapp & Design
 
-- [ ] **UI-01**: Webapp uses Venus OS Dark Theme (matching PV Inverter Proxy design system)
-- [ ] **UI-02**: Webapp has sidebar navigation with page switching
-- [ ] **UI-03**: Webapp is responsive (desktop, tablet, mobile breakpoints)
+- [x] **UI-01**: Webapp uses Venus OS Dark Theme (matching PV Inverter Proxy design system)
+- [x] **UI-02**: Webapp has sidebar navigation with page switching
+- [x] **UI-03**: Webapp is responsive (desktop, tablet, mobile breakpoints)
 - [x] **UI-04**: Webapp runs without authentication (open LAN access)
 
 ### Deployment
@@ -128,9 +128,9 @@
 | LOX-11 | Phase 5 | Pending |
 | LOX-12 | Phase 5 | Pending |
 | LOX-13 | Phase 5 | Pending |
-| UI-01 | Phase 1 | Pending |
-| UI-02 | Phase 1 | Pending |
-| UI-03 | Phase 1 | Pending |
+| UI-01 | Phase 1 | Complete |
+| UI-02 | Phase 1 | Complete |
+| UI-03 | Phase 1 | Complete |
 | UI-04 | Phase 1 | Complete |
 | DEP-01 | Phase 6 | Pending |
 | DEP-02 | Phase 6 | Pending |

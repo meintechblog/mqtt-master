@@ -12,7 +12,7 @@ MQTT Master delivers a self-hosted MQTT broker dashboard and smart home bridge i
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Webapp Shell and Core Services** - Fastify server, Preact SPA with Venus OS dark theme, MQTT service connected to Mosquitto, config service
+- [x] **Phase 1: Webapp Shell and Core Services** - Fastify server, Preact SPA with Venus OS dark theme, MQTT service connected to Mosquitto, config service (completed 2026-03-22)
 - [ ] **Phase 2: Broker Dashboard** - Real-time broker metrics display from $SYS topics with auto-refreshing widgets
 - [ ] **Phase 3: Live Message Viewer** - Subscribe to topics and watch messages arrive in real-time with filtering
 - [ ] **Phase 4: Plugin System** - Plugin lifecycle management, dynamic config UI, and sidebar status indicators
@@ -120,7 +120,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Webapp Shell and Core Services | 0/? | Not started | - |
+| 1. Webapp Shell and Core Services | 2/2 | Complete   | 2026-03-22 |
 | 2. Broker Dashboard | 0/? | Not started | - |
 | 3. Live Message Viewer | 0/? | Not started | - |
 | 4. Plugin System | 0/? | Not started | - |

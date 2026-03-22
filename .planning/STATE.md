@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-03-22T00:49:32.192Z"
-last_activity: 2026-03-22 -- Completed 01-01 (Project scaffold and core services)
+status: completed
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-03-22T06:37:34.246Z"
+last_activity: 2026-03-22 -- Completed 01-02 (SPA shell and frontend)
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
-  percent: 50
+  completed_plans: 2
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 
 ## Current Position
 
-Phase: 1 of 6 (Webapp Shell and Core Services)
-Plan: 1 of 2 in current phase
-Status: Executing
-Last activity: 2026-03-22 -- Completed 01-01 (Project scaffold and core services)
+Phase: 1 of 6 (Webapp Shell and Core Services) -- COMPLETE
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-03-22 -- Completed 01-02 (SPA shell and frontend)
 
-Progress: [█████░░░░░] 50%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -51,6 +51,7 @@ Progress: [█████░░░░░] 50%
 
 *Updated after each plan completion*
 | Phase 01 P01 | 4min | 2 tasks | 16 files |
+| Phase 01 P02 | 4min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -64,6 +65,8 @@ Recent decisions affecting current work:
 - Loxone uses raw ws library, not abandoned community libraries
 - [Phase 01]: Safe error emission on MqttService: only emit error if listeners exist
 - [Phase 01]: Vendor script resolves esm.sh X-ESM-Path header to download actual bundles instead of re-export stubs
+- [Phase 01]: Venus OS design tokens stored as CSS custom properties for consistent theming
+- [Phase 01]: Hash-based routing with Preact signals for reactive page switching without build tools
 
 ### Pending Todos
 
@@ -76,6 +79,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-22T00:49:32.190Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-03-22T06:37:34.244Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None
