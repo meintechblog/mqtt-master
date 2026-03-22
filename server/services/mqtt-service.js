@@ -57,6 +57,10 @@ export class MqttService extends EventEmitter {
     if (this.client) this.client.subscribe(topic);
   }
 
+  unsubscribe(topic) {
+    if (this.client) this.client.unsubscribe(topic);
+  }
+
   publish(topic, payload, opts) {
     if (this.client) this.client.publish(topic, payload, opts);
   }

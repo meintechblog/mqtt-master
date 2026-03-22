@@ -7,6 +7,7 @@ import { ConfigService } from './services/config-service.js';
 import { MqttService } from './services/mqtt-service.js';
 import { SysBrokerService } from './services/sys-broker-service.js';
 import wsDashboard from './routes/ws-dashboard.js';
+import wsMessages from './routes/ws-messages.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -44,6 +45,7 @@ export async function start(opts = {}) {
 
   // WebSocket routes
   await app.register(wsDashboard);
+  await app.register(wsMessages);
 
   // SPA fallback: serve index.html for unmatched routes
   app.setNotFoundHandler((request, reply) => {
