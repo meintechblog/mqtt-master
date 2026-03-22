@@ -34,9 +34,9 @@
 
 ### Loxone Bridge
 
-- [ ] **LOX-01**: Plugin connects to Loxone Miniserver via WebSocket API
+- [x] **LOX-01**: Plugin connects to Loxone Miniserver via WebSocket API
 - [ ] **LOX-02**: Plugin authenticates using token-based auth (firmware 10.2+)
-- [ ] **LOX-03**: Plugin auto-discovers all Loxone controls by parsing LoxAPP3.json structure file
+- [x] **LOX-03**: Plugin auto-discovers all Loxone controls by parsing LoxAPP3.json structure file
 - [ ] **LOX-04**: Plugin publishes Loxone state changes to MQTT with human-readable topics (loxone/{room}/{control})
 - [ ] **LOX-05**: Plugin accepts MQTT commands and forwards them to Loxone controls (bidirectional)
 - [ ] **LOX-06**: Plugin publishes JSON payloads containing value, name, type, UUID, and room
@@ -115,9 +115,9 @@
 | PLUG-03 | Phase 4 | Complete |
 | PLUG-04 | Phase 4 | Complete |
 | PLUG-05 | Phase 4 | Complete |
-| LOX-01 | Phase 5 | Pending |
+| LOX-01 | Phase 5 | Complete |
 | LOX-02 | Phase 5 | Pending |
-| LOX-03 | Phase 5 | Pending |
+| LOX-03 | Phase 5 | Complete |
 | LOX-04 | Phase 5 | Pending |
 | LOX-05 | Phase 5 | Pending |
 | LOX-06 | Phase 5 | Pending |
