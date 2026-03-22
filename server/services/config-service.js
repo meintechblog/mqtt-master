@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 
 const DEFAULTS = {
@@ -40,6 +40,23 @@ export class ConfigService {
       val = val[k];
     }
     return val !== undefined ? val : fallback;
+  }
+
+  set(key, value) {
+    const keys = key.split('.');
+    let obj = this.config;
+    for (let i = 0; i < keys.length - 1; i++) {
+      const k = keys[i];
+      if (obj[k] == null || typeof obj[k] !== 'object') {
+        obj[k] = {};
+      }
+      obj = obj[k];
+    }
+    obj[keys[keys.length - 1]] = value;
+  }
+
+  async save() {
+    await writeFile(this.configPath, JSON.stringify(this.config, null, 2), 'utf-8');
   }
 
   _deepMerge(target, source) {
