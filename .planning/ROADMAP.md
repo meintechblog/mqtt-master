@@ -79,7 +79,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md -- Backend: PluginManager service, REST API routes, example plugin, ConfigService.set/save, tests
+- [x] 04-01-PLAN.md -- Backend: PluginManager service, REST API routes, example plugin, ConfigService.set/save, tests
 - [ ] 04-02-PLAN.md -- Frontend: Sidebar plugin list with status dots, plugin config page with auto-generated form, lifecycle buttons
 
 ### Phase 5: Loxone Bridge Plugin

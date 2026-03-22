@@ -26,11 +26,11 @@
 
 ### Plugin System
 
-- [ ] **PLUG-01**: Plugins follow a lifecycle contract (start/stop/getStatus/getConfigSchema)
+- [x] **PLUG-01**: Plugins follow a lifecycle contract (start/stop/getStatus/getConfigSchema)
 - [ ] **PLUG-02**: User can see plugin status in the webapp sidebar (running/stopped/error)
 - [ ] **PLUG-03**: User can configure plugins via auto-generated forms from plugin config schema
-- [ ] **PLUG-04**: User can start and stop individual plugins from the webapp
-- [ ] **PLUG-05**: User can reload a plugin without restarting the entire application
+- [x] **PLUG-04**: User can start and stop individual plugins from the webapp
+- [x] **PLUG-05**: User can reload a plugin without restarting the entire application
 
 ### Loxone Bridge
 
@@ -110,11 +110,11 @@
 | LIVE-03 | Phase 3 | Complete |
 | LIVE-04 | Phase 3 | Complete |
 | LIVE-05 | Phase 3 | Complete |
-| PLUG-01 | Phase 4 | Pending |
+| PLUG-01 | Phase 4 | Complete |
 | PLUG-02 | Phase 4 | Pending |
 | PLUG-03 | Phase 4 | Pending |
-| PLUG-04 | Phase 4 | Pending |
-| PLUG-05 | Phase 4 | Pending |
+| PLUG-04 | Phase 4 | Complete |
+| PLUG-05 | Phase 4 | Complete |
 | LOX-01 | Phase 5 | Pending |
 | LOX-02 | Phase 5 | Pending |
 | LOX-03 | Phase 5 | Pending |
