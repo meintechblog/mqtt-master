@@ -6,8 +6,10 @@ import { dirname, join } from 'node:path';
 import { ConfigService } from './services/config-service.js';
 import { MqttService } from './services/mqtt-service.js';
 import { SysBrokerService } from './services/sys-broker-service.js';
+import { PluginManager } from './services/plugin-manager.js';
 import wsDashboard from './routes/ws-dashboard.js';
 import wsMessages from './routes/ws-messages.js';
+import apiPlugins from './routes/api-plugins.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -42,6 +44,19 @@ export async function start(opts = {}) {
   // SysBrokerService -- aggregates $SYS metrics from broker
   const sysBrokerService = new SysBrokerService(mqttService);
   app.decorate('sysBrokerService', sysBrokerService);
+
+  // Plugin system
+  const pluginManager = new PluginManager({
+    pluginDir: config.get('pluginDir', join(__dirname, '..', 'plugins')),
+    configService: config,
+    mqttService,
+    logger: app.log,
+  });
+  await pluginManager.discover();
+  app.decorate('pluginManager', pluginManager);
+
+  // REST API routes (before SPA fallback so /api/* routes match)
+  await app.register(apiPlugins);
 
   // WebSocket routes
   await app.register(wsDashboard);
