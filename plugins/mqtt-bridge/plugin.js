@@ -24,6 +24,13 @@ export default class MqttBridgePlugin {
     this._portalId = null;
     /** @type {Map<string, { localTopic: string, value: any, ts: number }>} remote topic -> state */
     this._topicCache = new Map();
+
+    /** @type {Array<object>} input binding definitions */
+    this._inputBindings = [];
+    /** @type {Map<string, Function>} binding handlers */
+    this._bindingHandlers = new Map();
+    /** @type {Map<string, { ts: number, value: any }>} binding last-send state */
+    this._bindingLastSend = new Map();
   }
 
   async start(context) {
@@ -122,6 +129,10 @@ export default class MqttBridgePlugin {
       context.mqttService.publish(localTopic, msg);
     });
 
+    // Set up input bindings (local MQTT topic → Loxone control via main MQTT)
+    this._inputBindings = this._config.inputBindings || [];
+    this._applyInputBindings();
+
     this._running = true;
     logger.info('MQTT Bridge plugin started');
   }
@@ -136,6 +147,8 @@ export default class MqttBridgePlugin {
       this._client.end(true);
       this._client = null;
     }
+
+    this._cleanupBindingHandlers();
 
     this._running = false;
     this._connected = false;
@@ -156,6 +169,105 @@ export default class MqttBridgePlugin {
       lastMessage: this._lastMessage,
       portalId: this._portalId,
     };
+  }
+
+  // --- Input bindings ---
+
+  getInputBindings() {
+    return [...this._inputBindings];
+  }
+
+  async setInputBindings(bindings) {
+    this._inputBindings = bindings;
+    this._config.inputBindings = bindings;
+    if (this._ctx) {
+      this._ctx.configService.set('plugins.mqtt-bridge', this._config);
+      await this._ctx.configService.save();
+    }
+    this._applyInputBindings();
+  }
+
+  _applyInputBindings() {
+    if (!this._ctx) return;
+    const { mqttService, logger } = this._ctx;
+    this._cleanupBindingHandlers();
+
+    for (const binding of this._inputBindings) {
+      if (!binding.enabled || !binding.mqttTopic || !binding.jsonField || !binding.targetUuid) continue;
+
+      const keepaliveMs = binding.keepaliveMs || 30000;
+      mqttService.subscribe(binding.mqttTopic);
+
+      const handler = (msg) => {
+        if (msg.topic !== binding.mqttTopic) return;
+        try {
+          const data = JSON.parse(msg.payload);
+          let value = this._extractField(data, binding.jsonField);
+          if (value == null) return;
+          value = this._applyTransform(value, binding.transform);
+          if (typeof value === 'number') value = Math.round(value * 1000) / 1000;
+
+          const now = Date.now();
+          const last = this._bindingLastSend.get(binding.id);
+          const valueChanged = !last || last.value !== value;
+          const keepaliveExpired = !last || (now - last.ts >= keepaliveMs);
+          if (!valueChanged && !keepaliveExpired) return;
+
+          // Send to Loxone via WebSocket (direct to Miniserver)
+          try {
+            const pm = this._ctx.pluginManager;
+            const loxone = pm && pm.getInstance('loxone');
+            if (loxone && typeof loxone.sendControlCommand === 'function') {
+              loxone.sendControlCommand(binding.targetUuid, String(value));
+            }
+          } catch { /* ignore */ }
+
+          this._bindingLastSend.set(binding.id, { ts: now, value });
+          if (valueChanged) {
+            logger.debug(`Binding ${binding.label || binding.id}: ${value} → ${binding.targetUuid}`);
+          }
+        } catch { /* ignore */ }
+      };
+
+      mqttService.on('message', handler);
+      this._bindingHandlers.set(binding.id, { handler, topic: binding.mqttTopic });
+      logger.info(`Input binding: ${binding.mqttTopic} [${binding.jsonField}] → ${binding.targetUuid} (${binding.label || binding.id})`);
+    }
+  }
+
+  _extractField(obj, path) {
+    const parts = path.split('.');
+    let current = obj;
+    for (const part of parts) {
+      if (current == null || typeof current !== 'object') return null;
+      current = current[part];
+    }
+    return current ?? null;
+  }
+
+  _applyTransform(value, transform) {
+    if (!transform) return value;
+    const num = Number(value);
+    if (isNaN(num)) return value;
+    switch (transform) {
+      case 'div1000': return Math.round(num / 1000 * 1000) / 1000;
+      case 'div100': return Math.round(num / 100 * 100) / 100;
+      case 'mul1000': return num * 1000;
+      case 'mul100': return num * 100;
+      case 'round': return Math.round(num);
+      case 'round1': return Math.round(num * 10) / 10;
+      default: return num;
+    }
+  }
+
+  _cleanupBindingHandlers() {
+    if (!this._ctx) return;
+    const { mqttService } = this._ctx;
+    for (const [, entry] of this._bindingHandlers) {
+      mqttService.removeListener('message', entry.handler);
+    }
+    this._bindingHandlers.clear();
+    this._bindingLastSend.clear();
   }
 
   /**

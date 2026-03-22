@@ -100,6 +100,7 @@ export class PluginManager {
         configService: this.configService,
         logger: this.logger,
         pluginId: id,
+        pluginManager: this,
       });
 
       meta.instance = instance;
