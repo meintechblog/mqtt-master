@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-03-22T07:56:56.555Z"
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-03-22T08:10:51.176Z"
 last_activity: 2026-03-22
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 11
-  completed_plans: 9
+  completed_plans: 10
   percent: 88
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 ## Current Position
 
 Phase: 5 of 6 (Loxone Bridge Plugin)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
 Last activity: 2026-03-22
 
@@ -61,6 +61,7 @@ Progress: [█████████░] 88%
 | Phase 04 P01 | 3min | 2 tasks | 7 files |
 | Phase 04 P02 | 15min | 2 tasks | 5 files |
 | Phase 05 P01 | 5min | 2 tasks | 4 files |
+| Phase 05 P02 | 25min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,10 @@ Recent decisions affecting current work:
 - [Phase 05]: Loxone UUID byte order: first 3 groups LE, last 2 BE for correct binary-to-string conversion
 - [Phase 05]: Duplicate slug disambiguation via first 8 hex chars of UUID (hyphens stripped)
 - [Phase 05]: SubControls mapped under parent topic path as {parent}/{sub-slug} with own state UUIDs
+- [Phase 05]: Store _mqttHandler reference for clean removal on stop() to avoid listener leaks
+- [Phase 05]: Re-fetch structure on WebSocket reconnect to handle Miniserver config changes
+- [Phase 05]: Fix: Authorization header instead of URL credentials for Node.js fetch/ws compatibility
+- [Phase 05]: Fix: WebSocket subprotocol 'remotecontrol' as constructor arg (not header) for Loxone Miniserver
 
 ### Pending Todos
 
@@ -107,6 +112,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-22T07:56:06Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-03-22T08:10:51.173Z
+Stopped at: Completed 05-02-PLAN.md
 Resume file: None

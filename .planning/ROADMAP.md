@@ -97,7 +97,7 @@ Plans:
 
 Plans:
 - [x] 05-01-PLAN.md -- Loxone WebSocket client with binary protocol parser, LoxAPP3.json structure parser with UUID-to-topic mapping
-- [ ] 05-02-PLAN.md -- Loxone bridge plugin composing WS client + structure parser into bidirectional MQTT bridge with HA Discovery
+- [x] 05-02-PLAN.md -- Loxone bridge plugin composing WS client + structure parser into bidirectional MQTT bridge with HA Discovery
 - [ ] 05-03-PLAN.md -- Loxone controls table UI with enable/disable, topic routes configuration page, sidebar sub-navigation
 
 ### Phase 6: Installer and Deployment
@@ -125,5 +125,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 2. Broker Dashboard | 2/2 | Complete   | 2026-03-22 |
 | 3. Live Message Viewer | 2/2 | Complete   | 2026-03-22 |
 | 4. Plugin System | 2/2 | Complete   | 2026-03-22 |
-| 5. Loxone Bridge Plugin | 1/3 | In Progress|  |
+| 5. Loxone Bridge Plugin | 2/3 | In Progress|  |
 | 6. Installer and Deployment | 0/? | Not started | - |

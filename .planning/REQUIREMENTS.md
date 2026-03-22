@@ -37,12 +37,12 @@
 - [x] **LOX-01**: Plugin connects to Loxone Miniserver via WebSocket API
 - [ ] **LOX-02**: Plugin authenticates using token-based auth (firmware 10.2+)
 - [x] **LOX-03**: Plugin auto-discovers all Loxone controls by parsing LoxAPP3.json structure file
-- [ ] **LOX-04**: Plugin publishes Loxone state changes to MQTT with human-readable topics (loxone/{room}/{control})
-- [ ] **LOX-05**: Plugin accepts MQTT commands and forwards them to Loxone controls (bidirectional)
-- [ ] **LOX-06**: Plugin publishes JSON payloads containing value, name, type, UUID, and room
+- [x] **LOX-04**: Plugin publishes Loxone state changes to MQTT with human-readable topics (loxone/{room}/{control})
+- [x] **LOX-05**: Plugin accepts MQTT commands and forwards them to Loxone controls (bidirectional)
+- [x] **LOX-06**: Plugin publishes JSON payloads containing value, name, type, UUID, and room
 - [ ] **LOX-07**: Plugin maps UUIDs to human-readable names internally and displays mapping in webapp
-- [ ] **LOX-08**: User can configure Miniserver connection (IP, credentials, topic prefix) in webapp
-- [ ] **LOX-09**: Plugin publishes Home Assistant MQTT Discovery messages for auto-detection in HA
+- [x] **LOX-08**: User can configure Miniserver connection (IP, credentials, topic prefix) in webapp
+- [x] **LOX-09**: Plugin publishes Home Assistant MQTT Discovery messages for auto-detection in HA
 - [ ] **LOX-10**: User can enable/disable individual Loxone controls from being bridged to MQTT
 - [ ] **LOX-11**: User can create MQTT topic routes that forward incoming payloads from one topic to a fixed Loxone MQTT topic (external → Loxone)
 - [ ] **LOX-12**: User can create MQTT topic routes that forward Loxone state changes to a fixed external MQTT topic (Loxone → external)
@@ -118,12 +118,12 @@
 | LOX-01 | Phase 5 | Complete |
 | LOX-02 | Phase 5 | Pending |
 | LOX-03 | Phase 5 | Complete |
-| LOX-04 | Phase 5 | Pending |
-| LOX-05 | Phase 5 | Pending |
-| LOX-06 | Phase 5 | Pending |
+| LOX-04 | Phase 5 | Complete |
+| LOX-05 | Phase 5 | Complete |
+| LOX-06 | Phase 5 | Complete |
 | LOX-07 | Phase 5 | Pending |
-| LOX-08 | Phase 5 | Pending |
-| LOX-09 | Phase 5 | Pending |
+| LOX-08 | Phase 5 | Complete |
+| LOX-09 | Phase 5 | Complete |
 | LOX-10 | Phase 5 | Pending |
 | LOX-11 | Phase 5 | Pending |
 | LOX-12 | Phase 5 | Pending |
