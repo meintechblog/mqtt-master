@@ -40,13 +40,13 @@
 - [x] **LOX-04**: Plugin publishes Loxone state changes to MQTT with human-readable topics (loxone/{room}/{control})
 - [x] **LOX-05**: Plugin accepts MQTT commands and forwards them to Loxone controls (bidirectional)
 - [x] **LOX-06**: Plugin publishes JSON payloads containing value, name, type, UUID, and room
-- [ ] **LOX-07**: Plugin maps UUIDs to human-readable names internally and displays mapping in webapp
+- [x] **LOX-07**: Plugin maps UUIDs to human-readable names internally and displays mapping in webapp
 - [x] **LOX-08**: User can configure Miniserver connection (IP, credentials, topic prefix) in webapp
 - [x] **LOX-09**: Plugin publishes Home Assistant MQTT Discovery messages for auto-detection in HA
-- [ ] **LOX-10**: User can enable/disable individual Loxone controls from being bridged to MQTT
-- [ ] **LOX-11**: User can create MQTT topic routes that forward incoming payloads from one topic to a fixed Loxone MQTT topic (external → Loxone)
-- [ ] **LOX-12**: User can create MQTT topic routes that forward Loxone state changes to a fixed external MQTT topic (Loxone → external)
-- [ ] **LOX-13**: User can configure topic routes via the webapp (source topic, target topic, direction)
+- [x] **LOX-10**: User can enable/disable individual Loxone controls from being bridged to MQTT
+- [x] **LOX-11**: User can create MQTT topic routes that forward incoming payloads from one topic to a fixed Loxone MQTT topic (external → Loxone)
+- [x] **LOX-12**: User can create MQTT topic routes that forward Loxone state changes to a fixed external MQTT topic (Loxone → external)
+- [x] **LOX-13**: User can configure topic routes via the webapp (source topic, target topic, direction)
 
 ### Webapp & Design
 
@@ -121,13 +121,13 @@
 | LOX-04 | Phase 5 | Complete |
 | LOX-05 | Phase 5 | Complete |
 | LOX-06 | Phase 5 | Complete |
-| LOX-07 | Phase 5 | Pending |
+| LOX-07 | Phase 5 | Complete |
 | LOX-08 | Phase 5 | Complete |
 | LOX-09 | Phase 5 | Complete |
-| LOX-10 | Phase 5 | Pending |
-| LOX-11 | Phase 5 | Pending |
-| LOX-12 | Phase 5 | Pending |
-| LOX-13 | Phase 5 | Pending |
+| LOX-10 | Phase 5 | Complete |
+| LOX-11 | Phase 5 | Complete |
+| LOX-12 | Phase 5 | Complete |
+| LOX-13 | Phase 5 | Complete |
 | UI-01 | Phase 1 | Complete |
 | UI-02 | Phase 1 | Complete |
 | UI-03 | Phase 1 | Complete |

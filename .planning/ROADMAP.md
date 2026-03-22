@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Broker Dashboard** - Real-time broker metrics display from $SYS topics with auto-refreshing widgets (completed 2026-03-22)
 - [x] **Phase 3: Live Message Viewer** - Subscribe to topics and watch messages arrive in real-time with filtering (completed 2026-03-22)
 - [x] **Phase 4: Plugin System** - Plugin lifecycle management, dynamic config UI, and sidebar status indicators (completed 2026-03-22)
-- [ ] **Phase 5: Loxone Bridge Plugin** - Bidirectional Loxone-MQTT bridge with auto-discovery, basic auth, and human-readable topics
+- [x] **Phase 5: Loxone Bridge Plugin** - Bidirectional Loxone-MQTT bridge with auto-discovery, basic auth, and human-readable topics (completed 2026-03-22)
 - [ ] **Phase 6: Installer and Deployment** - One-command Debian installer with systemd service and idempotent updates
 
 ## Phase Details
@@ -98,7 +98,7 @@ Plans:
 Plans:
 - [x] 05-01-PLAN.md -- Loxone WebSocket client with binary protocol parser, LoxAPP3.json structure parser with UUID-to-topic mapping
 - [x] 05-02-PLAN.md -- Loxone bridge plugin composing WS client + structure parser into bidirectional MQTT bridge with HA Discovery
-- [ ] 05-03-PLAN.md -- Loxone controls table UI with enable/disable, topic routes configuration page, sidebar sub-navigation
+- [x] 05-03-PLAN.md -- Loxone controls table UI with enable/disable, topic routes configuration page, sidebar sub-navigation
 
 ### Phase 6: Installer and Deployment
 **Goal**: Users can install and update MQTT Master on Debian with a single command, and it runs automatically as a system service
@@ -125,5 +125,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 2. Broker Dashboard | 2/2 | Complete   | 2026-03-22 |
 | 3. Live Message Viewer | 2/2 | Complete   | 2026-03-22 |
 | 4. Plugin System | 2/2 | Complete   | 2026-03-22 |
-| 5. Loxone Bridge Plugin | 2/3 | In Progress|  |
+| 5. Loxone Bridge Plugin | 3/3 | Complete   | 2026-03-22 |
 | 6. Installer and Deployment | 0/? | Not started | - |

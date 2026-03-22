@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-03-22T08:10:51.176Z"
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-03-22T08:18:17.512Z"
 last_activity: 2026-03-22
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 11
-  completed_plans: 10
+  completed_plans: 11
   percent: 88
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 ## Current Position
 
 Phase: 5 of 6 (Loxone Bridge Plugin)
-Plan: 2 of 3 in current phase
+Plan: 3 of 3 in current phase
 Status: In progress
 Last activity: 2026-03-22
 
@@ -62,6 +62,7 @@ Progress: [█████████░] 88%
 | Phase 04 P02 | 15min | 2 tasks | 5 files |
 | Phase 05 P01 | 5min | 2 tasks | 4 files |
 | Phase 05 P02 | 25min | 2 tasks | 4 files |
+| Phase 05 P03 | 30min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,9 @@ Recent decisions affecting current work:
 - [Phase 05]: Re-fetch structure on WebSocket reconnect to handle Miniserver config changes
 - [Phase 05]: Fix: Authorization header instead of URL credentials for Node.js fetch/ws compatibility
 - [Phase 05]: Fix: WebSocket subprotocol 'remotecontrol' as constructor arg (not header) for Loxone Miniserver
+- [Phase Phase 05]: Plugin instance accessed in route handlers via app.pluginManager.getInstance('loxone') to keep plugin business logic self-contained
+- [Phase Phase 05]: Topic route subscriptions stored in Map<routeId, handler> on plugin instance for clean individual unsubscribe
+- [Phase Phase 05]: disabledControls array persisted to plugin config JSON so control toggles survive plugin restart
 
 ### Pending Todos
 
@@ -112,6 +116,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-22T08:10:51.173Z
-Stopped at: Completed 05-02-PLAN.md
+Last session: 2026-03-22T08:18:17.509Z
+Stopped at: Completed 05-03-PLAN.md
 Resume file: None
