@@ -1,5 +1,5 @@
 [Unit]
-Description=MQTT Master Web Dashboard
+Description=MQTT Master
 After=network.target mosquitto.service
 Wants=mosquitto.service
 
@@ -7,11 +7,11 @@ Wants=mosquitto.service
 Type=simple
 User=mqtt-master
 Group=mqtt-master
-WorkingDirectory=/opt/mqtt-master/webapp
-ExecStart=/opt/mqtt-master/venv/bin/python app.py
+WorkingDirectory=/opt/mqtt-master
+ExecStart=/usr/bin/node server/index.js
 Restart=always
 RestartSec=5
-Environment=PYTHONUNBUFFERED=1
+Environment=NODE_ENV=production
 
 [Install]
 WantedBy=multi-user.target

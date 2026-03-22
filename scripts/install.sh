@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # ============================================================================
 # MQTT Master - Installer & Updater
-# Usage: wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/scripts/install.sh | bash
+# One command to install or update:
+#   wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/scripts/install.sh | bash
 # ============================================================================
 set -euo pipefail
 
@@ -11,9 +12,9 @@ REPO_URL="https://github.com/meintechblog/mqtt-master.git"
 BRANCH="main"
 SERVICE_NAME="mqtt-master"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
-VENV_DIR="${APP_DIR}/venv"
 APP_USER="mqtt-master"
-APP_PORT=8080
+APP_PORT=3000
+NODE_MAJOR=20
 
 # Colors
 RED='\033[0;31m'
@@ -35,7 +36,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 IS_UPDATE=false
-if [ -d "${APP_DIR}" ]; then
+if [ -d "${APP_DIR}/.git" ]; then
     IS_UPDATE=true
     log "Existing installation detected — running update..."
 else
@@ -43,12 +44,38 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Install Node.js (if needed)
+# ---------------------------------------------------------------------------
+install_node() {
+    if command -v node &>/dev/null; then
+        NODE_VER=$(node -v | sed 's/v//' | cut -d. -f1)
+        if [ "${NODE_VER}" -ge "${NODE_MAJOR}" ]; then
+            ok "Node.js $(node -v) already installed"
+            return
+        fi
+        log "Node.js $(node -v) is too old, upgrading..."
+    fi
+
+    log "Installing Node.js ${NODE_MAJOR}.x..."
+    apt-get update -qq
+    apt-get install -y -qq ca-certificates curl gnupg > /dev/null 2>&1
+    mkdir -p /etc/apt/keyrings
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg 2>/dev/null
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" > /etc/apt/sources.list.d/nodesource.list
+    apt-get update -qq
+    apt-get install -y -qq nodejs > /dev/null 2>&1
+    ok "Node.js $(node -v) installed"
+}
+
+# ---------------------------------------------------------------------------
 # Install system dependencies
 # ---------------------------------------------------------------------------
 log "Installing system dependencies..."
 apt-get update -qq
-apt-get install -y -qq mosquitto mosquitto-clients python3 python3-venv python3-pip git > /dev/null 2>&1
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq mosquitto mosquitto-clients git > /dev/null 2>&1
 ok "System dependencies installed"
+
+install_node
 
 # ---------------------------------------------------------------------------
 # Configure Mosquitto (only on fresh install)
@@ -98,15 +125,26 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Python virtual environment & dependencies
+# Install Node.js dependencies
 # ---------------------------------------------------------------------------
-log "Setting up Python environment..."
-if [ ! -d "${VENV_DIR}" ]; then
-    python3 -m venv "${VENV_DIR}"
+log "Installing dependencies..."
+cd "${APP_DIR}"
+npm install --production --quiet 2>&1 | tail -3
+ok "Dependencies installed"
+
+# ---------------------------------------------------------------------------
+# Write default config (only if missing)
+# ---------------------------------------------------------------------------
+if [ ! -f "${APP_DIR}/config.json" ]; then
+    cat > "${APP_DIR}/config.json" << 'CFGEOF'
+{
+  "mqtt": { "broker": "mqtt://localhost:1883" },
+  "web": { "port": 3000 },
+  "logLevel": "info"
+}
+CFGEOF
+    ok "Default config created"
 fi
-"${VENV_DIR}/bin/pip" install --quiet --upgrade pip
-"${VENV_DIR}/bin/pip" install --quiet -r "${APP_DIR}/webapp/requirements.txt"
-ok "Python dependencies installed"
 
 # ---------------------------------------------------------------------------
 # Set permissions
@@ -146,11 +184,13 @@ fi
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 IP=$(hostname -I | awk '{print $1}')
-echo -e "  Dashboard:  ${BLUE}http://${IP}:${APP_PORT}${NC}"
+echo -e "  Dashboard:   ${BLUE}http://${IP}:${APP_PORT}${NC}"
 echo -e "  MQTT Broker: ${BLUE}mqtt://${IP}:1883${NC}"
 echo -e "  WebSocket:   ${BLUE}ws://${IP}:9001${NC}"
 echo ""
 echo -e "  Manage:  ${YELLOW}systemctl {start|stop|restart|status} ${SERVICE_NAME}${NC}"
 echo -e "  Logs:    ${YELLOW}journalctl -u ${SERVICE_NAME} -f${NC}"
+echo -e "  Config:  ${YELLOW}/opt/mqtt-master/config.json${NC}"
+echo ""
 echo -e "  Update:  ${YELLOW}wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/scripts/install.sh | bash${NC}"
 echo ""

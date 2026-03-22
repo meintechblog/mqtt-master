@@ -14,6 +14,7 @@ rsync -avz --delete \
   --exclude='.claude' \
   --exclude='tests' \
   --exclude='.gitignore' \
+  --exclude='config.json' \
   /Users/hulki/codex/mqtt-master/ ${VM_HOST}:${VM_PATH}/
 
 echo "📦 Installing dependencies..."

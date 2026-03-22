@@ -64,6 +64,19 @@ export class PluginManager {
         configSchema,
       });
     }
+
+    // Auto-start plugins that have autoStart: true in their config
+    for (const [id] of this.plugins) {
+      const pluginConfig = this.configService.get(`plugins.${id}`, {});
+      if (pluginConfig.autoStart) {
+        this.logger.info(`Auto-starting plugin '${id}'`);
+        try {
+          await this.start(id);
+        } catch (err) {
+          this.logger.error(`Failed to auto-start plugin '${id}': ${err.message}`);
+        }
+      }
+    }
   }
 
   /**

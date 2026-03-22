@@ -132,6 +132,28 @@ export class LoxoneWs extends EventEmitter {
     }
   }
 
+  /**
+   * Send a command and wait for the LL response.
+   * @param {string} cmd
+   * @returns {Promise<{ control: string, code: number, value: string }>}
+   */
+  sendCommandAsync(cmd) {
+    return new Promise((resolve, reject) => {
+      if (!this._ws || this._ws.readyState !== WebSocket.OPEN) {
+        reject(new Error('WebSocket not connected'));
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        this._pendingCmd = null;
+        reject(new Error(`Command timeout: ${cmd}`));
+      }, CMD_TIMEOUT);
+
+      this._pendingCmd = { resolve, timeout };
+      this._ws.send(cmd);
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Connection and authentication
   // ---------------------------------------------------------------------------
@@ -441,6 +463,15 @@ export class LoxoneWs extends EventEmitter {
     if (!isBinary) {
       const text = data.toString();
 
+      // Check if we're waiting for a text payload after a 0x00 header (only after auth)
+      if (this._authenticated && this._state === 'PAYLOAD' && this._pendingHeader && this._pendingHeader.identifier === 0x00) {
+        // This text frame is the payload for the preceding binary header
+        this._state = 'HEADER';
+        this._pendingHeader = null;
+        this.emit('textStateEvent', text);
+        return;
+      }
+
       // Try to parse as JSON response for pending command
       try {
         const json = JSON.parse(text);
@@ -521,7 +552,8 @@ export class LoxoneWs extends EventEmitter {
         this._parseTextEvents(buffer);
         break;
       default:
-        // Other types (daytimer, weather, etc.) -- silently skip
+        // Log unknown identifiers for debugging
+        this.emit('debugPayload', { identifier: this._pendingHeader.identifier, length: buffer.length });
         break;
     }
   }

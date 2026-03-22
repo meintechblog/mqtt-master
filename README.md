@@ -2,36 +2,38 @@
 
 A self-hosted MQTT broker dashboard and smart home bridge for Debian/Ubuntu.
 
-MQTT Master provides a real-time web interface for monitoring your Mosquitto MQTT broker and bridges non-MQTT smart home systems into your broker through an extensible plugin architecture.
+MQTT Master provides a real-time web interface for monitoring your Mosquitto MQTT broker and bridges non-MQTT smart home systems into MQTT through a plugin architecture. The first plugin integrates the Loxone Miniserver bidirectionally.
 
 ## Features
 
-- Real-time broker dashboard (connected clients, message rates, memory usage, uptime)
-- Live MQTT message viewer with topic pattern filtering
-- Hierarchical topic tree browser
-- Plugin system for smart home integrations
-- Loxone Miniserver bridge with auto-discovery and human-readable MQTT topics
-- Home Assistant auto-detection via MQTT Discovery
-- Venus OS-inspired dark theme
-- No database required -- JSON config + in-memory state
+- **Broker Dashboard** -- real-time metrics (clients, messages, subscriptions, memory, uptime)
+- **Live Message Viewer** -- subscribe to topics, watch messages flow with filtering
+- **Hierarchical Topic Tree** -- browse all active MQTT topics
+- **Loxone Miniserver Bridge** -- bidirectional with auto-discovery and human-readable topics
+- **Loxone Elements** -- live status view of all Loxone controls with On/Off testing and MQTT topic overview
+- **MQTT Input Bindings** -- guided wizard to feed external MQTT data (e.g. PV inverter) into Loxone Virtual Inputs
+- **Home Assistant Discovery** -- automatic device detection via MQTT Discovery
+- **Auto-Reconnect** -- WebSocket reconnect with token re-auth, structure change detection, stale topic cleanup
+- **Venus OS Dark Theme** -- consistent with PV Inverter Proxy UI
+- **No database** -- JSON config + in-memory state
 
 ## Installation
 
 One command installs everything on a fresh Debian 12+ or Ubuntu 22.04+ system:
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/install.sh | bash
+wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/scripts/install.sh | bash
 ```
 
-The installer handles all dependencies automatically:
+This handles:
 
-- Installs Node.js 20 LTS (if not present or too old)
-- Installs and configures Mosquitto MQTT broker (port 1883, anonymous access)
+- Node.js 20 LTS (installs or upgrades if needed)
+- Mosquitto MQTT broker (port 1883 + WebSocket on 9001, anonymous LAN access)
 - Clones the repository to `/opt/mqtt-master/`
-- Installs Node.js dependencies
-- Creates a systemd service with automatic restart
+- Node.js dependencies
+- systemd service with auto-restart
 
-After installation, open your browser to:
+After installation:
 
 ```
 http://<your-server-ip>:3000
@@ -39,174 +41,115 @@ http://<your-server-ip>:3000
 
 ## Updating
 
-Run the same install command to update to the latest version:
+Run the same command:
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/install.sh | bash
+wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/scripts/install.sh | bash
 ```
 
-The installer detects the existing installation, pulls the latest code, reinstalls dependencies, and restarts the service. Your `config.json` is preserved.
+Your `config.json` is preserved. The installer pulls the latest code, reinstalls dependencies, and restarts the service.
+
+## Loxone Bridge
+
+The Loxone plugin bridges your Miniserver into MQTT with zero manual mapping.
+
+### Setup
+
+1. Open the web UI, navigate to **Loxone** in the sidebar
+2. Configure your Miniserver connection (IP, port, username, password)
+3. Click **Start**
+
+The plugin auto-discovers all controls and publishes them with human-readable topics:
+
+```
+loxone/{room}/{control}/state      -- outgoing state updates (JSON)
+loxone/{room}/{control}/cmd        -- incoming commands
+loxone/bridge/status               -- online/offline
+```
+
+### Loxone Elements
+
+The **Elements** page shows all Loxone controls with:
+
+- Live values updated every 2 seconds
+- Room, category, and type for each element
+- On/Off push buttons for testing switches and dimmers
+- Click any element to see its MQTT topics with direction indicators (outgoing/incoming)
+- Filter by room, category, type, or free text search
+
+### MQTT Input Bindings
+
+Feed external MQTT data into Loxone controls (e.g. PV inverter power into a Loxone Meter element):
+
+1. Go to **Input Bindings** and click **+ New Binding**
+2. **Scan** a topic pattern (e.g. `pv-inverter-proxy/#`) to discover available devices
+3. **Pick a field** from the JSON payload (e.g. `ac_power_w`)
+4. **Select a Loxone target** (e.g. a Virtual Input connected to a Meter)
+5. **Choose a transform** (e.g. W to kW) and save
+
+Bindings send values instantly on change and resend every 30s as keepalive. Already-bound targets are greyed out to prevent duplicates.
+
+### Structure Change Detection
+
+The plugin checks the Miniserver structure every 60 seconds. When controls are renamed, added, or removed:
+
+- Old retained MQTT messages are automatically cleaned up
+- New topics are published immediately
+- Home Assistant Discovery is refreshed
 
 ## Configuration
 
-The configuration file is located at `/opt/mqtt-master/config.json`.
-
-### Available Settings
+Config file: `/opt/mqtt-master/config.json`
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `mqtt.broker` | `mqtt://localhost:1883` | MQTT broker connection URL |
+| `mqtt.broker` | `mqtt://localhost:1883` | MQTT broker URL |
 | `web.port` | `3000` | Web dashboard port |
 | `logLevel` | `info` | Log level (trace, debug, info, warn, error) |
-| `pluginDir` | `plugins/` | Directory to scan for plugins |
+| `pluginDir` | `plugins/` | Plugin directory |
 
-### Example config.json
-
-```json
-{
-  "mqtt": { "broker": "mqtt://localhost:1883" },
-  "web": { "port": 3000 },
-  "logLevel": "info"
-}
-```
-
-After changing the config, restart the service:
-
-```bash
-systemctl restart mqtt-master
-```
-
-## Loxone Bridge Setup
-
-The Loxone plugin bridges your Loxone Miniserver into MQTT, publishing all controls with human-readable topic names.
-
-1. Open the MQTT Master web UI and navigate to the **Plugins** page
-2. Click on the **Loxone** plugin
-3. Configure your Miniserver connection:
-   - **Host**: Miniserver IP address (e.g., `192.168.1.10`)
-   - **Port**: `80` (default)
-   - **Username**: Loxone user with admin access
-   - **Password**: Loxone user password
-4. Click **Start** to activate the plugin
-
-Once connected, the plugin:
-
-- Auto-discovers all controls from the Miniserver structure file
-- Publishes state updates to `loxone/{room}/{control-name}`
-- Subscribes to command topics for bidirectional control
-- Supports Home Assistant auto-detection via MQTT Discovery
-- Allows per-control enable/disable from the plugin UI
-
-### Topic Routes
-
-Topic routes allow custom MQTT forwarding rules. You can map incoming MQTT messages to Loxone controls or forward Loxone state changes to custom topics. Configure routes from the plugin settings page in the web UI.
+Loxone plugin settings are managed through the web UI and stored in `config.json` under `plugins.loxone`. Passwords are encrypted at rest.
 
 ## Plugin System
 
-MQTT Master uses a plugin architecture to bridge external systems into MQTT.
-
-### Plugin Directory
-
-Plugins are stored in the `plugins/` directory. Each plugin is a subdirectory containing an `index.js` file.
-
-```
-plugins/
-  loxone/
-    index.js
-  example/
-    index.js
-```
-
-### Plugin Contract
-
-Every plugin must export a class with these methods:
+Plugins live in `plugins/{name}/plugin.js` and export a class with:
 
 ```javascript
 export default class MyPlugin {
-  // Called when the plugin is started
-  // context provides: mqttService, configService, logger
-  async start(context) { }
-
-  // Called when the plugin is stopped
+  async start(context) { }   // context: { mqttService, configService, logger }
   async stop() { }
-
-  // Returns current plugin status
-  getStatus() {
-    return {
-      running: true,
-      stats: { /* plugin-specific stats */ }
-    };
-  }
-
-  // Returns JSON schema for plugin configuration
-  getConfigSchema() {
-    return {
-      fields: [
-        { name: 'host', type: 'string', label: 'Host', required: true },
-        { name: 'port', type: 'number', label: 'Port', default: 80 }
-      ]
-    };
-  }
+  getStatus() { }
+  getConfigSchema() { }      // JSON Schema for auto-generated config UI
 }
-```
-
-### Plugin Context
-
-The `start(context)` method receives:
-
-- `mqttService` -- publish and subscribe to MQTT topics
-- `configService` -- read and write persistent configuration
-- `logger` -- structured logger instance
-
-## Development
-
-```bash
-# Clone the repository
-git clone https://github.com/meintechblog/mqtt-master.git
-cd mqtt-master
-
-# Install dependencies
-npm install
-
-# Start in development mode (with file watching)
-npm run dev
-
-# Run tests
-npm test
-
-# Deploy to VM (development)
-./scripts/deploy-vm.sh
 ```
 
 ## Service Management
 
 ```bash
-# Check service status
 systemctl status mqtt-master
-
-# Restart the service
 systemctl restart mqtt-master
-
-# Stop the service
-systemctl stop mqtt-master
-
-# View live logs
-journalctl -u mqtt-master -f
-
-# View recent logs
-journalctl -u mqtt-master --no-pager -n 50
+journalctl -u mqtt-master -f       # live logs
+journalctl -u mqtt-master -n 50    # recent logs
 ```
 
-## Mosquitto Configuration
+## Development
 
-The installer creates `/etc/mosquitto/conf.d/mqtt-master.conf`:
-
+```bash
+git clone https://github.com/meintechblog/mqtt-master.git
+cd mqtt-master
+npm install
+npm run dev
+npm test
+./scripts/deploy-vm.sh             # deploy to test VM
 ```
-listener 1883
-allow_anonymous true
-```
 
-This allows anonymous MQTT access from your LAN. Do not expose this to the internet without adding authentication.
+## Tech Stack
+
+- **Backend**: Node.js 20, Fastify 5, mqtt.js, ws
+- **Frontend**: Preact + HTM (no build step), Preact Signals
+- **Styling**: CSS custom properties (Venus OS Dark Theme)
+- **MQTT Broker**: Mosquitto
+- **No database**: JSON files + in-memory state
 
 ## License
 

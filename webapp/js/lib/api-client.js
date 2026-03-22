@@ -53,11 +53,26 @@ export function savePluginConfig(id, config) {
   });
 }
 
+// --- MQTT publish ---
+
+/** POST /api/mqtt/publish -- publish a message to the broker */
+export function publishMqtt(topic, payload, { retain = false, qos = 0 } = {}) {
+  return request('/api/mqtt/publish', {
+    method: 'POST',
+    body: JSON.stringify({ topic, payload, retain, qos }),
+  });
+}
+
 // --- Loxone-specific endpoints ---
 
 /** GET /api/plugins/loxone/controls -- list all discovered controls */
 export function fetchLoxoneControls() {
   return request('/api/plugins/loxone/controls');
+}
+
+/** GET /api/plugins/loxone/controls/detailed -- controls with subcontrols and live state */
+export function fetchLoxoneControlsDetailed() {
+  return request('/api/plugins/loxone/controls/detailed');
 }
 
 /** PUT /api/plugins/loxone/controls/:uuid -- toggle control enabled state */
@@ -68,15 +83,24 @@ export function toggleLoxoneControl(uuid, enabled) {
   });
 }
 
-/** GET /api/plugins/loxone/routes -- list topic routes */
-export function fetchTopicRoutes() {
-  return request('/api/plugins/loxone/routes');
-}
-
-/** PUT /api/plugins/loxone/routes -- save topic routes */
-export function saveTopicRoutes(routes) {
-  return request('/api/plugins/loxone/routes', {
-    method: 'PUT',
-    body: JSON.stringify(routes),
+/** POST /api/plugins/loxone/controls/:uuid/cmd -- send command directly via WebSocket */
+export function sendLoxoneCommand(uuid, command) {
+  return request(`/api/plugins/loxone/controls/${encodeURIComponent(uuid)}/cmd`, {
+    method: 'POST',
+    body: JSON.stringify({ command }),
   });
 }
+
+/** GET /api/plugins/loxone/bindings -- list MQTT input bindings */
+export function fetchInputBindings() {
+  return request('/api/plugins/loxone/bindings');
+}
+
+/** PUT /api/plugins/loxone/bindings -- save MQTT input bindings */
+export function saveInputBindings(bindings) {
+  return request('/api/plugins/loxone/bindings', {
+    method: 'PUT',
+    body: JSON.stringify(bindings),
+  });
+}
+

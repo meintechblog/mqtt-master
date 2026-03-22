@@ -19,6 +19,8 @@ export class LoxoneStructure {
     this._meta = new Map();
     /** @type {Array<object>} control-level entries */
     this._controls = [];
+    /** @type {Map<string, object>} UUID -> full control tree with subControls and states */
+    this._controlTree = new Map();
   }
 
   /**
@@ -50,6 +52,7 @@ export class LoxoneStructure {
     this._topicToUuid.clear();
     this._meta.clear();
     this._controls = [];
+    this._controlTree.clear();
 
     const rooms = loxApp3Json.rooms || {};
     const cats = loxApp3Json.cats || {};
@@ -120,6 +123,9 @@ export class LoxoneStructure {
       });
       this._controls.push(this._meta.get(uuid));
 
+      // Collect state keys for the tree
+      const stateKeys = [];
+
       // Map state UUIDs
       if (ctrl.states) {
         for (const [stateKey, stateUuid] of Object.entries(ctrl.states)) {
@@ -134,8 +140,12 @@ export class LoxoneStructure {
             category: categoryName || '',
             stateKey,
           });
+          stateKeys.push({ key: stateKey, uuid: stateUuid });
         }
       }
+
+      // Collect subControls for the tree
+      const subControls = [];
 
       // Map subControls
       if (ctrl.subControls) {
@@ -154,6 +164,8 @@ export class LoxoneStructure {
             category: categoryName || '',
           });
 
+          const subStateKeys = [];
+
           // Map subControl state UUIDs
           if (subCtrl.states) {
             for (const [stateKey, stateUuid] of Object.entries(subCtrl.states)) {
@@ -168,10 +180,31 @@ export class LoxoneStructure {
                 category: categoryName || '',
                 stateKey,
               });
+              subStateKeys.push({ key: stateKey, uuid: stateUuid });
             }
           }
+
+          subControls.push({
+            uuid: subUuid,
+            name: subCtrl.name,
+            type: subCtrl.type,
+            topic: subTopic,
+            states: subStateKeys,
+          });
         }
       }
+
+      // Store tree entry
+      this._controlTree.set(uuid, {
+        uuid,
+        name: ctrl.name,
+        type: ctrl.type,
+        room: roomName || 'unknown',
+        topic: controlTopic,
+        category: categoryName || '',
+        states: stateKeys,
+        subControls,
+      });
     }
   }
 
@@ -208,6 +241,14 @@ export class LoxoneStructure {
    */
   getAll() {
     return [...this._controls];
+  }
+
+  /**
+   * Get full control tree with subControls and state keys.
+   * @returns {Array<object>}
+   */
+  getControlTree() {
+    return [...this._controlTree.values()];
   }
 
   /**

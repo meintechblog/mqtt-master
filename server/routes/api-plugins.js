@@ -2,7 +2,46 @@
  * REST API routes for plugin management.
  * Registered as a Fastify plugin -- expects app.pluginManager to be decorated.
  */
+/** In-memory activity log (last 100 entries) */
+const activityLog = [];
+const MAX_LOG_ENTRIES = 100;
+
+function addLogEntry(entry) {
+  activityLog.unshift({ ...entry, timestamp: Date.now() });
+  if (activityLog.length > MAX_LOG_ENTRIES) activityLog.length = MAX_LOG_ENTRIES;
+}
+
 export default async function apiPlugins(app) {
+  // GET /api/activity-log -- get recent activity
+  app.get('/api/activity-log', async () => {
+    return activityLog;
+  });
+
+  // DELETE /api/activity-log -- clear log
+  app.delete('/api/activity-log', async () => {
+    activityLog.length = 0;
+    return { ok: true };
+  });
+
+  // POST /api/mqtt/publish -- publish a message to the broker
+  app.post('/api/mqtt/publish', async (request, reply) => {
+    const { topic, payload, retain, qos } = request.body || {};
+    if (!topic || typeof topic !== 'string') {
+      return reply.status(400).send({ error: 'topic is required' });
+    }
+    try {
+      await app.mqttService.publish(topic, payload ?? '', {
+        retain: !!retain,
+        qos: typeof qos === 'number' ? qos : 0,
+      });
+      addLogEntry({ action: 'publish', topic, payload: payload ?? '', retain: !!retain, qos: typeof qos === 'number' ? qos : 0 });
+      app.log.info(`MQTT Publish: ${topic} → ${payload ?? ''}`);
+      return { ok: true, topic, payload: payload ?? '' };
+    } catch (err) {
+      return reply.status(500).send({ error: err.message });
+    }
+  });
+
   // GET /api/plugins -- list all plugins with status
   app.get('/api/plugins', async () => {
     return app.pluginManager.listAll();
@@ -121,6 +160,19 @@ export default async function apiPlugins(app) {
     }
   });
 
+  // GET /api/plugins/loxone/controls/detailed -- controls with subcontrols and live state
+  app.get('/api/plugins/loxone/controls/detailed', async (request, reply) => {
+    try {
+      const instance = app.pluginManager.getInstance('loxone');
+      if (!instance || typeof instance.getDetailedControls !== 'function') {
+        return reply.status(400).send({ error: 'Loxone plugin is not running' });
+      }
+      return instance.getDetailedControls();
+    } catch (err) {
+      return reply.status(500).send({ error: err.message });
+    }
+  });
+
   // PUT /api/plugins/loxone/controls/:uuid -- toggle control enabled state
   app.put('/api/plugins/loxone/controls/:uuid', async (request, reply) => {
     try {
@@ -137,30 +189,92 @@ export default async function apiPlugins(app) {
     }
   });
 
-  // GET /api/plugins/loxone/routes -- list topic routes
-  app.get('/api/plugins/loxone/routes', async (request, reply) => {
+  // POST /api/plugins/loxone/controls/:uuid/cmd -- send command to a control via WebSocket
+  app.post('/api/plugins/loxone/controls/:uuid/cmd', async (request, reply) => {
     try {
       const instance = app.pluginManager.getInstance('loxone');
-      if (!instance || typeof instance.getTopicRoutes !== 'function') {
+      if (!instance || typeof instance.sendControlCommand !== 'function') {
         return reply.status(400).send({ error: 'Loxone plugin is not running' });
       }
-      return instance.getTopicRoutes();
+      const { uuid } = request.params;
+      const { command } = request.body || {};
+      if (!command || typeof command !== 'string') {
+        return reply.status(400).send({ error: 'command is required' });
+      }
+      instance.sendControlCommand(uuid, command);
+      return { ok: true, uuid, command };
     } catch (err) {
       return reply.status(500).send({ error: err.message });
     }
   });
 
-  // PUT /api/plugins/loxone/routes -- save topic routes
-  app.put('/api/plugins/loxone/routes', async (request, reply) => {
+  // GET /api/plugins/loxone/bindings -- list MQTT input bindings
+  app.get('/api/plugins/loxone/bindings', async (request, reply) => {
     try {
       const instance = app.pluginManager.getInstance('loxone');
-      if (!instance || typeof instance.setTopicRoutes !== 'function') {
+      if (!instance || typeof instance.getInputBindings !== 'function') {
         return reply.status(400).send({ error: 'Loxone plugin is not running' });
       }
-      await instance.setTopicRoutes(request.body || []);
+      return instance.getInputBindings();
+    } catch (err) {
+      return reply.status(500).send({ error: err.message });
+    }
+  });
+
+  // PUT /api/plugins/loxone/bindings -- save MQTT input bindings
+  app.put('/api/plugins/loxone/bindings', async (request, reply) => {
+    try {
+      const instance = app.pluginManager.getInstance('loxone');
+      if (!instance || typeof instance.setInputBindings !== 'function') {
+        return reply.status(400).send({ error: 'Loxone plugin is not running' });
+      }
+      await instance.setInputBindings(request.body || []);
       return { ok: true };
     } catch (err) {
       return reply.status(500).send({ error: err.message });
     }
   });
+
+  // POST /api/mqtt/discover -- subscribe to a pattern, collect messages, return topics with sample payloads
+  app.post('/api/mqtt/discover', async (request, reply) => {
+    const { pattern, durationMs = 3000 } = request.body || {};
+    if (!pattern || typeof pattern !== 'string') {
+      return reply.status(400).send({ error: 'pattern is required (e.g. "pv-inverter-proxy/#")' });
+    }
+    const duration = Math.min(Math.max(Number(durationMs) || 3000, 1000), 10000);
+
+    const collected = new Map(); // topic -> { payload, fields, ts }
+
+    const handler = (msg) => {
+      if (collected.has(msg.topic)) return; // one sample per topic
+      let fields = null;
+      try {
+        const data = JSON.parse(msg.payload);
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+          fields = Object.entries(data).map(([key, val]) => ({
+            key,
+            type: typeof val,
+            sample: typeof val === 'number' ? val : String(val).substring(0, 100),
+          }));
+        }
+      } catch { /* not JSON */ }
+      collected.set(msg.topic, {
+        topic: msg.topic,
+        payload: msg.payload.substring(0, 500),
+        fields,
+        ts: Date.now(),
+      });
+    };
+
+    app.mqttService.subscribe(pattern);
+    app.mqttService.on('message', handler);
+
+    await new Promise(resolve => setTimeout(resolve, duration));
+
+    app.mqttService.removeListener('message', handler);
+    app.mqttService.unsubscribe(pattern);
+
+    return [...collected.values()];
+  });
+
 }

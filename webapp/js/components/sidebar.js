@@ -39,7 +39,7 @@ export function Sidebar({ currentHash }) {
         const plugins = await fetchPlugins();
         if (!cancelled) {
           pluginItems.value = plugins.map(p => ({
-            label: p.name || p.id,
+            label: (p.name || p.id).charAt(0).toUpperCase() + (p.name || p.id).slice(1),
             hash: '#/plugins/' + p.id,
             status: p.status,
           }));
@@ -108,15 +108,15 @@ export function Sidebar({ currentHash }) {
                 style="padding-left:36px;font-size:13px;"
                 onClick=${() => { menuOpen.value = false; }}
               >
-                Controls
+                Elements
               </a>
               <a
-                class="sidebar-nav-item ${currentHash.value === '#/loxone/routes' ? 'active' : ''}"
-                href="#/loxone/routes"
+                class="sidebar-nav-item ${currentHash.value === '#/loxone/bindings' ? 'active' : ''}"
+                href="#/loxone/bindings"
                 style="padding-left:36px;font-size:13px;"
                 onClick=${() => { menuOpen.value = false; }}
               >
-                Topic Routes
+                Input Bindings
               </a>
             `}
           `)

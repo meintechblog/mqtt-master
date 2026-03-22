@@ -6,7 +6,7 @@ import { Dashboard } from './pages/dashboard.js';
 import { Messages } from './pages/messages.js';
 import { PluginConfig } from './pages/plugin-config.js';
 import { LoxoneControls } from './pages/loxone-controls.js';
-import { TopicRoutes } from './pages/topic-routes.js';
+import { InputBindings } from './pages/input-bindings.js';
 import { NotFound } from './pages/not-found.js';
 
 const currentHash = signal(window.location.hash || '#/dashboard');
@@ -44,8 +44,8 @@ const currentRoute = computed(() => {
   if (hash === '#/loxone/controls') {
     return { component: LoxoneControls, props: {} };
   }
-  if (hash === '#/loxone/routes') {
-    return { component: TopicRoutes, props: {} };
+  if (hash === '#/loxone/bindings') {
+    return { component: InputBindings, props: {} };
   }
 
   // Dynamic plugin route: #/plugins/:id
