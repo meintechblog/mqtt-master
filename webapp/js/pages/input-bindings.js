@@ -398,6 +398,14 @@ export function InputBindings({ pluginId = 'loxone', defaultPattern } = {}) {
   const [wizField, setWizField] = useState(null);
   const [wizTarget, setWizTarget] = useState(null);
 
+  // Reset state when plugin changes
+  useEffect(() => {
+    setWizardOpen(false);
+    setLoading(true);
+    setBindings([]);
+    setToast(null);
+  }, [pluginId]);
+
   useEffect(() => {
     async function load() {
       try {
@@ -421,7 +429,7 @@ export function InputBindings({ pluginId = 'loxone', defaultPattern } = {}) {
       } catch { /* ignore */ }
     }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [pluginId]);
 
   const showToast = useCallback((type, text) => {
     setToast({ type, text });
