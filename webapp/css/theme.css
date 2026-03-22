@@ -1,0 +1,235 @@
+/* Venus OS Dark Theme - Design Tokens */
+:root {
+  /* Backgrounds */
+  --ve-bg-main: #141414;
+  --ve-bg-surface: #272622;
+  --ve-bg-widget: #11263B;
+
+  /* Accent colors */
+  --ve-blue: #387DC5;
+  --ve-orange: #F0962E;
+  --ve-red: #F35C58;
+  --ve-green: #72B84C;
+
+  /* Text */
+  --ve-text-primary: #FAF9F5;
+  --ve-text-secondary: #DCDBD7;
+  --ve-text-dim: #969591;
+
+  /* Borders & Radius */
+  --ve-border: #64635F;
+  --ve-radius-lg: 12px;
+  --ve-radius-sm: 6px;
+
+  /* Typography */
+  --ve-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --ve-font-mono: 'Courier New', monospace;
+
+  /* Layout */
+  --ve-sidebar-width: 220px;
+  --ve-sidebar-active-border: 3px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--ve-font-family);
+  background: var(--ve-bg-main);
+  color: var(--ve-text-primary);
+  min-height: 100vh;
+}
+
+/* Layout */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  width: var(--ve-sidebar-width);
+  background: var(--ve-bg-surface);
+  border-right: 1px solid var(--ve-border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 100;
+  overflow-y: auto;
+}
+
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--ve-border);
+}
+
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sidebar-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ve-text-primary);
+}
+
+.sidebar-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--ve-text-dim);
+}
+
+.sidebar-section {
+  padding-top: 12px;
+}
+
+.sidebar-section-title {
+  padding: 4px 16px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--ve-text-dim);
+}
+
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  color: var(--ve-text-secondary);
+  text-decoration: none;
+  border-left: var(--ve-sidebar-active-border) solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.sidebar-nav-item:hover {
+  background: rgba(56, 125, 197, 0.1);
+}
+
+.sidebar-nav-item.active {
+  border-left-color: var(--ve-blue);
+  background: rgba(56, 125, 197, 0.15);
+  color: var(--ve-text-primary);
+}
+
+/* Main content */
+.content {
+  margin-left: var(--ve-sidebar-width);
+  flex: 1;
+  padding: 24px;
+  min-height: 100vh;
+}
+
+/* Cards */
+.ve-card {
+  background: var(--ve-bg-widget);
+  border-radius: var(--ve-radius-lg);
+  padding: 16px;
+}
+
+.ve-panel {
+  background: var(--ve-bg-surface);
+  border-radius: var(--ve-radius-lg);
+  padding: 16px;
+}
+
+/* Grid */
+.ve-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+/* Status dots */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot--connected {
+  background: var(--ve-green);
+}
+
+.status-dot--disconnected {
+  background: var(--ve-red);
+}
+
+.status-dot--error {
+  background: var(--ve-orange);
+}
+
+/* Hamburger menu button */
+.hamburger {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 200;
+  background: var(--ve-bg-surface);
+  border: 1px solid var(--ve-border);
+  border-radius: var(--ve-radius-sm);
+  color: var(--ve-text-primary);
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
+/* Sidebar backdrop (mobile overlay) */
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 99;
+}
+
+/* Responsive: collapse sidebar to hamburger at 768px */
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .content {
+    margin-left: 0;
+    padding-top: 56px;
+  }
+
+  .hamburger {
+    display: block;
+  }
+}
+
+@media (min-width: 769px) {
+  .hamburger {
+    display: none;
+  }
+}
+
+/* Page styles */
+.page-header {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--ve-text-primary);
+}
+
+.page-placeholder {
+  color: var(--ve-text-dim);
+  font-size: 14px;
+}
