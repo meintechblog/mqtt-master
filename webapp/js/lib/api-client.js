@@ -4,8 +4,13 @@
  */
 
 async function request(url, options = {}) {
+  const headers = {};
+  // Only set JSON content-type when there's actually a body to send
+  if (options.body) {
+    headers['Content-Type'] = 'application/json';
+  }
   const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     ...options,
   });
   const body = await res.json();
