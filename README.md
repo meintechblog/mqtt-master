@@ -1,67 +1,200 @@
 # MQTT Master
 
-Web Dashboard & Plugin System for Mosquitto MQTT Broker.
+A self-hosted MQTT broker dashboard and smart home bridge for Debian/Ubuntu.
 
-MQTT Master provides a sleek dark-themed web interface to monitor your Mosquitto MQTT broker and integrates third-party systems that lack native MQTT support through a plugin architecture.
-
-![License](https://img.shields.io/github/license/meintechblog/mqtt-master)
+MQTT Master provides a real-time web interface for monitoring your Mosquitto MQTT broker and bridges non-MQTT smart home systems into your broker through an extensible plugin architecture.
 
 ## Features
 
-- **Broker Dashboard** — Real-time monitoring of connected clients, message throughput, subscriptions, memory usage, and load averages
-- **Live Messages** — Subscribe to any topic pattern and watch messages arrive in real-time via WebSocket
-- **Plugin System** — Extensible architecture to bridge non-MQTT systems into your broker (first plugin: Loxone Miniserver)
-- **Dark Theme** — Consistent dark UI design, optimized for always-on displays and dashboards
-- **Mobile Responsive** — Works on desktop, tablet, and phone
+- Real-time broker dashboard (connected clients, message rates, memory usage, uptime)
+- Live MQTT message viewer with topic pattern filtering
+- Hierarchical topic tree browser
+- Plugin system for smart home integrations
+- Loxone Miniserver bridge with auto-discovery and human-readable MQTT topics
+- Home Assistant auto-detection via MQTT Discovery
+- Venus OS-inspired dark theme
+- No database required -- JSON config + in-memory state
 
-## Quick Install (Debian/Ubuntu)
+## Installation
 
-One command to install everything — Mosquitto broker, MQTT Master dashboard, and all dependencies:
+One command installs everything on a fresh Debian 12+ or Ubuntu 22.04+ system:
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/scripts/install.sh | bash
+wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/install.sh | bash
 ```
 
-This will:
-1. Install Mosquitto MQTT broker (open LAN access, no auth)
-2. Configure WebSocket support on port 9001
-3. Install MQTT Master web dashboard on port 8080
-4. Set up a systemd service for auto-start
+The installer handles all dependencies automatically:
 
-### Update
+- Installs Node.js 20 LTS (if not present or too old)
+- Installs and configures Mosquitto MQTT broker (port 1883, anonymous access)
+- Clones the repository to `/opt/mqtt-master/`
+- Installs Node.js dependencies
+- Creates a systemd service with automatic restart
 
-Run the same command to update to the latest version:
+After installation, open your browser to:
 
-```bash
-wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/scripts/install.sh | bash
+```
+http://<your-server-ip>:3000
 ```
 
-## What Gets Installed
+## Updating
 
-| Component | Details |
-|-----------|---------|
-| **Mosquitto** | MQTT broker on port `1883` (MQTT) and `9001` (WebSocket) |
-| **MQTT Master** | Web dashboard on port `8080` |
-| **Install path** | `/opt/mqtt-master/` |
-| **Service** | `systemctl {start\|stop\|restart\|status} mqtt-master` |
-| **Logs** | `journalctl -u mqtt-master -f` |
-
-## Manual Installation
+Run the same install command to update to the latest version:
 
 ```bash
+wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/install.sh | bash
+```
+
+The installer detects the existing installation, pulls the latest code, reinstalls dependencies, and restarts the service. Your `config.json` is preserved.
+
+## Configuration
+
+The configuration file is located at `/opt/mqtt-master/config.json`.
+
+### Available Settings
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `mqtt.broker` | `mqtt://localhost:1883` | MQTT broker connection URL |
+| `web.port` | `3000` | Web dashboard port |
+| `logLevel` | `info` | Log level (trace, debug, info, warn, error) |
+| `pluginDir` | `plugins/` | Directory to scan for plugins |
+
+### Example config.json
+
+```json
+{
+  "mqtt": { "broker": "mqtt://localhost:1883" },
+  "web": { "port": 3000 },
+  "logLevel": "info"
+}
+```
+
+After changing the config, restart the service:
+
+```bash
+systemctl restart mqtt-master
+```
+
+## Loxone Bridge Setup
+
+The Loxone plugin bridges your Loxone Miniserver into MQTT, publishing all controls with human-readable topic names.
+
+1. Open the MQTT Master web UI and navigate to the **Plugins** page
+2. Click on the **Loxone** plugin
+3. Configure your Miniserver connection:
+   - **Host**: Miniserver IP address (e.g., `192.168.1.10`)
+   - **Port**: `80` (default)
+   - **Username**: Loxone user with admin access
+   - **Password**: Loxone user password
+4. Click **Start** to activate the plugin
+
+Once connected, the plugin:
+
+- Auto-discovers all controls from the Miniserver structure file
+- Publishes state updates to `loxone/{room}/{control-name}`
+- Subscribes to command topics for bidirectional control
+- Supports Home Assistant auto-detection via MQTT Discovery
+- Allows per-control enable/disable from the plugin UI
+
+### Topic Routes
+
+Topic routes allow custom MQTT forwarding rules. You can map incoming MQTT messages to Loxone controls or forward Loxone state changes to custom topics. Configure routes from the plugin settings page in the web UI.
+
+## Plugin System
+
+MQTT Master uses a plugin architecture to bridge external systems into MQTT.
+
+### Plugin Directory
+
+Plugins are stored in the `plugins/` directory. Each plugin is a subdirectory containing an `index.js` file.
+
+```
+plugins/
+  loxone/
+    index.js
+  example/
+    index.js
+```
+
+### Plugin Contract
+
+Every plugin must export a class with these methods:
+
+```javascript
+export default class MyPlugin {
+  // Called when the plugin is started
+  // context provides: mqttService, configService, logger
+  async start(context) { }
+
+  // Called when the plugin is stopped
+  async stop() { }
+
+  // Returns current plugin status
+  getStatus() {
+    return {
+      running: true,
+      stats: { /* plugin-specific stats */ }
+    };
+  }
+
+  // Returns JSON schema for plugin configuration
+  getConfigSchema() {
+    return {
+      fields: [
+        { name: 'host', type: 'string', label: 'Host', required: true },
+        { name: 'port', type: 'number', label: 'Port', default: 80 }
+      ]
+    };
+  }
+}
+```
+
+### Plugin Context
+
+The `start(context)` method receives:
+
+- `mqttService` -- publish and subscribe to MQTT topics
+- `configService` -- read and write persistent configuration
+- `logger` -- structured logger instance
+
+## Development
+
+```bash
+# Clone the repository
+git clone https://github.com/meintechblog/mqtt-master.git
+cd mqtt-master
+
 # Install dependencies
-apt-get install mosquitto mosquitto-clients python3 python3-venv git
+npm install
 
-# Clone repository
-git clone https://github.com/meintechblog/mqtt-master.git /opt/mqtt-master
-cd /opt/mqtt-master
+# Start in development mode (with file watching)
+npm run dev
 
-# Create virtual environment
-python3 -m venv venv
-venv/bin/pip install -r webapp/requirements.txt
+# Run tests
+npm test
 
-# Run
-venv/bin/python webapp/app.py
+# Deploy to VM (development)
+./scripts/deploy-vm.sh
+```
+
+## Service Management
+
+```bash
+# Check service status
+systemctl status mqtt-master
+
+# Restart the service
+systemctl restart mqtt-master
+
+# Stop the service
+systemctl stop mqtt-master
+
+# View live logs
+journalctl -u mqtt-master -f
+
+# View recent logs
+journalctl -u mqtt-master --no-pager -n 50
 ```
 
 ## Mosquitto Configuration
@@ -69,44 +202,12 @@ venv/bin/python webapp/app.py
 The installer creates `/etc/mosquitto/conf.d/mqtt-master.conf`:
 
 ```
+listener 1883
 allow_anonymous true
-listener 1883 0.0.0.0
-listener 9001 0.0.0.0
-protocol websockets
 ```
 
-> **Note:** This configuration allows anonymous access from your LAN. Do not expose this to the internet without adding authentication.
-
-## Architecture
-
-```
-mqtt-master/
-├── webapp/                 # Flask web application
-│   ├── app.py              # Main application & MQTT $SYS monitor
-│   ├── static/
-│   │   ├── style.css       # Dark theme stylesheet
-│   │   └── app.js          # Dashboard frontend
-│   ├── templates/
-│   │   └── index.html      # Main page template
-│   ├── requirements.txt    # Python dependencies
-│   └── wsgi.py             # WSGI entry point
-├── plugins/                # Plugin directory (upcoming)
-├── scripts/
-│   ├── install.sh          # One-command installer & updater
-│   └── mqtt-master.service # systemd service file
-└── README.md
-```
-
-## Plugins (Coming Soon)
-
-MQTT Master's plugin system bridges third-party systems into your MQTT broker:
-
-- **Loxone** — Bidirectional integration with Loxone Miniserver
+This allows anonymous MQTT access from your LAN. Do not expose this to the internet without adding authentication.
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
-
-## Contributing
-
-Issues and pull requests welcome at [github.com/meintechblog/mqtt-master](https://github.com/meintechblog/mqtt-master).
+ISC
