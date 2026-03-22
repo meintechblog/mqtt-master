@@ -156,12 +156,22 @@ export class PluginManager {
   listAll() {
     const result = [];
     for (const meta of this.plugins.values()) {
-      result.push({
+      const entry = {
         id: meta.id,
         name: meta.name,
         status: meta.status,
         error: meta.error,
-      });
+      };
+      // Include plugin stats if running
+      if (meta.instance && typeof meta.instance.getStatus === 'function') {
+        try {
+          const s = meta.instance.getStatus();
+          if (s.messageCount != null) entry.messageCount = s.messageCount;
+          if (s.controlCount != null) entry.controlCount = s.controlCount;
+          if (s.lastEvent != null) entry.lastEvent = s.lastEvent;
+        } catch { /* ignore */ }
+      }
+      result.push(entry);
     }
     return result;
   }
@@ -190,6 +200,68 @@ export class PluginManager {
   async setConfig(id, data) {
     this.configService.set(`plugins.${id}`, data);
     await this.configService.save();
+  }
+
+  /**
+   * List available plugin templates (for "Add Plugin" UI).
+   * Returns plugin types that can be instantiated multiple times.
+   */
+  getTemplates() {
+    const templates = [];
+    for (const meta of this.plugins.values()) {
+      // Only plugins that make sense to have multiple instances
+      if (meta.id === 'mqtt-bridge') {
+        templates.push({
+          type: meta.id,
+          label: 'MQTT Bridge',
+          description: 'Connect to an external MQTT broker and bridge topics locally',
+        });
+      }
+    }
+    return templates;
+  }
+
+  /**
+   * Create a new plugin instance from a template.
+   * Copies the plugin code and registers with a unique ID.
+   */
+  async createInstance(type, instanceId) {
+    if (!instanceId || !/^[a-z0-9-]+$/.test(instanceId)) {
+      throw new Error('Invalid instance ID (use lowercase, numbers, hyphens)');
+    }
+    if (this.plugins.has(instanceId)) {
+      throw new Error(`Plugin '${instanceId}' already exists`);
+    }
+    const template = this.plugins.get(type);
+    if (!template) {
+      throw new Error(`Plugin template '${type}' not found`);
+    }
+
+    // Create directory with a re-export module
+    const { mkdir, writeFile } = await import('node:fs/promises');
+    const newDir = join(this.pluginDir, instanceId);
+    await mkdir(newDir, { recursive: true });
+
+    const relPath = '../' + type + '/plugin.js';
+    await writeFile(join(newDir, 'plugin.js'),
+      `// Auto-generated instance of ${type} plugin\nexport { default } from '${relPath}';\n`
+    );
+
+    // Load schema from template
+    let configSchema = template.configSchema || {};
+
+    this.plugins.set(instanceId, {
+      id: instanceId,
+      name: instanceId,
+      status: 'stopped',
+      instance: null,
+      error: null,
+      modulePath: join(newDir, 'plugin.js'),
+      configSchema,
+    });
+
+    this.logger.info(`Created plugin instance '${instanceId}' from template '${type}'`);
+    return { id: instanceId, type };
   }
 
   /**

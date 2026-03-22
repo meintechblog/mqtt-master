@@ -181,6 +181,43 @@ body {
   gap: 6px;
 }
 
+/* Sidebar add plugin */
+.sidebar-add-btn {
+  background: none;
+  border: 1px solid var(--ve-border);
+  border-radius: 4px;
+  color: var(--ve-text-dim);
+  font-size: 14px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  line-height: 1;
+  margin-left: auto;
+}
+.sidebar-add-btn:hover { color: var(--ve-text-primary); border-color: var(--ve-blue); }
+.sidebar-add-dialog {
+  margin: 8px 12px;
+  padding: 12px;
+  background: var(--ve-bg-widget);
+  border-radius: var(--ve-radius-sm);
+  border: 1px solid var(--ve-border);
+}
+.sidebar-add-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+
+/* Sidebar rate badges */
+.sidebar-rate {
+  font-size: 11px;
+  font-family: var(--ve-font-mono);
+  color: var(--ve-text-dim);
+  margin-left: auto;
+  white-space: nowrap;
+}
+.sidebar-section-title { display: flex; align-items: center; gap: 6px; }
+.sidebar-plugin-status { width: 100%; }
+
 /* Hamburger menu button */
 .hamburger {
   position: fixed;
@@ -508,6 +545,16 @@ body {
   gap: 10px;
   font-size: 12px;
   padding: 3px 0;
+}
+.lox-dir-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.lox-dir-both {
+  display: inline-flex;
+  gap: 0;
 }
 .lox-topic-dir {
   display: inline-flex;

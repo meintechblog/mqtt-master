@@ -47,6 +47,25 @@ export default async function apiPlugins(app) {
     return app.pluginManager.listAll();
   });
 
+  // GET /api/plugins/templates -- available plugin types for "Add Plugin"
+  app.get('/api/plugins/templates', async () => {
+    return app.pluginManager.getTemplates();
+  });
+
+  // POST /api/plugins/create -- create a new plugin instance
+  app.post('/api/plugins/create', async (request, reply) => {
+    const { type, id } = request.body || {};
+    if (!type || !id) {
+      return reply.status(400).send({ error: 'type and id are required' });
+    }
+    try {
+      const result = await app.pluginManager.createInstance(type, id);
+      return result;
+    } catch (err) {
+      return reply.status(400).send({ error: err.message });
+    }
+  });
+
   // POST /api/plugins/:id/start
   app.post('/api/plugins/:id/start', async (request, reply) => {
     const { id } = request.params;

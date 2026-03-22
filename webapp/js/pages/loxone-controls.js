@@ -2,6 +2,17 @@ import { html } from 'htm/preact';
 import { useEffect, useState, useCallback, useRef } from 'preact/hooks';
 import { fetchLoxoneControlsDetailed, sendLoxoneCommand } from '../lib/api-client.js';
 
+/** MQTT direction indicator: broker icon + arrow */
+const mqttIcon = html`<svg class="lox-topic-mqtt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="5" r="2.5"/><circle cx="19" cy="5" r="2.5"/><circle cx="12" cy="19" r="2.5"/><circle cx="12" cy="12" r="1.5"/><line x1="7" y1="6.5" x2="10.5" y2="11"/><line x1="17" y1="6.5" x2="13.5" y2="11"/><line x1="12" y1="13.5" x2="12" y2="16.5"/></svg>`;
+
+function DirBadge({ dir }) {
+  const title = dir === 'out' ? 'Plugin → MQTT (outgoing)' : dir === 'in' ? 'MQTT → Plugin (incoming)' : 'bidirectional';
+  if (dir === 'both') {
+    return html`<span class="lox-dir-badge" title=${title}>${mqttIcon}<span class="lox-dir-both"><span class="lox-topic-arrow lox-topic-dir--out">\u2190</span><span class="lox-topic-arrow lox-topic-dir--in">\u2192</span></span></span>`;
+  }
+  return html`<span class="lox-dir-badge" title=${title}>${mqttIcon}<span class="lox-topic-arrow lox-topic-dir--${dir}">${dir === 'out' ? '\u2190' : '\u2192'}</span></span>`;
+}
+
 /** Extract the primary display value from states */
 function primaryValue(type, states) {
   if (!states) return null;
@@ -161,6 +172,7 @@ function CategorySection({ group, search, typeFilter, expanded, setExpanded, onC
               return html`
                 <div class="lox-item-wrap" key=${item.uuid}>
                   <div class="lox-item ${changed ? 'val-ping' : ''}" onClick=${() => setExpanded(isExpanded ? null : item.uuid)} style="cursor:pointer">
+                    <${DirBadge} dir=${controllable ? 'both' : 'out'} />
                     <div class="lox-item-info">
                       <span class="lox-item-name">
                         ${item.name}
