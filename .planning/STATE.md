@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-stopped_at: Phase 1 context gathered
-last_updated: "2026-03-22T00:25:03.649Z"
-last_activity: 2026-03-22 -- Roadmap created
+status: executing
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-03-22T00:49:32.192Z"
+last_activity: 2026-03-22 -- Completed 01-01 (Project scaffold and core services)
 progress:
   total_phases: 6
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 2
+  completed_plans: 1
+  percent: 50
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 ## Current Position
 
 Phase: 1 of 6 (Webapp Shell and Core Services)
-Plan: 0 of ? in current phase
-Status: Ready to plan
-Last activity: 2026-03-22 -- Roadmap created
+Plan: 1 of 2 in current phase
+Status: Executing
+Last activity: 2026-03-22 -- Completed 01-01 (Project scaffold and core services)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: -
 
 *Updated after each plan completion*
+| Phase 01 P01 | 4min | 2 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -61,6 +62,8 @@ Recent decisions affecting current work:
 - Tech stack: Node.js 20 + Fastify 5 + Preact/HTM (no build step) + mqtt.js + ws (from research)
 - No database: JSON files + in-memory state only
 - Loxone uses raw ws library, not abandoned community libraries
+- [Phase 01]: Safe error emission on MqttService: only emit error if listeners exist
+- [Phase 01]: Vendor script resolves esm.sh X-ESM-Path header to download actual bundles instead of re-export stubs
 
 ### Pending Todos
 
@@ -73,6 +76,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-22T00:25:03.647Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-webapp-shell-and-core-services/01-CONTEXT.md
+Last session: 2026-03-22T00:49:32.190Z
+Stopped at: Completed 01-01-PLAN.md
+Resume file: None
