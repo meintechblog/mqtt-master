@@ -55,10 +55,14 @@ export default async function apiPlugins(app) {
     const { id } = request.params;
     try {
       const config = app.pluginManager.getConfig(id);
+      // Try live instance first, fall back to schema cached at discovery time
       const instance = app.pluginManager.getInstance(id);
-      const schema = instance && typeof instance.getConfigSchema === 'function'
-        ? instance.getConfigSchema()
-        : {};
+      let schema = {};
+      if (instance && typeof instance.getConfigSchema === 'function') {
+        schema = instance.getConfigSchema();
+      } else {
+        schema = app.pluginManager.getSchema(id);
+      }
       return { config, schema };
     } catch (err) {
       if (err.message.includes('not found')) {

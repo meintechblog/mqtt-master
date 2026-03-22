@@ -17,6 +17,8 @@ export class PluginManager {
 
   /**
    * Scan pluginDir for subdirectories containing plugin.js.
+   * Loads each plugin module to extract static metadata (name, configSchema)
+   * so the UI can render config forms even before the plugin is started.
    */
   async discover() {
     let entries;
@@ -35,13 +37,31 @@ export class PluginManager {
       } catch {
         continue; // no plugin.js in this directory
       }
+
+      // Load module to extract schema without starting the plugin
+      let configSchema = {};
+      let pluginName = entry.name;
+      try {
+        const moduleUrl = pathToFileURL(pluginFile).href;
+        const mod = await import(moduleUrl);
+        const PluginClass = mod.default;
+        const tempInstance = new PluginClass();
+        if (typeof tempInstance.getConfigSchema === 'function') {
+          configSchema = tempInstance.getConfigSchema();
+        }
+        pluginName = tempInstance.name || entry.name;
+      } catch (err) {
+        this.logger.warn(`Could not load schema for plugin '${entry.name}': ${err.message}`);
+      }
+
       this.plugins.set(entry.name, {
         id: entry.name,
-        name: entry.name,
+        name: pluginName,
         status: 'stopped',
         instance: null,
         error: null,
         modulePath: pluginFile,
+        configSchema,
       });
     }
   }
@@ -157,6 +177,14 @@ export class PluginManager {
   async setConfig(id, data) {
     this.configService.set(`plugins.${id}`, data);
     await this.configService.save();
+  }
+
+  /**
+   * Get the config schema cached at discovery time.
+   */
+  getSchema(id) {
+    const meta = this.plugins.get(id);
+    return meta ? (meta.configSchema || {}) : {};
   }
 
   /**
