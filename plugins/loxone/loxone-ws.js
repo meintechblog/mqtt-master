@@ -599,7 +599,8 @@ export class LoxoneWs extends EventEmitter {
     // Group 5: 6 bytes BE -- read as hex string
     const g5 = buf.slice(offset + 10, offset + 16).toString('hex').padStart(12, '0');
 
-    return `${g1}-${g2}-${g3}-${g4}-${g5}`;
+    // Loxone UUID format: 8-4-4-16 (groups 4+5 are NOT separated by dash)
+    return `${g1}-${g2}-${g3}-${g4}${g5}`;
   }
 
   // ---------------------------------------------------------------------------
