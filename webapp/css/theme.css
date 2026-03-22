@@ -91,34 +91,38 @@ body {
 }
 
 .sidebar-section {
-  padding-top: 12px;
+  padding-top: 0;
+  border-bottom: 1px solid var(--ve-border);
 }
 
 .sidebar-section-title {
-  padding: 4px 16px;
+  padding: 10px 16px;
   font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.08em;
   color: var(--ve-text-dim);
 }
 
 .sidebar-nav-item {
   display: flex;
   align-items: center;
-  padding: 10px 16px;
-  color: var(--ve-text-secondary);
+  padding: 8px 16px 8px 24px;
+  color: var(--ve-text-dim);
   text-decoration: none;
+  font-size: 14px;
   border-left: var(--ve-sidebar-active-border) solid transparent;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .sidebar-nav-item:hover {
-  background: rgba(56, 125, 197, 0.1);
+  color: var(--ve-text-primary);
+  background: rgba(56, 125, 197, 0.08);
 }
 
 .sidebar-nav-item.active {
   border-left-color: var(--ve-blue);
-  background: rgba(56, 125, 197, 0.15);
+  background: rgba(56, 125, 197, 0.12);
   color: var(--ve-text-primary);
 }
 

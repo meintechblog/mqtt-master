@@ -189,14 +189,11 @@ export function Sidebar({ currentHash }) {
           </svg>
           <span class="sidebar-title">MQTT Master</span>
         </div>
-        <div class="sidebar-status">
-          <${StatusDot} status=${brokerConnected.value ? 'connected' : 'disconnected'} />
-          <span>Broker</span>
-        </div>
       </div>
       <div class="sidebar-section">
         <div class="sidebar-section-title">
-          ${brokerSection.title}
+          <${StatusDot} status=${brokerConnected.value ? 'connected' : 'disconnected'} />
+          Lokaler Broker
           ${dashboardState.value.data.load_received_1min && html`
             <span class="sidebar-rate">${fmtRate(parseFloat(dashboardState.value.data.load_received_1min) / 60)}</span>
           `}
