@@ -247,27 +247,35 @@ export default async function apiPlugins(app) {
     }
   });
 
-  // GET /api/plugins/loxone/bindings -- list MQTT input bindings
-  app.get('/api/plugins/loxone/bindings', async (request, reply) => {
+  // GET /api/plugins/:id/bindings -- list MQTT input bindings for a plugin
+  app.get('/api/plugins/:id/bindings', async (request, reply) => {
+    const { id } = request.params;
     try {
-      const instance = app.pluginManager.getInstance('loxone');
-      if (!instance || typeof instance.getInputBindings !== 'function') {
-        return reply.status(400).send({ error: 'Loxone plugin is not running' });
+      const instance = app.pluginManager.getInstance(id);
+      if (instance && typeof instance.getInputBindings === 'function') {
+        return instance.getInputBindings();
       }
-      return instance.getInputBindings();
+      // Fallback: read from config directly
+      const config = app.pluginManager.getConfig(id);
+      return config.inputBindings || [];
     } catch (err) {
       return reply.status(500).send({ error: err.message });
     }
   });
 
-  // PUT /api/plugins/loxone/bindings -- save MQTT input bindings
-  app.put('/api/plugins/loxone/bindings', async (request, reply) => {
+  // PUT /api/plugins/:id/bindings -- save MQTT input bindings for a plugin
+  app.put('/api/plugins/:id/bindings', async (request, reply) => {
+    const { id } = request.params;
     try {
-      const instance = app.pluginManager.getInstance('loxone');
-      if (!instance || typeof instance.setInputBindings !== 'function') {
-        return reply.status(400).send({ error: 'Loxone plugin is not running' });
+      const instance = app.pluginManager.getInstance(id);
+      if (instance && typeof instance.setInputBindings === 'function') {
+        await instance.setInputBindings(request.body || []);
+      } else {
+        // Store in config directly for plugins without runtime binding support
+        const config = app.pluginManager.getConfig(id);
+        config.inputBindings = request.body || [];
+        await app.pluginManager.setConfig(id, config);
       }
-      await instance.setInputBindings(request.body || []);
       return { ok: true };
     } catch (err) {
       return reply.status(500).send({ error: err.message });

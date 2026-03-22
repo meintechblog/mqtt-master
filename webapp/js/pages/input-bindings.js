@@ -385,7 +385,7 @@ function StepReview({ source, field, target, onSave, onBack }) {
 }
 
 // ── Main page ──────────────────────────────────────────────────
-export function InputBindings({ defaultPattern } = {}) {
+export function InputBindings({ pluginId = 'loxone', defaultPattern } = {}) {
   const [bindings, setBindings] = useState([]);
   const [controls, setControls] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -402,7 +402,7 @@ export function InputBindings({ defaultPattern } = {}) {
     async function load() {
       try {
         const [b, c] = await Promise.all([
-          fetchInputBindings(),
+          fetchInputBindings(pluginId),
           fetchLoxoneControlsDetailed().catch(() => []),
         ]);
         setBindings(b);
@@ -430,7 +430,7 @@ export function InputBindings({ defaultPattern } = {}) {
 
   const save = useCallback(async (newBindings) => {
     try {
-      await saveInputBindings(newBindings);
+      await saveInputBindings(pluginId, newBindings);
       setBindings(newBindings);
       showToast('ok', 'Bindings saved');
     } catch (err) {

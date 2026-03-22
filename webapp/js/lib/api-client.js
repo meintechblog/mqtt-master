@@ -96,14 +96,14 @@ export function sendLoxoneCommand(uuid, command) {
   });
 }
 
-/** GET /api/plugins/loxone/bindings -- list MQTT input bindings */
-export function fetchInputBindings() {
-  return request('/api/plugins/loxone/bindings');
+/** GET /api/plugins/:id/bindings -- list MQTT input bindings for a plugin */
+export function fetchInputBindings(pluginId = 'loxone') {
+  return request(`/api/plugins/${encodeURIComponent(pluginId)}/bindings`);
 }
 
-/** PUT /api/plugins/loxone/bindings -- save MQTT input bindings */
-export function saveInputBindings(bindings) {
-  return request('/api/plugins/loxone/bindings', {
+/** PUT /api/plugins/:id/bindings -- save MQTT input bindings for a plugin */
+export function saveInputBindings(pluginId = 'loxone', bindings) {
+  return request(`/api/plugins/${encodeURIComponent(pluginId)}/bindings`, {
     method: 'PUT',
     body: JSON.stringify(bindings),
   });
