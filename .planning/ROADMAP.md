@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Webapp Shell and Core Services** - Fastify server, Preact SPA with Venus OS dark theme, MQTT service connected to Mosquitto, config service (completed 2026-03-22)
 - [x] **Phase 2: Broker Dashboard** - Real-time broker metrics display from $SYS topics with auto-refreshing widgets (completed 2026-03-22)
 - [x] **Phase 3: Live Message Viewer** - Subscribe to topics and watch messages arrive in real-time with filtering (completed 2026-03-22)
-- [ ] **Phase 4: Plugin System** - Plugin lifecycle management, dynamic config UI, and sidebar status indicators
+- [x] **Phase 4: Plugin System** - Plugin lifecycle management, dynamic config UI, and sidebar status indicators (completed 2026-03-22)
 - [ ] **Phase 5: Loxone Bridge Plugin** - Bidirectional Loxone-MQTT bridge with auto-discovery, token auth, and human-readable topics
 - [ ] **Phase 6: Installer and Deployment** - One-command Debian installer with systemd service and idempotent updates
 
@@ -80,7 +80,7 @@ Plans:
 
 Plans:
 - [x] 04-01-PLAN.md -- Backend: PluginManager service, REST API routes, example plugin, ConfigService.set/save, tests
-- [ ] 04-02-PLAN.md -- Frontend: Sidebar plugin list with status dots, plugin config page with auto-generated form, lifecycle buttons
+- [x] 04-02-PLAN.md -- Frontend: Sidebar plugin list with status dots, plugin config page with auto-generated form, lifecycle buttons
 
 ### Phase 5: Loxone Bridge Plugin
 **Goal**: Users can bridge their entire Loxone Miniserver into MQTT with human-readable topics, zero manual mapping, and bidirectional control
@@ -124,6 +124,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 1. Webapp Shell and Core Services | 2/2 | Complete   | 2026-03-22 |
 | 2. Broker Dashboard | 2/2 | Complete   | 2026-03-22 |
 | 3. Live Message Viewer | 2/2 | Complete   | 2026-03-22 |
-| 4. Plugin System | 0/2 | Not started | - |
+| 4. Plugin System | 2/2 | Complete   | 2026-03-22 |
 | 5. Loxone Bridge Plugin | 0/? | Not started | - |
 | 6. Installer and Deployment | 0/? | Not started | - |

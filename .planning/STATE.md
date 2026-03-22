@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-03-22T07:33:39.172Z"
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-03-22T07:41:58.541Z"
 last_activity: 2026-03-22
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 8
-  completed_plans: 7
-  percent: 83
+  completed_plans: 8
+  percent: 88
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 ## Current Position
 
 Phase: 4 of 6 (Plugin System)
-Plan: 1 of 2 in current phase
+Plan: 2 of 2 in current phase
 Status: In progress
 Last activity: 2026-03-22
 
@@ -59,6 +59,7 @@ Progress: [█████████░] 88%
 | Phase 03 P01 | 2min | 1 tasks | 5 files |
 | Phase 03 P02 | 10min | 2 tasks | 3 files |
 | Phase 04 P01 | 3min | 2 tasks | 7 files |
+| Phase 04 P02 | 15min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,9 @@ Recent decisions affecting current work:
 - [Phase 04]: Cache-busting via ?t=Date.now() URL param for dynamic import reload
 - [Phase 04]: Plugin contract: start(context), stop(), getStatus(), getConfigSchema()
 - [Phase 04]: ConfigService set() uses dot-notation traversal with auto-creation of nested objects
+- [Phase 04]: useState for PluginConfig local state — signal() inside component body creates new signals on each render, breaking reactivity
+- [Phase 04]: api-client.js as thin fetch wrapper layer — all plugin REST calls go through named functions, never raw fetch in components
+- [Phase 04]: 5-second polling in sidebar for plugin status refresh (no dedicated WebSocket push for plugin state)
 
 ### Pending Todos
 
@@ -99,6 +103,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-22T07:33:39.169Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-03-22T07:41:58.539Z
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None
