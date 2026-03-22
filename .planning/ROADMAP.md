@@ -33,8 +33,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md -- Backend scaffold: Fastify server, config service, MQTT service, vendored deps, tests
-- [ ] 01-02-PLAN.md -- Frontend SPA: Venus OS theme, sidebar navigation, hash routing, responsive layout
+- [x] 01-01-PLAN.md -- Backend scaffold: Fastify server, config service, MQTT service, vendored deps, tests
+- [x] 01-02-PLAN.md -- Frontend SPA: Venus OS theme, sidebar navigation, hash routing, responsive layout
 
 ### Phase 2: Broker Dashboard
 **Goal**: Users can monitor their Mosquitto broker health at a glance with live-updating metrics
@@ -49,8 +49,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md -- Backend: SysBrokerService for $SYS aggregation, WebSocket /ws/dashboard endpoint, tests
+- [ ] 02-02-PLAN.md -- Frontend: Dashboard stat cards, broker info, topic tree, StatusDot wiring, visual verification
 
 ### Phase 3: Live Message Viewer
 **Goal**: Users can subscribe to any MQTT topic and watch messages flow in real-time, with filtering and scrollback
@@ -121,7 +121,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Webapp Shell and Core Services | 2/2 | Complete   | 2026-03-22 |
-| 2. Broker Dashboard | 0/? | Not started | - |
+| 2. Broker Dashboard | 0/2 | Planned | - |
 | 3. Live Message Viewer | 0/? | Not started | - |
 | 4. Plugin System | 0/? | Not started | - |
 | 5. Loxone Bridge Plugin | 0/? | Not started | - |
