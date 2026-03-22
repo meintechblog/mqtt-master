@@ -49,7 +49,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md -- Backend: SysBrokerService for $SYS aggregation, WebSocket /ws/dashboard endpoint, tests
+- [x] 02-01-PLAN.md -- Backend: SysBrokerService for $SYS aggregation, WebSocket /ws/dashboard endpoint, tests
 - [ ] 02-02-PLAN.md -- Frontend: Dashboard stat cards, broker info, topic tree, StatusDot wiring, visual verification
 
 ### Phase 3: Live Message Viewer

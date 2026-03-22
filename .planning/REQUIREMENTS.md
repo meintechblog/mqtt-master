@@ -7,13 +7,13 @@
 
 ### Dashboard
 
-- [ ] **DASH-01**: User can see number of connected MQTT clients in real-time
-- [ ] **DASH-02**: User can see message throughput (received/sent totals and per-second rates)
-- [ ] **DASH-03**: User can see active subscription count
-- [ ] **DASH-04**: User can see broker memory/heap usage (current and maximum)
-- [ ] **DASH-05**: User can see message load averages (1/5/15 min)
-- [ ] **DASH-06**: User can see broker version and uptime
-- [ ] **DASH-07**: User can see broker connection status indicator (connected/disconnected with visual dot)
+- [x] **DASH-01**: User can see number of connected MQTT clients in real-time
+- [x] **DASH-02**: User can see message throughput (received/sent totals and per-second rates)
+- [x] **DASH-03**: User can see active subscription count
+- [x] **DASH-04**: User can see broker memory/heap usage (current and maximum)
+- [x] **DASH-05**: User can see message load averages (1/5/15 min)
+- [x] **DASH-06**: User can see broker version and uptime
+- [x] **DASH-07**: User can see broker connection status indicator (connected/disconnected with visual dot)
 - [ ] **DASH-08**: User can see a hierarchical topic tree of all active MQTT topics
 
 ### Live Messages
@@ -97,13 +97,13 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DASH-01 | Phase 2 | Pending |
-| DASH-02 | Phase 2 | Pending |
-| DASH-03 | Phase 2 | Pending |
-| DASH-04 | Phase 2 | Pending |
-| DASH-05 | Phase 2 | Pending |
-| DASH-06 | Phase 2 | Pending |
-| DASH-07 | Phase 2 | Pending |
+| DASH-01 | Phase 2 | Complete |
+| DASH-02 | Phase 2 | Complete |
+| DASH-03 | Phase 2 | Complete |
+| DASH-04 | Phase 2 | Complete |
+| DASH-05 | Phase 2 | Complete |
+| DASH-06 | Phase 2 | Complete |
+| DASH-07 | Phase 2 | Complete |
 | DASH-08 | Phase 2 | Pending |
 | LIVE-01 | Phase 3 | Pending |
 | LIVE-02 | Phase 3 | Pending |
