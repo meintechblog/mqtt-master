@@ -8,6 +8,7 @@ import {
   startPlugin,
   stopPlugin,
   reloadPlugin,
+  deletePlugin,
 } from '../lib/api-client.js';
 
 /**
@@ -19,6 +20,8 @@ import {
 export function PluginConfig({ pluginId }) {
   const [pluginStatus, setPluginStatus] = useState('stopped');
   const [pluginName, setPluginName] = useState(pluginId);
+  const [isDeletable, setIsDeletable] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [schema, setSchema] = useState(null);
   const [configData, setConfigData] = useState({});
   const [feedback, setFeedback] = useState(null);
@@ -42,6 +45,7 @@ export function PluginConfig({ pluginId }) {
       if (plugin) {
         setPluginStatus(plugin.status);
         setPluginName(plugin.name || plugin.id);
+        setIsDeletable(!!plugin.deletable);
       }
       setSchema(configResult.schema);
       setConfigData({ ...configResult.config });
@@ -98,6 +102,16 @@ export function PluginConfig({ pluginId }) {
       await refreshStatus();
     } catch (err) {
       showFeedback('error', err.message);
+    }
+  }
+
+  async function handleDelete() {
+    try {
+      await deletePlugin(pluginId);
+      window.location.hash = '#/dashboard';
+    } catch (err) {
+      showFeedback('error', err.message);
+      setConfirmDelete(false);
     }
   }
 
@@ -188,6 +202,21 @@ export function PluginConfig({ pluginId }) {
           `
         }
       </div>
+
+      ${isDeletable && html`
+        <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--ve-border);">
+          ${!confirmDelete
+            ? html`<button class="msg-btn" style="background:transparent;border:1px solid var(--ve-red);color:var(--ve-red);" onClick=${() => setConfirmDelete(true)}>Delete Plugin</button>`
+            : html`
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span style="font-size:14px;color:var(--ve-red);">Delete "${pluginName}" permanently?</span>
+                <button class="msg-btn" style="background:var(--ve-red);" onClick=${handleDelete}>Yes, delete</button>
+                <button class="msg-btn msg-btn--clear" onClick=${() => setConfirmDelete(false)}>Cancel</button>
+              </div>
+            `
+          }
+        </div>
+      `}
     </div>
   `;
 }

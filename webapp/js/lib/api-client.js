@@ -35,6 +35,11 @@ export function stopPlugin(id) {
   return request(`/api/plugins/${encodeURIComponent(id)}/stop`, { method: 'POST' });
 }
 
+/** DELETE /api/plugins/:id -- delete a plugin instance */
+export function deletePlugin(id) {
+  return request(`/api/plugins/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
 /** POST /api/plugins/:id/reload */
 export function reloadPlugin(id) {
   return request(`/api/plugins/${encodeURIComponent(id)}/reload`, { method: 'POST' });

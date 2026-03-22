@@ -198,14 +198,74 @@ body {
   margin-left: auto;
 }
 .sidebar-add-btn:hover { color: var(--ve-text-primary); border-color: var(--ve-blue); }
-.sidebar-add-dialog {
-  margin: 8px 12px;
-  padding: 12px;
-  background: var(--ve-bg-widget);
-  border-radius: var(--ve-radius-sm);
-  border: 1px solid var(--ve-border);
+
+/* Fullscreen modal (Add Plugin etc.) */
+.ve-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
 }
-.sidebar-add-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+.ve-modal {
+  background: var(--ve-bg-surface);
+  border: 1px solid var(--ve-border);
+  border-radius: var(--ve-radius-lg);
+  max-width: 480px;
+  width: 90%;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+.ve-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--ve-text-primary);
+}
+.ve-modal-type-picker {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.ve-modal-type-card {
+  padding: 16px;
+  background: var(--ve-bg-main);
+  border: 1px solid var(--ve-border);
+  border-radius: var(--ve-radius-sm);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.ve-modal-type-card:hover { border-color: var(--ve-blue); }
+.ve-modal-type-card--selected { border-color: var(--ve-blue); background: rgba(56, 125, 197, 0.1); }
+.ve-modal-type-label { font-size: 14px; font-weight: 500; color: var(--ve-text-primary); }
+.ve-modal-type-desc { font-size: 12px; color: var(--ve-text-dim); margin-top: 4px; }
+.ve-modal-form { margin-top: 16px; }
+.ve-modal-field-label { font-size: 12px; color: var(--ve-text-dim); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px; }
+.ve-modal-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--ve-bg-main);
+  border: 1px solid var(--ve-border);
+  border-radius: var(--ve-radius-sm);
+  color: var(--ve-text-primary);
+  font-size: 14px;
+  font-family: var(--ve-font-mono);
+  outline: none;
+}
+.ve-modal-input:focus { border-color: var(--ve-blue); }
+.ve-modal-input::placeholder { color: var(--ve-text-dim); }
+.ve-modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
 
 /* Sidebar rate badges */
 .sidebar-rate {

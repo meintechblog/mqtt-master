@@ -66,6 +66,17 @@ export default async function apiPlugins(app) {
     }
   });
 
+  // DELETE /api/plugins/:id -- delete a plugin instance
+  app.delete('/api/plugins/:id', async (request, reply) => {
+    const { id } = request.params;
+    try {
+      await app.pluginManager.deleteInstance(id);
+      return { ok: true };
+    } catch (err) {
+      return reply.status(400).send({ error: err.message });
+    }
+  });
+
   // POST /api/plugins/:id/start
   app.post('/api/plugins/:id/start', async (request, reply) => {
     const { id } = request.params;

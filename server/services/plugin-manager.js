@@ -1,4 +1,4 @@
-import { readdir, access } from 'node:fs/promises';
+import { readdir, access, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -153,7 +153,7 @@ export class PluginManager {
   /**
    * List all discovered plugins with their status.
    */
-  listAll() {
+  async listAll() {
     const result = [];
     for (const meta of this.plugins.values()) {
       const entry = {
@@ -161,7 +161,13 @@ export class PluginManager {
         name: meta.name,
         status: meta.status,
         error: meta.error,
+        deletable: false,
       };
+      // Check if this is a user-created instance (re-export file)
+      try {
+        const content = await readFile(meta.modulePath, 'utf-8');
+        if (content.includes('export { default } from')) entry.deletable = true;
+      } catch { /* ignore */ }
       // Include plugin stats if running
       if (meta.instance && typeof meta.instance.getStatus === 'function') {
         try {
@@ -262,6 +268,43 @@ export class PluginManager {
 
     this.logger.info(`Created plugin instance '${instanceId}' from template '${type}'`);
     return { id: instanceId, type };
+  }
+
+  /**
+   * Delete a user-created plugin instance. Stops it, removes files and config.
+   */
+  async deleteInstance(id) {
+    const meta = this.plugins.get(id);
+    if (!meta) throw new Error(`Plugin '${id}' not found`);
+
+    // Safety: only allow deleting user-created instances
+    try {
+      const content = await readFile(meta.modulePath, 'utf-8');
+      if (!content.includes('export { default } from')) {
+        throw new Error(`Plugin '${id}' is a core plugin and cannot be deleted`);
+      }
+    } catch (err) {
+      if (err.message.includes('core plugin')) throw err;
+      throw new Error(`Cannot read plugin '${id}'`);
+    }
+
+    // Stop if running
+    if (meta.status === 'running') {
+      await this.stop(id);
+    }
+
+    // Remove plugin directory
+    const pluginDir = join(this.pluginDir, id);
+    await rm(pluginDir, { recursive: true, force: true });
+
+    // Remove config
+    this.configService.set(`plugins.${id}`, undefined);
+    await this.configService.save();
+
+    // Remove from registry
+    this.plugins.delete(id);
+
+    this.logger.info(`Deleted plugin instance '${id}'`);
   }
 
   /**

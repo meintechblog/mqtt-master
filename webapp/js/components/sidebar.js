@@ -53,12 +53,12 @@ function AddPluginButton() {
     setOpen(true);
     setError('');
     setNewId('');
+    setSelectedType('');
     try {
       const res = await fetch('/api/plugins/templates');
       if (res.ok) {
         const data = await res.json();
         setTemplates(data);
-        if (data.length > 0) setSelectedType(data[0].type);
       }
     } catch { /* ignore */ }
   };
@@ -88,35 +88,42 @@ function AddPluginButton() {
   return html`
     <button class="sidebar-add-btn" onClick=${handleOpen} title="Add plugin">+</button>
     ${open && html`
-      <div class="sidebar-add-dialog">
-        <div class="sidebar-add-title">Add Plugin</div>
-        ${templates.length === 0
-          ? html`<div style="font-size:13px;color:var(--ve-text-dim);padding:8px 0;">No templates available</div>`
-          : html`
-            <select class="bind-select" style="width:100%;margin-bottom:8px" value=${selectedType} onChange=${(e) => setSelectedType(e.target.value)}>
-              ${templates.map(t => html`<option key=${t.type} value=${t.type}>${t.label}</option>`)}
-            </select>
-            <div style="font-size:11px;color:var(--ve-text-dim);margin-bottom:8px;">
-              ${templates.find(t => t.type === selectedType)?.description || ''}
+      <div class="ve-modal-overlay" onClick=${(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
+        <div class="ve-modal">
+          <div class="ve-modal-title">Add Plugin</div>
+          <div class="ve-modal-type-picker">
+            ${templates.map(t => html`
+              <div
+                key=${t.type}
+                class="ve-modal-type-card ${selectedType === t.type ? 've-modal-type-card--selected' : ''}"
+                onClick=${() => setSelectedType(t.type)}
+              >
+                <div class="ve-modal-type-label">${t.label}</div>
+                <div class="ve-modal-type-desc">${t.description}</div>
+              </div>
+            `)}
+          </div>
+          ${selectedType && html`
+            <div class="ve-modal-form">
+              <label class="ve-modal-field-label">Instance Name</label>
+              <input
+                type="text"
+                class="ve-modal-input"
+                placeholder="e.g. venus-os, knx-gateway"
+                value=${newId}
+                onInput=${(e) => setNewId(e.target.value)}
+                onKeyDown=${(e) => { if (e.key === 'Enter') handleCreate(); }}
+              />
             </div>
-            <input
-              type="text"
-              class="bind-input"
-              style="width:100%;margin-bottom:8px"
-              placeholder="Name (e.g. venus-os)"
-              value=${newId}
-              onInput=${(e) => setNewId(e.target.value)}
-              onKeyDown=${(e) => { if (e.key === 'Enter') handleCreate(); }}
-            />
-            ${error && html`<div style="font-size:12px;color:var(--ve-red);margin-bottom:8px;">${error}</div>`}
-            <div style="display:flex;gap:6px;justify-content:flex-end;">
-              <button class="lox-push-btn" style="font-size:12px;padding:3px 10px;" onClick=${() => setOpen(false)}>Cancel</button>
-              <button class="lox-cmd-btn" style="font-size:12px;padding:3px 10px;" disabled=${!newId.trim() || creating} onClick=${handleCreate}>
-                ${creating ? '...' : 'Create'}
-              </button>
-            </div>
-          `
-        }
+          `}
+          ${error && html`<div style="font-size:13px;color:var(--ve-red);margin-top:12px;">${error}</div>`}
+          <div class="ve-modal-actions">
+            <button class="lox-push-btn" onClick=${() => setOpen(false)}>Cancel</button>
+            <button class="lox-cmd-btn" disabled=${!newId.trim() || !selectedType || creating} onClick=${handleCreate}>
+              ${creating ? 'Creating...' : 'Create'}
+            </button>
+          </div>
+        </div>
       </div>
     `}
   `;
