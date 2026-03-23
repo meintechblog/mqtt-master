@@ -209,7 +209,9 @@ export function Sidebar({ currentHash }) {
         `)}
       </div>
       <div class="sidebar-section">
-        <div class="sidebar-section-title">Plugins <${AddPluginButton} /></div>
+        <div class="sidebar-section-title">
+          Plugins <${AddPluginButton} />
+        </div>
         ${pluginItems.value.length === 0
           ? html`<div style="padding:6px 16px;font-size:13px;color:var(--ve-text-dim);">No plugins</div>`
           : pluginItems.value.map(item => html`

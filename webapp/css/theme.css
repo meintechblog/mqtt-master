@@ -966,6 +966,86 @@ body {
   white-space: nowrap;
 }
 
+/* Messages view toggle */
+.msg-view-toggle {
+  display: flex;
+  gap: 0;
+  margin: 10px 0;
+}
+.msg-view-btn {
+  padding: 6px 16px;
+  font-size: 13px;
+  background: var(--ve-bg-surface);
+  border: 1px solid var(--ve-border);
+  color: var(--ve-text-dim);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.msg-view-btn:first-child { border-radius: var(--ve-radius-sm) 0 0 var(--ve-radius-sm); }
+.msg-view-btn:last-child { border-radius: 0 var(--ve-radius-sm) var(--ve-radius-sm) 0; border-left: none; }
+.msg-view-btn.active { background: var(--ve-blue); color: #fff; border-color: var(--ve-blue); }
+
+/* Topic browser */
+.tb-panel {
+  background: var(--ve-bg-widget);
+  border-radius: var(--ve-radius-lg);
+  overflow: hidden;
+}
+.tb-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(100,99,95,0.2);
+}
+.tb-title { font-weight: 600; font-size: 14px; flex: 1; }
+.tb-count { font-size: 12px; color: var(--ve-text-dim); font-family: var(--ve-font-mono); }
+.tb-tree { max-height: 500px; overflow-y: auto; }
+.tb-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  font-size: 13px;
+  border-radius: var(--ve-radius-sm);
+}
+.tb-row:hover { background: rgba(255,255,255,0.02); }
+.tb-expand {
+  font-size: 9px;
+  color: var(--ve-text-dim);
+  cursor: pointer;
+  transition: transform 0.15s;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.tb-expand.open { transform: rotate(90deg); }
+.tb-expand-spacer { width: 14px; flex-shrink: 0; }
+.tb-name { color: var(--ve-text-secondary); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tb-name--branch { color: var(--ve-text-dim); cursor: pointer; font-weight: 500; }
+.tb-value {
+  font-family: var(--ve-font-mono);
+  font-size: 12px;
+  color: var(--ve-text-primary);
+  min-width: 50px;
+  text-align: right;
+  white-space: nowrap;
+}
+.tb-bind-btn {
+  font-size: 10px;
+  padding: 2px 6px;
+  background: none;
+  border: 1px solid var(--ve-border);
+  border-radius: 4px;
+  color: var(--ve-text-dim);
+  cursor: pointer;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.tb-row:hover .tb-bind-btn { opacity: 1; }
+.tb-bind-btn:hover { color: var(--ve-blue); border-color: var(--ve-blue); }
+.lox-push-btn--active { background: var(--ve-blue) !important; color: #fff !important; border-color: var(--ve-blue) !important; }
+
 /* Messages page responsive */
 @media (max-width: 768px) {
   .msg-controls {
