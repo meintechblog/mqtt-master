@@ -298,18 +298,26 @@ export function Messages() {
 
   // Track unique topics with latest values for the browser
   const topicMapRef = useRef(new Map());
+  const [topicMapVersion, setTopicMapVersion] = useState(0);
 
   useEffect(() => {
     connectMessagesWs();
     return () => disconnectMessagesWs();
   }, []);
 
+  // Refresh browser view periodically when in browser mode
+  useEffect(() => {
+    if (view !== 'browser') return;
+    const interval = setInterval(() => setTopicMapVersion(v => v + 1), 1000);
+    return () => clearInterval(interval);
+  }, [view]);
+
   const subs = subscriptions.value;
   const isSubscribed = subs.has(topicInput);
   const rate = messageRate.value;
   const allMessages = messages.value;
 
-  // Update topic map from messages
+  // Update topic map from messages (runs on every render, ref avoids allocation)
   for (const m of allMessages) {
     let val = m.payload;
     try {
