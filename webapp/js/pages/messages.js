@@ -299,17 +299,72 @@ export function Messages() {
   // Track unique topics with latest values for the browser
   const topicMapRef = useRef(new Map());
   const [topicMapVersion, setTopicMapVersion] = useState(0);
+  const [browserLoading, setBrowserLoading] = useState(false);
 
   useEffect(() => {
     connectMessagesWs();
     return () => disconnectMessagesWs();
   }, []);
 
-  // Refresh browser view periodically when in browser mode
+  // When switching to browser: fetch initial snapshot via discovery API, then keep updating
   useEffect(() => {
     if (view !== 'browser') return;
-    const interval = setInterval(() => setTopicMapVersion(v => v + 1), 1000);
-    return () => clearInterval(interval);
+    let cancelled = false;
+
+    async function loadSnapshot() {
+      setBrowserLoading(true);
+      try {
+        const res = await fetch('/api/mqtt/discover', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pattern: '#', durationMs: 2000 }),
+        });
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          for (const t of data) {
+            let val = t.payload;
+            try {
+              const parsed = JSON.parse(t.payload);
+              if (parsed && typeof parsed === 'object') {
+                val = parsed.value !== undefined ? parsed.value : parsed;
+              }
+            } catch { /* not JSON */ }
+            topicMapRef.current.set(t.topic, { value: val, ts: t.ts });
+          }
+          setTopicMapVersion(v => v + 1);
+        }
+      } catch { /* ignore */ }
+      if (!cancelled) setBrowserLoading(false);
+    }
+
+    loadSnapshot();
+
+    // Keep refreshing from discovery every 3s
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/mqtt/discover', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pattern: '#', durationMs: 1500 }),
+        });
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          for (const t of data) {
+            let val = t.payload;
+            try {
+              const parsed = JSON.parse(t.payload);
+              if (parsed && typeof parsed === 'object') {
+                val = parsed.value !== undefined ? parsed.value : parsed;
+              }
+            } catch { /* not JSON */ }
+            topicMapRef.current.set(t.topic, { value: val, ts: t.ts });
+          }
+          setTopicMapVersion(v => v + 1);
+        }
+      } catch { /* ignore */ }
+    }, 3000);
+
+    return () => { cancelled = true; clearInterval(interval); };
   }, [view]);
 
   const subs = subscriptions.value;
@@ -317,7 +372,7 @@ export function Messages() {
   const rate = messageRate.value;
   const allMessages = messages.value;
 
-  // Update topic map from messages (runs on every render, ref avoids allocation)
+  // Also update topic map from live WebSocket messages
   for (const m of allMessages) {
     let val = m.payload;
     try {
@@ -423,7 +478,10 @@ export function Messages() {
       `}
 
       ${view === 'browser' && html`
-        <${TopicBrowser} topicMap=${topicMapRef.current} onCreateBinding=${handleCreateBinding} />
+        ${browserLoading && topicMapRef.current.size === 0
+          ? html`<div class="ve-card" style="padding:24px;text-align:center;color:var(--ve-text-dim);">Discovering topics...</div>`
+          : html`<${TopicBrowser} topicMap=${topicMapRef.current} onCreateBinding=${handleCreateBinding} />`
+        }
       `}
 
       ${bindDialog && html`
