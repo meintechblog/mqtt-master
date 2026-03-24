@@ -2,20 +2,14 @@ import { html } from 'htm/preact';
 import { useEffect, useState } from 'preact/hooks';
 import { dashboardState, brokerConnected } from '../lib/ws-client.js';
 import { fetchPlugins } from '../lib/api-client.js';
-
-function fmtBytes(bytes) {
-  if (bytes == null) return '--';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+import { StatusDot } from '../components/status-dot.js';
 
 function fmtUptime(seconds) {
   if (seconds == null) return '--';
   const d = Math.floor(seconds / 86400);
   const h = Math.floor((seconds % 86400) / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  if (d > 0) return `${d}d ${h}h ${m}m`;
+  if (d > 0) return `${d}d ${h}h`;
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
 }
@@ -28,16 +22,28 @@ function fmtRate(val) {
   if (perSec >= 1000) return (perSec / 1000).toFixed(1) + 'k';
   if (perSec >= 10) return Math.round(perSec).toString();
   if (perSec >= 1) return perSec.toFixed(1);
-  return '<1';
+  if (perSec > 0) return '<1';
+  return '0';
 }
 
-function fmtNum(val) {
+function fmtTotal(val) {
   if (val == null) return '--';
-  return Number(val).toLocaleString();
+  const n = Number(val);
+  if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'k';
+  return n.toLocaleString();
 }
 
 function stripVersion(v) {
   return v ? v.replace(/^mosquitto version\s*/i, '') : '--';
+}
+
+function pluginDotStatus(p) {
+  if (p.status === 'error') return 'error';
+  if (p.status === 'running' && p.connected === false) return 'error';
+  if (p.status === 'running') return 'connected';
+  return 'stopped';
 }
 
 export function Dashboard() {
@@ -54,27 +60,25 @@ export function Dashboard() {
   const d = dashboardState.value.data || {};
   const connected = brokerConnected.value;
 
-  const runningPlugins = plugins.filter(p => p.status === 'running');
-  const stoppedPlugins = plugins.filter(p => p.status !== 'running');
-
   return html`
     <div>
       <h1 class="page-header">Dashboard</h1>
 
-      <!-- Hero: Key metrics -->
+      <!-- Hero metrics -->
       <div class="dash-hero">
         <div class="dash-hero-card dash-hero-card--accent">
           <div class="dash-hero-value">${fmtRate(d.load_received_1min)}</div>
-          <div class="dash-hero-unit">msg/s</div>
-          <div class="dash-hero-label">Message Rate</div>
+          <div class="dash-hero-unit">msg/s in</div>
+          <div class="dash-hero-label">Receive Rate</div>
+        </div>
+        <div class="dash-hero-card">
+          <div class="dash-hero-value">${fmtRate(d.load_sent_1min)}</div>
+          <div class="dash-hero-unit">msg/s out</div>
+          <div class="dash-hero-label">Send Rate</div>
         </div>
         <div class="dash-hero-card">
           <div class="dash-hero-value">${d.clients_connected ?? '--'}</div>
           <div class="dash-hero-label">Clients</div>
-        </div>
-        <div class="dash-hero-card">
-          <div class="dash-hero-value">${d.subscriptions_count ?? '--'}</div>
-          <div class="dash-hero-label">Subscriptions</div>
         </div>
         <div class="dash-hero-card">
           <div class="dash-hero-value">${fmtUptime(d.uptime)}</div>
@@ -82,13 +86,12 @@ export function Dashboard() {
         </div>
       </div>
 
-      <!-- Row 2: Broker + Plugins -->
       <div class="dash-row2">
-        <!-- Broker details -->
+        <!-- Broker -->
         <div class="dash-card">
           <div class="dash-card-title">
-            <span class="status-dot ${connected ? 'status-dot--connected' : 'status-dot--disconnected'}"></span>
-            Broker
+            <${StatusDot} status=${connected ? 'connected' : 'disconnected'} />
+            Lokaler Broker
           </div>
           <div class="dash-detail-grid">
             <div class="dash-detail">
@@ -96,29 +99,21 @@ export function Dashboard() {
               <span class="dash-detail-value">${stripVersion(d.version)}</span>
             </div>
             <div class="dash-detail">
-              <span class="dash-detail-label">Heap</span>
-              <span class="dash-detail-value">${fmtBytes(d.heap_current)}</span>
+              <span class="dash-detail-label">Subscriptions</span>
+              <span class="dash-detail-value">${d.subscriptions_count ?? '--'}</span>
             </div>
             <div class="dash-detail">
-              <span class="dash-detail-label">Messages In</span>
-              <span class="dash-detail-value">${fmtNum(d.messages_received)}</span>
+              <span class="dash-detail-label">Total In</span>
+              <span class="dash-detail-value">${fmtTotal(d.messages_received)}</span>
             </div>
             <div class="dash-detail">
-              <span class="dash-detail-label">Messages Out</span>
-              <span class="dash-detail-value">${fmtNum(d.messages_sent)}</span>
-            </div>
-            <div class="dash-detail">
-              <span class="dash-detail-label">Publish In</span>
-              <span class="dash-detail-value">${fmtRate(d.publish_received_1min)}/s</span>
-            </div>
-            <div class="dash-detail">
-              <span class="dash-detail-label">Publish Out</span>
-              <span class="dash-detail-value">${fmtRate(d.publish_sent_1min)}/s</span>
+              <span class="dash-detail-label">Total Out</span>
+              <span class="dash-detail-value">${fmtTotal(d.messages_sent)}</span>
             </div>
           </div>
         </div>
 
-        <!-- Plugins overview -->
+        <!-- Plugins -->
         <div class="dash-card">
           <div class="dash-card-title">Plugins</div>
           ${plugins.length === 0 && html`
@@ -128,45 +123,20 @@ export function Dashboard() {
             </div>
           `}
           <div class="dash-plugin-list">
-            ${runningPlugins.map(p => html`
-              <a class="dash-plugin" key=${p.id} href="#/plugins/${p.id}">
-                <span class="status-dot status-dot--connected"></span>
-                <span class="dash-plugin-name">${p.displayName || p.name}</span>
-                ${p.displayName && html`<span class="dash-plugin-type">${p.name}</span>`}
-                ${p.messageCount != null && html`
-                  <span class="dash-plugin-stat">${p.messageCount.toLocaleString()} msgs</span>
-                `}
-                ${p.controlCount != null && html`
-                  <span class="dash-plugin-stat">${p.controlCount} controls</span>
-                `}
+            ${plugins.map(p => html`
+              <a class="dash-plugin ${p.status !== 'running' ? 'dash-plugin--stopped' : ''}" key=${p.id} href="#/plugins/${p.id}">
+                <${StatusDot} status=${pluginDotStatus(p)} />
+                <div class="dash-plugin-info">
+                  <span class="dash-plugin-name">${p.displayName || p.name}</span>
+                  ${p.displayName && html`<span class="dash-plugin-type">${p.name}</span>`}
+                </div>
+                <div class="dash-plugin-stats">
+                  ${p.controlCount != null && html`<span>${p.controlCount} elements</span>`}
+                  ${p.messageCount != null && html`<span>${fmtTotal(p.messageCount)} msgs</span>`}
+                  ${p.error && html`<span style="color:var(--ve-red)">${p.error}</span>`}
+                </div>
               </a>
             `)}
-            ${stoppedPlugins.map(p => html`
-              <a class="dash-plugin dash-plugin--stopped" key=${p.id} href="#/plugins/${p.id}">
-                <span class="status-dot status-dot--stopped"></span>
-                <span class="dash-plugin-name">${p.displayName || p.name}</span>
-                ${p.error && html`<span class="dash-plugin-error">${p.error}</span>`}
-              </a>
-            `)}
-          </div>
-        </div>
-      </div>
-
-      <!-- Row 3: Load -->
-      <div class="dash-card">
-        <div class="dash-card-title">Load Average</div>
-        <div class="dash-load">
-          <div class="dash-load-item">
-            <div class="dash-load-value">${fmtRate(d.load_received_1min)}</div>
-            <div class="dash-load-period">1 min</div>
-          </div>
-          <div class="dash-load-item">
-            <div class="dash-load-value">${fmtRate(d.load_received_5min)}</div>
-            <div class="dash-load-period">5 min</div>
-          </div>
-          <div class="dash-load-item">
-            <div class="dash-load-value">${fmtRate(d.load_received_15min)}</div>
-            <div class="dash-load-period">15 min</div>
           </div>
         </div>
       </div>

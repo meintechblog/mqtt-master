@@ -443,10 +443,19 @@ body {
 }
 .dash-plugin:hover { background: rgba(56,125,197,0.08); }
 .dash-plugin--stopped { opacity: 0.5; }
-.dash-plugin-name { font-size: 14px; font-weight: 500; }
+.dash-plugin-info { flex: 1; min-width: 0; }
+.dash-plugin-name { font-size: 14px; font-weight: 500; display: block; }
 .dash-plugin-type { font-size: 11px; color: var(--ve-text-dim); }
-.dash-plugin-stat { font-size: 11px; font-family: var(--ve-font-mono); color: var(--ve-text-dim); margin-left: auto; }
-.dash-plugin-error { font-size: 11px; color: var(--ve-red); margin-left: auto; }
+.dash-plugin-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  font-size: 11px;
+  font-family: var(--ve-font-mono);
+  color: var(--ve-text-dim);
+  white-space: nowrap;
+}
 .dash-load { display: flex; gap: 24px; justify-content: center; padding: 8px 0; }
 .dash-load-item { text-align: center; }
 .dash-load-value { font-size: 24px; font-weight: 600; font-family: var(--ve-font-mono); color: var(--ve-text-primary); }

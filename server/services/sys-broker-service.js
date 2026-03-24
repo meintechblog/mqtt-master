@@ -15,6 +15,7 @@ const TOPIC_MAP = {
   '$SYS/broker/load/messages/received/1min': 'load_received_1min',
   '$SYS/broker/load/messages/received/5min': 'load_received_5min',
   '$SYS/broker/load/messages/received/15min': 'load_received_15min',
+  '$SYS/broker/load/messages/sent/1min': 'load_sent_1min',
   '$SYS/broker/version': 'version',
   '$SYS/broker/uptime': 'uptime',
 };
