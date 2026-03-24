@@ -6,6 +6,7 @@
  * Handles Venus OS keepalive requirement automatically.
  */
 import mqtt from 'mqtt';
+import { applyBindings, cleanupBindings } from '../lib/binding-utils.js';
 
 const RECONNECT_MS = 5000;
 
@@ -133,6 +134,11 @@ export default class MqttBridgePlugin {
         if (json && json.value !== undefined) parsedValue = json.value;
       } catch { /* not JSON */ }
       this._topicCache.set(topic, { localTopic, value: parsedValue, ts: Date.now() });
+      // Evict oldest entries if cache grows too large
+      if (this._topicCache.size > 5000) {
+        const oldest = [...this._topicCache.entries()].sort((a, b) => a[1].ts - b[1].ts).slice(0, 1000);
+        for (const [key] of oldest) this._topicCache.delete(key);
+      }
 
       // Deduplicate: only republish if value changed or keepalive expired
       const now = Date.now();
@@ -208,85 +214,31 @@ export default class MqttBridgePlugin {
 
   _applyInputBindings() {
     if (!this._ctx) return;
-    const { mqttService, logger } = this._ctx;
-    this._cleanupBindingHandlers();
-
-    for (const binding of this._inputBindings) {
-      if (!binding.enabled || !binding.mqttTopic || !binding.jsonField || !binding.targetUuid) continue;
-
-      const keepaliveMs = binding.keepaliveMs || 30000;
-      mqttService.subscribe(binding.mqttTopic);
-
-      const handler = (msg) => {
-        if (msg.topic !== binding.mqttTopic) return;
+    const pm = this._ctx.pluginManager;
+    applyBindings({
+      bindings: this._inputBindings,
+      mqttService: this._ctx.mqttService,
+      logger: this._ctx.logger,
+      sendToTarget: (uuid, value) => {
+        // Route through Loxone plugin's WebSocket
         try {
-          const data = JSON.parse(msg.payload);
-          let value = this._extractField(data, binding.jsonField);
-          if (value == null) return;
-          value = this._applyTransform(value, binding.transform);
-          if (typeof value === 'number') value = Math.round(value * 1000) / 1000;
-
-          const now = Date.now();
-          const last = this._bindingLastSend.get(binding.id);
-          const valueChanged = !last || last.value !== value;
-          const keepaliveExpired = !last || (now - last.ts >= keepaliveMs);
-          if (!valueChanged && !keepaliveExpired) return;
-
-          // Send to Loxone via WebSocket (direct to Miniserver)
-          try {
-            const pm = this._ctx.pluginManager;
-            const loxone = pm && pm.getInstance('loxone');
-            if (loxone && typeof loxone.sendControlCommand === 'function') {
-              loxone.sendControlCommand(binding.targetUuid, String(value));
-            }
-          } catch { /* ignore */ }
-
-          this._bindingLastSend.set(binding.id, { ts: now, value });
-          if (valueChanged) {
-            logger.debug(`Binding ${binding.label || binding.id}: ${value} → ${binding.targetUuid}`);
+          const loxone = pm && pm.getInstance('loxone');
+          if (loxone && typeof loxone.sendControlCommand === 'function') {
+            loxone.sendControlCommand(uuid, value);
           }
-        } catch { /* ignore */ }
-      };
-
-      mqttService.on('message', handler);
-      this._bindingHandlers.set(binding.id, { handler, topic: binding.mqttTopic });
-      logger.info(`Input binding: ${binding.mqttTopic} [${binding.jsonField}] → ${binding.targetUuid} (${binding.label || binding.id})`);
-    }
-  }
-
-  _extractField(obj, path) {
-    const parts = path.split('.');
-    let current = obj;
-    for (const part of parts) {
-      if (current == null || typeof current !== 'object') return null;
-      current = current[part];
-    }
-    return current ?? null;
-  }
-
-  _applyTransform(value, transform) {
-    if (!transform) return value;
-    const num = Number(value);
-    if (isNaN(num)) return value;
-    switch (transform) {
-      case 'div1000': return Math.round(num / 1000 * 1000) / 1000;
-      case 'div100': return Math.round(num / 100 * 100) / 100;
-      case 'mul1000': return num * 1000;
-      case 'mul100': return num * 100;
-      case 'round': return Math.round(num);
-      case 'round1': return Math.round(num * 10) / 10;
-      default: return num;
-    }
+        } catch { /* Loxone plugin not available */ }
+      },
+      handlerMap: this._bindingHandlers,
+      lastSendMap: this._bindingLastSend,
+    });
   }
 
   _cleanupBindingHandlers() {
-    if (!this._ctx) return;
-    const { mqttService } = this._ctx;
-    for (const [, entry] of this._bindingHandlers) {
-      mqttService.removeListener('message', entry.handler);
-    }
-    this._bindingHandlers.clear();
-    this._bindingLastSend.clear();
+    cleanupBindings({
+      mqttService: this._ctx?.mqttService,
+      handlerMap: this._bindingHandlers,
+      lastSendMap: this._bindingLastSend,
+    });
   }
 
   /**

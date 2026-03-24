@@ -3,37 +3,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { dashboardState, brokerConnected } from '../lib/ws-client.js';
 import { fetchPlugins } from '../lib/api-client.js';
 import { StatusDot } from '../components/status-dot.js';
-
-function fmtUptime(seconds) {
-  if (seconds == null) return '--';
-  const d = Math.floor(seconds / 86400);
-  const h = Math.floor((seconds % 86400) / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (d > 0) return `${d}d ${h}h`;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-}
-
-function fmtRate(val) {
-  if (val == null) return '--';
-  const n = parseFloat(val);
-  if (isNaN(n)) return '--';
-  const perSec = n / 60;
-  if (perSec >= 1000) return (perSec / 1000).toFixed(1) + 'k';
-  if (perSec >= 10) return Math.round(perSec).toString();
-  if (perSec >= 1) return perSec.toFixed(1);
-  if (perSec > 0) return '<1';
-  return '0';
-}
-
-function fmtTotal(val) {
-  if (val == null) return '--';
-  const n = Number(val);
-  if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
-  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
-  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'k';
-  return n.toLocaleString();
-}
+import { fmtRate, fmtTotal, fmtUptime } from '../lib/format.js';
 
 function stripVersion(v) {
   return v ? v.replace(/^mosquitto version\s*/i, '') : '--';

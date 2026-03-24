@@ -4,6 +4,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { StatusDot } from './status-dot.js';
 import { brokerConnected, dashboardState } from '../lib/ws-client.js';
 import { fetchPlugins } from '../lib/api-client.js';
+import { fmtMsgPerSec, fmtRate, pluginLabel } from '../lib/format.js';
 
 export const menuOpen = signal(false);
 
@@ -16,15 +17,6 @@ const pluginItems = signal([]);
 
 /** Plugin message rates (computed from status polling) */
 const pluginMsgCounts = {};
-
-function fmtRate(rate) {
-  if (rate == null || isNaN(rate)) return '';
-  if (rate >= 1000) return (rate / 1000).toFixed(1) + 'k/s';
-  if (rate >= 10) return Math.round(rate) + '/s';
-  if (rate >= 1) return rate.toFixed(1) + '/s';
-  if (rate > 0) return '<1/s';
-  return '0/s';
-}
 
 const brokerSection = {
   title: 'Broker',
@@ -152,9 +144,7 @@ export function Sidebar({ currentHash }) {
               pluginMsgCounts[p.id] = { count: p.messageCount, ts: now };
             }
             // Plugin type label (technical name)
-            // Fixed type labels - always properly capitalized
-            const TYPE_LABELS = { 'loxone': 'Loxone', 'mqtt-bridge': 'MQTT-Bridge' };
-            const typeLabel = TYPE_LABELS[p.id] || TYPE_LABELS[p.name] || (p.name || p.id).charAt(0).toUpperCase() + (p.name || p.id).slice(1);
+            const typeLabel = pluginLabel(p.id);
             return {
               id: p.id,
               label: p.displayName || typeLabel,
@@ -197,7 +187,7 @@ export function Sidebar({ currentHash }) {
           <${StatusDot} status=${brokerConnected.value ? 'connected' : 'disconnected'} />
           Lokaler Broker
           ${dashboardState.value.data.load_received_1min && html`
-            <span class="sidebar-rate">${fmtRate(parseFloat(dashboardState.value.data.load_received_1min) / 60)}</span>
+            <span class="sidebar-rate">${fmtRate(dashboardState.value.data.load_received_1min)}</span>
           `}
         </div>
         ${brokerSection.items.map(item => html`
@@ -228,7 +218,7 @@ export function Sidebar({ currentHash }) {
                   <span class="sidebar-plugin-name">${item.label}</span>
                   ${item.typeLabel && html`<span class="sidebar-plugin-type">${item.typeLabel}</span>`}
                 </span>
-                ${item.status === 'running' && html`<span class="sidebar-rate">${item.rate != null ? fmtRate(item.rate) : '0/s'}</span>`}
+                ${item.status === 'running' && html`<span class="sidebar-rate">${fmtMsgPerSec(item.rate ?? 0)}</span>`}
               </span>
             </a>
             ${item.hash === '#/plugins/loxone' && item.status === 'running' && html`

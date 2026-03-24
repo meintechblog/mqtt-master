@@ -2,6 +2,14 @@ import { readdir, access, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+const TYPE_LABELS = { 'loxone': 'Loxone', 'mqtt-bridge': 'MQTT-Bridge' };
+const TYPE_DESCRIPTIONS = {
+  'loxone': 'Bidirectional Loxone Miniserver bridge with auto-discovery',
+  'mqtt-bridge': 'Connect to an external MQTT broker and bridge topics locally',
+};
+
+function labelFor(id) { return TYPE_LABELS[id] || id.charAt(0).toUpperCase() + id.slice(1); }
+
 export class PluginManager {
   /**
    * @param {{ pluginDir: string, configService: object, mqttService: object, logger: object }} opts
@@ -32,12 +40,6 @@ export class PluginManager {
     }
 
     // Phase 1: scan filesystem for templates
-    const TYPE_LABELS = { 'loxone': 'Loxone', 'mqtt-bridge': 'MQTT-Bridge' };
-    const TYPE_DESCRIPTIONS = {
-      'loxone': 'Bidirectional Loxone Miniserver bridge with auto-discovery',
-      'mqtt-bridge': 'Connect to an external MQTT broker and bridge topics locally',
-    };
-
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
       const pluginFile = join(this.pluginDir, entry.name, 'plugin.js');
@@ -70,7 +72,7 @@ export class PluginManager {
 
       this._templates.set(entry.name, {
         type: entry.name,
-        label: TYPE_LABELS[entry.name] || entry.name,
+        label: labelFor(entry.name),
         description: TYPE_DESCRIPTIONS[entry.name] || '',
         modulePath: pluginFile,
         configSchema,
@@ -210,10 +212,9 @@ export class PluginManager {
     const result = [];
     for (const meta of this.plugins.values()) {
       const config = this.configService.get(`plugins.${meta.id}`, {});
-      const TYPE_LABELS = { 'loxone': 'Loxone', 'mqtt-bridge': 'MQTT-Bridge' };
       const entry = {
         id: meta.id,
-        name: TYPE_LABELS[meta.id] || TYPE_LABELS[meta.name] || meta.name,
+        name: labelFor(meta.id),
         displayName: config.displayName || '',
         status: meta.status,
         error: meta.error,

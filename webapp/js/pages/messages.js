@@ -433,14 +433,24 @@ export function Messages() {
   const rate = messageRate.value;
   const allMessages = messages.value;
 
-  // Also update topic map from live WebSocket messages
-  for (const m of allMessages) {
-    let val = m.payload;
-    try {
-      const parsed = JSON.parse(m.payload);
-      if (parsed && typeof parsed === 'object' && parsed.value !== undefined) val = parsed.value;
-    } catch { /* not JSON */ }
-    topicMapRef.current.set(m.topic, { value: val, ts: m.timestamp });
+  // Update topic map from live WebSocket messages (only process new ones)
+  const lastProcessedRef = useRef(0);
+  if (allMessages.length > 0 && allMessages[0].timestamp > lastProcessedRef.current) {
+    for (const m of allMessages) {
+      if (m.timestamp <= lastProcessedRef.current) break;
+      let val = m.payload;
+      try {
+        const parsed = JSON.parse(m.payload);
+        if (parsed && typeof parsed === 'object' && parsed.value !== undefined) val = parsed.value;
+      } catch { /* not JSON */ }
+      topicMapRef.current.set(m.topic, { value: val, ts: m.timestamp });
+    }
+    lastProcessedRef.current = allMessages[0].timestamp;
+    // Cap topic map size
+    if (topicMapRef.current.size > 5000) {
+      const entries = [...topicMapRef.current.entries()].sort((a, b) => b[1].ts - a[1].ts);
+      topicMapRef.current = new Map(entries.slice(0, 3000));
+    }
   }
 
   const displayedMessages = filter

@@ -1,9 +1,7 @@
 import { html } from 'htm/preact';
 import { useEffect, useState, useCallback, useRef } from 'preact/hooks';
 import { fetchLoxoneControlsDetailed, sendLoxoneCommand } from '../lib/api-client.js';
-
-/** MQTT direction indicator: broker icon + arrow */
-const mqttIcon = html`<svg class="lox-topic-mqtt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="5" r="2.5"/><circle cx="19" cy="5" r="2.5"/><circle cx="12" cy="19" r="2.5"/><circle cx="12" cy="12" r="1.5"/><line x1="7" y1="6.5" x2="10.5" y2="11"/><line x1="17" y1="6.5" x2="13.5" y2="11"/><line x1="12" y1="13.5" x2="12" y2="16.5"/></svg>`;
+import { fmtNum, mqttIcon } from '../lib/format.js';
 
 function DirBadge({ dir }) {
   const title = dir === 'out' ? 'Plugin → MQTT (outgoing)' : dir === 'in' ? 'MQTT → Plugin (incoming)' : 'bidirectional';
@@ -32,12 +30,6 @@ function primaryValue(type, states) {
     default:
       return null;
   }
-}
-
-function fmtNum(v) {
-  if (v == null) return '--';
-  if (Number.isInteger(v)) return String(v);
-  return Math.abs(v) < 10 ? v.toFixed(3) : v.toFixed(1);
 }
 
 function isControllable(type) {

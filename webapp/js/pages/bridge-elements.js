@@ -1,15 +1,6 @@
 import { html } from 'htm/preact';
 import { useEffect, useState, useRef } from 'preact/hooks';
-
-const mqttIcon = html`<svg class="lox-topic-mqtt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="5" r="2.5"/><circle cx="19" cy="5" r="2.5"/><circle cx="12" cy="19" r="2.5"/><circle cx="12" cy="12" r="1.5"/><line x1="7" y1="6.5" x2="10.5" y2="11"/><line x1="17" y1="6.5" x2="13.5" y2="11"/><line x1="12" y1="13.5" x2="12" y2="16.5"/></svg>`;
-
-function fmtNum(v) {
-  if (v == null || v === '' || v === 'None') return '--';
-  if (typeof v === 'boolean') return v ? 'true' : 'false';
-  if (typeof v !== 'number') return String(v).substring(0, 60);
-  if (Number.isInteger(v)) return v.toLocaleString();
-  return Math.abs(v) < 10 ? v.toFixed(3) : v.toFixed(1);
-}
+import { fmtNum, mqttIcon } from '../lib/format.js';
 
 /** Priority order for categories - important ones first */
 const CAT_ORDER = ['grid', 'pvinverter', 'system', 'battery', 'solarcharger', 'vebus', 'tank', 'temperature'];
@@ -177,7 +168,7 @@ export function BridgeElements() {
 
   // Count visible elements
   const visibleCount = search
-    ? elements.filter(el => el.localTopic.toLowerCase().includes(lowerSearch) || el.localTopic.toLowerCase().includes(lowerSearch)).length
+    ? elements.filter(el => el.localTopic.toLowerCase().includes(lowerSearch)).length
     : elements.length;
 
   return html`

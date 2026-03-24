@@ -7,6 +7,7 @@
  */
 import { LoxoneWs } from './loxone-ws.js';
 import { LoxoneStructure } from './loxone-structure.js';
+import { applyBindings, cleanupBindings } from '../lib/binding-utils.js';
 
 /** Map Loxone control types to Home Assistant MQTT Discovery components */
 const HA_TYPE_MAP = {
@@ -488,106 +489,24 @@ export default class LoxonePlugin {
    */
   _applyInputBindings() {
     if (!this._ctx) return;
-    const { mqttService, logger } = this._ctx;
-
-    this._cleanupBindingHandlers();
-
-    for (const binding of this._inputBindings) {
-      if (!binding.enabled) continue;
-      if (!binding.mqttTopic || !binding.jsonField || !binding.targetUuid) continue;
-
-      const keepaliveMs = binding.keepaliveMs || binding.intervalMs || 30000;
-
-      mqttService.subscribe(binding.mqttTopic);
-
-      const handler = (msg) => {
-        if (msg.topic !== binding.mqttTopic) return;
-
-        try {
-          const data = JSON.parse(msg.payload);
-          let value = this._extractField(data, binding.jsonField);
-          if (value == null) return;
-
-          value = this._applyTransform(value, binding.transform);
-
-          // Round to 3 decimals to filter out micro-fluctuations
-          if (typeof value === 'number') {
-            value = Math.round(value * 1000) / 1000;
-          }
-
-          const now = Date.now();
-          const last = this._bindingLastSend.get(binding.id);
-          const valueChanged = !last || last.value !== value;
-          const keepaliveExpired = !last || (now - last.ts >= keepaliveMs);
-
-          // Send if value changed OR keepalive expired
-          if (!valueChanged && !keepaliveExpired) return;
-
-          if (this._ws) {
-            const cmd = `jdev/sps/io/${binding.targetUuid}/${value}`;
-            this._ws.sendCommand(cmd);
-            this._bindingLastSend.set(binding.id, { ts: now, value });
-            if (valueChanged) {
-              logger.debug(`Binding ${binding.label || binding.id}: ${value} → ${binding.targetUuid}`);
-            }
-          }
-        } catch { /* ignore parse errors */ }
-      };
-
-      mqttService.on('message', handler);
-      this._bindingHandlers.set(binding.id, { handler, topic: binding.mqttTopic });
-      logger.info(`Input binding: ${binding.mqttTopic} [${binding.jsonField}] → ${binding.targetUuid} (${binding.label || binding.id}, keepalive ${keepaliveMs / 1000}s)`);
-    }
+    applyBindings({
+      bindings: this._inputBindings,
+      mqttService: this._ctx.mqttService,
+      logger: this._ctx.logger,
+      sendToTarget: (uuid, value) => {
+        if (this._ws) this._ws.sendCommand(`jdev/sps/io/${uuid}/${value}`);
+      },
+      handlerMap: this._bindingHandlers,
+      lastSendMap: this._bindingLastSend,
+    });
   }
 
-  /**
-   * Extract a field from a JSON object using dot notation.
-   * @param {object} obj
-   * @param {string} path - e.g. "ac_power_w" or "data.power"
-   * @returns {number|string|null}
-   */
-  _extractField(obj, path) {
-    const parts = path.split('.');
-    let current = obj;
-    for (const part of parts) {
-      if (current == null || typeof current !== 'object') return null;
-      current = current[part];
-    }
-    return current ?? null;
-  }
-
-  /**
-   * Apply a value transform.
-   * @param {number} value
-   * @param {string|null} transform
-   * @returns {number}
-   */
-  _applyTransform(value, transform) {
-    if (!transform) return value;
-    const num = Number(value);
-    if (isNaN(num)) return value;
-    switch (transform) {
-      case 'div1000': return Math.round(num / 1000 * 1000) / 1000;   // W→kW, 3 decimal
-      case 'div100': return Math.round(num / 100 * 100) / 100;
-      case 'mul1000': return num * 1000;
-      case 'mul100': return num * 100;
-      case 'round': return Math.round(num);
-      case 'round1': return Math.round(num * 10) / 10;
-      default: return num;
-    }
-  }
-
-  /** Clean up all input binding subscription handlers. */
   _cleanupBindingHandlers() {
-    if (!this._ctx) return;
-    const { mqttService } = this._ctx;
-
-    for (const [, entry] of this._bindingHandlers) {
-      mqttService.removeListener('message', entry.handler);
-      mqttService.unsubscribe(entry.topic);
-    }
-    this._bindingHandlers.clear();
-    this._bindingLastSend.clear();
+    cleanupBindings({
+      mqttService: this._ctx?.mqttService,
+      handlerMap: this._bindingHandlers,
+      lastSendMap: this._bindingLastSend,
+    });
   }
 
   // --- Structure change detection ---
