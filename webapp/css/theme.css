@@ -1110,6 +1110,7 @@ body {
 }
 .tb-row:hover .tb-bind-btn { opacity: 1; }
 .tb-bind-btn:hover { color: var(--ve-blue); border-color: var(--ve-blue); }
+.tb-row--selected { background: rgba(56,125,197,0.12) !important; border-left: 2px solid var(--ve-blue); }
 .lox-push-btn--active { background: var(--ve-blue) !important; color: #fff !important; border-color: var(--ve-blue) !important; }
 
 /* Messages page responsive */
@@ -1131,4 +1132,16 @@ body {
   .msg-timestamp {
     min-width: 0;
   }
+
+  .wiz-filters { flex-direction: column; }
+  .wiz-review-flow { flex-direction: column; }
+  .wiz-review-arrow { transform: rotate(90deg); align-self: center; }
+  .bind-field-row { flex-direction: column; }
+  .dash-row2 { grid-template-columns: 1fr; }
+
+  .lox-item { flex-wrap: wrap; gap: 8px; }
+  .lox-item-actions { width: 100%; justify-content: flex-end; }
+
+  .ve-modal { width: 95%; padding: 16px; }
+  .ve-modal-type-picker { grid-template-columns: 1fr; }
 }

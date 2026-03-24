@@ -181,20 +181,27 @@ function filterTree(tree, search) {
 // ── Binding creation dialog ─────────────────────────────────────
 function CreateBindingDialog({ topic, value, onClose }) {
   const [plugins, setPlugins] = useState([]);
+  const [controls, setControls] = useState([]);
   const [selectedPlugin, setSelectedPlugin] = useState('');
   const [jsonField, setJsonField] = useState('value');
   const [fields, setFields] = useState([]);
+  const [targetUuid, setTargetUuid] = useState('');
+  const [targetFilter, setTargetFilter] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    fetch('/api/plugins').then(r => r.json()).then(data => {
-      const running = data.filter(p => p.status === 'running');
+    Promise.all([
+      fetch('/api/plugins').then(r => r.json()),
+      fetch('/api/plugins/loxone/controls/detailed').then(r => r.json()).catch(() => []),
+    ]).then(([pluginData, controlData]) => {
+      const running = pluginData.filter(p => p.status === 'running');
       setPlugins(running);
       if (running.length > 0) setSelectedPlugin(running[0].id);
+      setControls(controlData);
     }).catch(() => {});
 
-    // Parse JSON fields from value
     try {
       const parsed = typeof value === 'string' ? JSON.parse(value) : value;
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
@@ -203,33 +210,40 @@ function CreateBindingDialog({ topic, value, onClose }) {
     } catch { /* not JSON */ }
   }, []);
 
+  const autoTransform = (jsonField.includes('_w') || jsonField.includes('power')) ? 'div1000' : '';
+
+  const filteredControls = controls.filter(c => {
+    if (!targetFilter) return true;
+    const s = targetFilter.toLowerCase();
+    return c.name.toLowerCase().includes(s) || c.room.toLowerCase().includes(s) || c.type.toLowerCase().includes(s);
+  });
+
   const handleCreate = async () => {
+    if (!targetUuid) { setError('Select a Loxone target'); return; }
     setCreating(true);
     setError('');
     try {
       const res = await fetch(`/api/plugins/${selectedPlugin}/bindings`);
       const existing = await res.json();
+      const targetCtrl = controls.find(c => c.uuid === targetUuid) || controls.flatMap(c => c.subControls || []).find(s => s.uuid === targetUuid);
       const newBinding = {
         id: 'b-' + Date.now(),
         enabled: true,
         mqttTopic: topic,
         jsonField,
-        targetUuid: '',
-        transform: jsonField.includes('_w') || jsonField.includes('power') ? 'div1000' : '',
+        targetUuid,
+        transform: autoTransform,
         keepaliveMs: 30000,
-        label: topic.split('/').slice(-2).join('/') + ' ' + jsonField,
+        label: (targetCtrl ? targetCtrl.name : topic.split('/').slice(-2).join('/')) + ' ' + jsonField,
       };
-      const updated = [...existing, newBinding];
       const saveRes = await fetch(`/api/plugins/${selectedPlugin}/bindings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated),
+        body: JSON.stringify([...existing, newBinding]),
       });
       if (!saveRes.ok) throw new Error((await saveRes.json()).error);
-      // Navigate to the binding page to finish configuration (target selection)
-      const pluginBindingRoutes = { 'loxone': '#/loxone/bindings', 'mqtt-bridge': '#/bridge/bindings' };
-      window.location.hash = pluginBindingRoutes[selectedPlugin] || '#/loxone/bindings';
-      onClose();
+      setSuccess(true);
+      setTimeout(onClose, 1500);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -237,9 +251,20 @@ function CreateBindingDialog({ topic, value, onClose }) {
     }
   };
 
+  if (success) {
+    return html`
+      <div class="ve-modal-overlay">
+        <div class="ve-modal" style="text-align:center;padding:32px;">
+          <div style="font-size:24px;color:var(--ve-green);margin-bottom:8px;">✓</div>
+          <div style="font-size:14px;">Binding created</div>
+        </div>
+      </div>
+    `;
+  }
+
   return html`
     <div class="ve-modal-overlay" onClick=${(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div class="ve-modal">
+      <div class="ve-modal" style="max-width:540px;">
         <div class="ve-modal-title">Create Input Binding</div>
         <div style="margin-bottom:12px;">
           <div class="ve-modal-field-label">Source Topic</div>
@@ -272,15 +297,51 @@ function CreateBindingDialog({ topic, value, onClose }) {
             ${plugins.map(p => html`<option key=${p.id} value=${p.id}>${p.displayName || p.name} (${p.name})</option>`)}
           </select>
         </div>
+        <div style="margin-bottom:12px;">
+          <div class="ve-modal-field-label">Loxone Target</div>
+          <input
+            type="text"
+            class="bind-input"
+            style="width:100%;margin:4px 0 6px"
+            placeholder="Filter controls..."
+            value=${targetFilter}
+            onInput=${(e) => setTargetFilter(e.target.value)}
+          />
+          <div style="max-height:180px;overflow-y:auto;">
+            ${filteredControls.map(ctrl => html`
+              <div key=${ctrl.uuid}>
+                <div
+                  class="tb-row ${targetUuid === ctrl.uuid ? 'tb-row--selected' : ''}"
+                  style="cursor:pointer;padding:6px 10px;"
+                  onClick=${() => setTargetUuid(ctrl.uuid)}
+                >
+                  <span class="tb-name" style="flex:1">${ctrl.name}</span>
+                  <span style="font-size:11px;color:var(--ve-text-dim)">${ctrl.type} · ${ctrl.room}</span>
+                </div>
+                ${(ctrl.subControls || []).map(sub => html`
+                  <div
+                    key=${sub.uuid}
+                    class="tb-row ${targetUuid === sub.uuid ? 'tb-row--selected' : ''}"
+                    style="cursor:pointer;padding:6px 10px 6px 26px;"
+                    onClick=${() => setTargetUuid(sub.uuid)}
+                  >
+                    <span class="tb-name" style="flex:1">${sub.name}</span>
+                    <span style="font-size:11px;color:var(--ve-text-dim)">${sub.type}</span>
+                  </div>
+                `)}
+              </div>
+            `)}
+          </div>
+        </div>
+        ${autoTransform && html`
+          <div style="font-size:12px;color:var(--ve-orange);margin-bottom:8px;">Transform: ÷ 1000 (W → kW) will be applied</div>
+        `}
         ${error && html`<div style="font-size:13px;color:var(--ve-red);margin-bottom:8px;">${error}</div>`}
         <div class="ve-modal-actions">
           <button class="lox-push-btn" onClick=${onClose}>Cancel</button>
-          <button class="lox-cmd-btn" disabled=${!selectedPlugin || !jsonField || creating} onClick=${handleCreate}>
-            ${creating ? 'Creating...' : 'Create & Configure'}
+          <button class="lox-cmd-btn" disabled=${!selectedPlugin || !jsonField || !targetUuid || creating} onClick=${handleCreate}>
+            ${creating ? 'Creating...' : 'Create Binding'}
           </button>
-        </div>
-        <div style="font-size:11px;color:var(--ve-text-dim);margin-top:8px;">
-          Creates the binding and opens the plugin's Input Bindings page to select a Loxone target.
         </div>
       </div>
     </div>
@@ -385,6 +446,13 @@ export function Messages() {
   const displayedMessages = filter
     ? allMessages.filter(m => m.topic.includes(filter) || (typeof m.payload === 'string' && m.payload.includes(filter)))
     : allMessages;
+
+  // Auto-scroll to top (newest) when not manually scrolled
+  useEffect(() => {
+    if (!userScrolled && listRef.current) {
+      listRef.current.scrollTop = 0;
+    }
+  }, [allMessages.length, userScrolled]);
 
   const handleSubscribe = useCallback(() => {
     const topic = topicInput.trim();

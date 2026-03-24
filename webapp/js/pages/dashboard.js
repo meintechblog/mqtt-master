@@ -122,7 +122,10 @@ export function Dashboard() {
         <div class="dash-card">
           <div class="dash-card-title">Plugins</div>
           ${plugins.length === 0 && html`
-            <div style="color:var(--ve-text-dim);font-size:13px;padding:8px 0;">No plugins configured</div>
+            <div style="color:var(--ve-text-dim);font-size:13px;padding:12px 0;text-align:center;">
+              No plugins configured.<br/>
+              <span style="font-size:12px;">Use the <strong>+</strong> button in the sidebar to add one.</span>
+            </div>
           `}
           <div class="dash-plugin-list">
             ${runningPlugins.map(p => html`

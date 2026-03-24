@@ -35,9 +35,10 @@ const brokerSection = {
 };
 
 /** Map plugin API status to StatusDot status */
-function pluginDotStatus(status) {
-  if (status === 'running') return 'connected';
-  if (status === 'error') return 'error';
+function pluginDotStatus(item) {
+  if (item.status === 'error') return 'error';
+  if (item.status === 'running' && item.connected === false) return 'error';
+  if (item.status === 'running') return 'connected';
   return 'stopped';
 }
 
@@ -160,6 +161,7 @@ export function Sidebar({ currentHash }) {
               typeLabel: p.displayName ? typeLabel : '',
               hash: '#/plugins/' + p.id,
               status: p.status,
+              connected: p.connected,
               rate,
             };
           });
@@ -221,7 +223,7 @@ export function Sidebar({ currentHash }) {
               onClick=${() => { menuOpen.value = false; }}
             >
               <span class="sidebar-plugin-status">
-                <${StatusDot} status=${pluginDotStatus(item.status)} />
+                <${StatusDot} status=${pluginDotStatus(item)} />
                 <span class="sidebar-plugin-info">
                   <span class="sidebar-plugin-name">${item.label}</span>
                   ${item.typeLabel && html`<span class="sidebar-plugin-type">${item.typeLabel}</span>`}

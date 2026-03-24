@@ -109,6 +109,7 @@ export function PluginConfig({ pluginId }) {
     try {
       await deletePlugin(pluginId);
       window.location.hash = '#/dashboard';
+      window.location.reload();
     } catch (err) {
       showFeedback('error', err.message);
       setConfirmDelete(false);
