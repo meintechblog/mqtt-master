@@ -376,9 +376,16 @@ body {
   border: 1px solid var(--ve-border);
   border-radius: var(--ve-radius-lg);
   padding: 20px 16px;
-  text-align: center;
+  position: relative;
+  overflow: hidden;
 }
 .dash-hero-card--accent { border-color: var(--ve-blue); }
+.dash-hero-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
 .dash-hero-value {
   font-size: 32px;
   font-weight: 700;
@@ -391,9 +398,75 @@ body {
 .dash-hero-label {
   font-size: 11px;
   color: var(--ve-text-dim);
-  margin-top: 8px;
+  margin-top: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+.dash-hero-glow {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 30% 30%, rgba(56,125,197,0.08) 0%, transparent 60%);
+  animation: dash-glow-pulse 3s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes dash-glow-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+.dash-sparkline { opacity: 0.8; }
+.dash-spark-dot { animation: dash-spark-blink 2s ease-in-out infinite; }
+@keyframes dash-spark-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Activity bar */
+.dash-activity {
+  background: var(--ve-bg-widget);
+  border: 1px solid var(--ve-border);
+  border-radius: var(--ve-radius-lg);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dash-activity-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dash-activity-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--ve-text-dim);
+  width: 28px;
+}
+.dash-activity-track {
+  flex: 1;
+  height: 6px;
+  background: var(--ve-bg-main);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.dash-activity-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 1s ease;
+}
+.dash-activity-fill--in { background: linear-gradient(90deg, var(--ve-blue), #5a9fd4); }
+.dash-activity-fill--out { background: linear-gradient(90deg, var(--ve-green), #8fcf6b); }
+.dash-activity-rate {
+  font-size: 12px;
+  font-family: var(--ve-font-mono);
+  color: var(--ve-text-dim);
+  min-width: 45px;
+  text-align: right;
 }
 .dash-row2 {
   display: grid;
