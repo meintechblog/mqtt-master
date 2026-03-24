@@ -86,9 +86,18 @@ export default class MqttBridgePlugin {
       logger.warn(`MQTT Bridge error: ${err.message}`);
     });
 
-    // Republish received messages on local broker
+    // Republish received messages on local broker (with deduplication)
     const seenTopics = new Set();
+    /** @type {Map<string, string>} topic -> last published payload (for dedup) */
+    const lastPublished = new Map();
+    /** @type {Map<string, number>} topic -> last publish timestamp (for keepalive) */
+    const lastPublishTime = new Map();
+    const DEDUP_KEEPALIVE_MS = 30000; // resend unchanged values every 30s
+
     this._client.on('message', (topic, payload) => {
+      // Skip $SYS topics from external broker
+      if (topic.startsWith('$SYS/')) return;
+
       const msg = payload.toString();
 
       // Track unique topics
@@ -117,7 +126,7 @@ export default class MqttBridgePlugin {
         localTopic = `${localPrefix}/${topic}`;
       }
 
-      // Cache value
+      // Cache value (always update cache for Elements view)
       let parsedValue = msg;
       try {
         const json = JSON.parse(msg);
@@ -125,8 +134,18 @@ export default class MqttBridgePlugin {
       } catch { /* not JSON */ }
       this._topicCache.set(topic, { localTopic, value: parsedValue, ts: Date.now() });
 
-      // Republish on local broker
-      context.mqttService.publish(localTopic, msg);
+      // Deduplicate: only republish if value changed or keepalive expired
+      const now = Date.now();
+      const lastMsg = lastPublished.get(topic);
+      const lastTime = lastPublishTime.get(topic) || 0;
+      const valueChanged = lastMsg !== msg;
+      const keepaliveExpired = (now - lastTime) >= DEDUP_KEEPALIVE_MS;
+
+      if (valueChanged || keepaliveExpired) {
+        context.mqttService.publish(localTopic, msg);
+        lastPublished.set(topic, msg);
+        lastPublishTime.set(topic, now);
+      }
     });
 
     // Set up input bindings (local MQTT topic → Loxone control via main MQTT)
