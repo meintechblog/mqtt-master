@@ -2,100 +2,104 @@
 
 A self-hosted MQTT broker dashboard and smart home bridge for Debian/Ubuntu.
 
-MQTT Master provides a real-time web interface for monitoring your Mosquitto MQTT broker and bridges non-MQTT smart home systems into MQTT through a plugin architecture. The first plugin integrates the Loxone Miniserver bidirectionally.
+MQTT Master provides a real-time web interface for monitoring your Mosquitto MQTT broker and bridges non-MQTT smart home systems into MQTT through an extensible plugin architecture.
 
 ## Features
 
-- **Broker Dashboard** -- real-time metrics (clients, messages, subscriptions, memory, uptime)
-- **Live Message Viewer** -- subscribe to topics, watch messages flow with filtering
-- **Hierarchical Topic Tree** -- browse all active MQTT topics
-- **Loxone Miniserver Bridge** -- bidirectional with auto-discovery and human-readable topics
-- **Loxone Elements** -- live status view of all Loxone controls with On/Off testing and MQTT topic overview
-- **MQTT Input Bindings** -- guided wizard to feed external MQTT data (e.g. PV inverter) into Loxone Virtual Inputs
-- **Home Assistant Discovery** -- automatic device detection via MQTT Discovery
-- **Auto-Reconnect** -- WebSocket reconnect with token re-auth, structure change detection, stale topic cleanup
-- **Venus OS Dark Theme** -- consistent with PV Inverter Proxy UI
-- **No database** -- JSON config + in-memory state
+### Dashboard
+- Real-time metrics with sparkline trend charts (receive/send rate, clients, uptime)
+- Live activity bar showing IN/OUT message throughput
+- Plugin overview with status indicators and message counts
+- Auto-updating every 2 seconds
+
+### Live Messages
+- **Stream view**: subscribe to topic patterns, watch messages flow in real-time with filtering
+- **Topic Browser**: auto-discovered tree view of all broker topics with live values
+- **Inline binding creation**: click any topic to create an Input Binding directly
+
+### Plugin System
+- Add/remove plugins from the web UI (no filesystem access needed)
+- Custom display names per plugin instance
+- Multiple instances of the same plugin type
+- Plugin templates: Loxone, MQTT-Bridge (extensible)
+- Connection status indicators (green/orange/red dots)
+- Message rate display per plugin
+
+### Loxone Miniserver Bridge
+- Bidirectional bridge with auto-discovery from LoxAPP3.json
+- Human-readable MQTT topics: `loxone/{room}/{control}/state`
+- Token-based authentication (firmware v16.x)
+- Elements page with live values, On/Off testing, MQTT topic inspector
+- Direction indicators showing data flow (outgoing/incoming)
+- Structure change detection (auto-cleanup on rename/remove)
+- Home Assistant auto-detection via MQTT Discovery
+- Grouped by category and room with search/filter
+
+### MQTT-Bridge (External Broker)
+- Connect to any external MQTT broker (designed for Venus OS / Victron Energy)
+- Auto-detects Venus OS portal ID
+- Smart republishing: only forwards changed values, 30s keepalive for unchanged
+- Reduces broker traffic by ~92% compared to naive bridging
+- Elements page with collapsible category tree and live values
+
+### Input Bindings
+- Feed external MQTT data into Loxone controls via WebSocket
+- 4-step guided wizard: Discover topics → Pick field → Select target → Configure
+- Smart throttling: instant on value change, configurable keepalive
+- Auto-suggest transforms (e.g. W → kW)
+- Per-plugin binding storage (Loxone and MQTT-Bridge have separate bindings)
+- Already-bound targets greyed out to prevent duplicates
+- Editable: change label, transform, keepalive on existing bindings
+
+### General
+- Venus OS-inspired dark theme (consistent with PV Inverter Proxy)
+- Responsive design (desktop, tablet, mobile)
+- No database — JSON config + in-memory state
+- Passwords encrypted at rest (AES-256-CBC)
+- Auto-reconnect for all WebSocket connections
+- No authentication required (trusted LAN)
 
 ## Installation
 
-One command installs everything on a fresh Debian 12+ or Ubuntu 22.04+ system:
+One command on a fresh Debian 12+ or Ubuntu 22.04+ system:
 
 ```bash
 wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/scripts/install.sh | bash
 ```
 
-This handles:
+This installs:
+- Node.js 20 LTS
+- Mosquitto MQTT broker (port 1883 + WebSocket 9001, anonymous LAN access)
+- MQTT Master as systemd service with auto-restart
 
-- Node.js 20 LTS (installs or upgrades if needed)
-- Mosquitto MQTT broker (port 1883 + WebSocket on 9001, anonymous LAN access)
-- Clones the repository to `/opt/mqtt-master/`
-- Node.js dependencies
-- systemd service with auto-restart
-
-After installation:
-
-```
-http://<your-server-ip>:3000
-```
+After installation: `http://<your-server-ip>:3000`
 
 ## Updating
 
-Run the same command:
+Same command — detects existing installation, pulls latest code, preserves config:
 
 ```bash
 wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/scripts/install.sh | bash
 ```
 
-Your `config.json` is preserved. The installer pulls the latest code, reinstalls dependencies, and restarts the service.
+## Quick Start
 
-## Loxone Bridge
+1. Open the dashboard at `http://<server-ip>:3000`
+2. Click the **+** button next to "Plugins" in the sidebar
+3. Choose **Loxone** or **MQTT-Bridge**, give it a name
+4. Configure connection details and click **Start**
 
-The Loxone plugin bridges your Miniserver into MQTT with zero manual mapping.
+### Loxone Setup
+1. Add a Loxone plugin, enter Miniserver IP, port, username, password
+2. Start the plugin — controls are auto-discovered
+3. Browse **Elements** to see live values and test On/Off
+4. Use **Input Bindings** to feed external data (PV inverters, energy meters) into Loxone
 
-### Setup
-
-1. Open the web UI, navigate to **Loxone** in the sidebar
-2. Configure your Miniserver connection (IP, port, username, password)
-3. Click **Start**
-
-The plugin auto-discovers all controls and publishes them with human-readable topics:
-
-```
-loxone/{room}/{control}/state      -- outgoing state updates (JSON)
-loxone/{room}/{control}/cmd        -- incoming commands
-loxone/bridge/status               -- online/offline
-```
-
-### Loxone Elements
-
-The **Elements** page shows all Loxone controls with:
-
-- Live values updated every 2 seconds
-- Room, category, and type for each element
-- On/Off push buttons for testing switches and dimmers
-- Click any element to see its MQTT topics with direction indicators (outgoing/incoming)
-- Filter by room, category, type, or free text search
-
-### MQTT Input Bindings
-
-Feed external MQTT data into Loxone controls (e.g. PV inverter power into a Loxone Meter element):
-
-1. Go to **Input Bindings** and click **+ New Binding**
-2. **Scan** a topic pattern (e.g. `pv-inverter-proxy/#`) to discover available devices
-3. **Pick a field** from the JSON payload (e.g. `ac_power_w`)
-4. **Select a Loxone target** (e.g. a Virtual Input connected to a Meter)
-5. **Choose a transform** (e.g. W to kW) and save
-
-Bindings send values instantly on change and resend every 30s as keepalive. Already-bound targets are greyed out to prevent duplicates.
-
-### Structure Change Detection
-
-The plugin checks the Miniserver structure every 60 seconds. When controls are renamed, added, or removed:
-
-- Old retained MQTT messages are automatically cleaned up
-- New topics are published immediately
-- Home Assistant Discovery is refreshed
+### MQTT-Bridge Setup (Venus OS)
+1. Add an MQTT-Bridge plugin, enter the external broker URL (e.g. `mqtt://192.168.1.100:1883`)
+2. Set subscribe topic to `N/#` (for Venus OS) and local prefix to `venus`
+3. Start — all topics are bridged to `venus/...` on your local broker
+4. Use **Input Bindings** to forward Venus OS data to Loxone controls
 
 ## Configuration
 
@@ -103,25 +107,28 @@ Config file: `/opt/mqtt-master/config.json`
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `mqtt.broker` | `mqtt://localhost:1883` | MQTT broker URL |
+| `mqtt.broker` | `mqtt://localhost:1883` | Local MQTT broker URL |
 | `web.port` | `3000` | Web dashboard port |
 | `logLevel` | `info` | Log level (trace, debug, info, warn, error) |
 | `pluginDir` | `plugins/` | Plugin directory |
 
-Loxone plugin settings are managed through the web UI and stored in `config.json` under `plugins.loxone`. Passwords are encrypted at rest.
+Plugin settings are managed through the web UI and stored under `plugins.*` in config.json. Passwords are automatically encrypted.
 
-## Plugin System
+## Plugin Development
 
-Plugins live in `plugins/{name}/plugin.js` and export a class with:
+Plugins live in `plugins/{name}/plugin.js` and export a default class:
 
 ```javascript
 export default class MyPlugin {
-  async start(context) { }   // context: { mqttService, configService, logger }
+  async start(context) { }   // context: { mqttService, configService, logger, pluginManager }
   async stop() { }
-  getStatus() { }
-  getConfigSchema() { }      // JSON Schema for auto-generated config UI
+  getStatus() { }            // return { running, connected, messageCount, ... }
+  getConfigSchema() { }      // JSON Schema → auto-generated config form
 }
 ```
+
+Shared utilities available in `plugins/lib/`:
+- `binding-utils.js` — input binding execution, field extraction, transforms
 
 ## Service Management
 
@@ -149,7 +156,33 @@ npm test
 - **Frontend**: Preact + HTM (no build step), Preact Signals
 - **Styling**: CSS custom properties (Venus OS Dark Theme)
 - **MQTT Broker**: Mosquitto
-- **No database**: JSON files + in-memory state
+- **Storage**: JSON config files, in-memory state, no database
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│  Web Browser (Preact SPA, no build step)        │
+│  Dashboard │ Messages │ Elements │ Bindings     │
+└──────────────┬──────────────────────────────────┘
+               │ WebSocket + REST API
+┌──────────────┴──────────────────────────────────┐
+│  Fastify Server                                  │
+│  ┌─────────────┐  ┌──────────────────────────┐  │
+│  │ MQTT Service │  │ Plugin Manager           │  │
+│  │ (mqtt.js)   │  │  ├─ Loxone Plugin        │  │
+│  │             │  │  │  (WS to Miniserver)    │  │
+│  │             │  │  ├─ MQTT-Bridge Plugin    │  │
+│  │             │  │  │  (external broker)     │  │
+│  │             │  │  └─ ... more plugins      │  │
+│  └──────┬──────┘  └──────────────────────────┘  │
+└─────────┼───────────────────────────────────────┘
+          │
+┌─────────┴───────────┐
+│  Mosquitto Broker    │
+│  Port 1883 + WS 9001│
+└─────────────────────┘
+```
 
 ## License
 
