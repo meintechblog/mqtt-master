@@ -325,8 +325,8 @@ export default class MqttBridgePlugin {
         subscribeTopic: {
           type: 'string',
           title: 'Subscribe Topic',
-          default: '#',
-          description: 'Topic pattern to subscribe on the external broker',
+          default: 'N/#',
+          description: 'Topic pattern to subscribe on the external broker (N/# for Venus OS)',
         },
         localPrefix: {
           type: 'string',
