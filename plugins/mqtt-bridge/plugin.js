@@ -6,7 +6,7 @@
  * Handles Venus OS keepalive requirement automatically.
  */
 import mqtt from 'mqtt';
-import { applyBindings, cleanupBindings } from '../lib/binding-utils.js';
+import { BindingsManager } from '../lib/bindings-manager.js';
 
 const RECONNECT_MS = 5000;
 
@@ -26,12 +26,18 @@ export default class MqttBridgePlugin {
     /** @type {Map<string, { localTopic: string, value: any, ts: number }>} remote topic -> state */
     this._topicCache = new Map();
 
-    /** @type {Array<object>} input binding definitions */
-    this._inputBindings = [];
-    /** @type {Map<string, Function>} binding handlers */
-    this._bindingHandlers = new Map();
-    /** @type {Map<string, { ts: number, value: any }>} binding last-send state */
-    this._bindingLastSend = new Map();
+    /** @type {BindingsManager} */
+    this._bindings = new BindingsManager({
+      configKey: 'plugins.mqtt-bridge',
+      sendToTarget: (uuid, value) => {
+        try {
+          const loxone = this._ctx?.pluginManager?.getInstance('loxone');
+          if (loxone && typeof loxone.sendControlCommand === 'function') {
+            loxone.sendControlCommand(uuid, value);
+          }
+        } catch { /* Loxone plugin not available */ }
+      },
+    });
   }
 
   async start(context) {
@@ -155,8 +161,7 @@ export default class MqttBridgePlugin {
     });
 
     // Set up input bindings (local MQTT topic → Loxone control via main MQTT)
-    this._inputBindings = this._config.inputBindings || [];
-    this._applyInputBindings();
+    this._bindings.init(context, this._config);
 
     this._running = true;
     logger.info('MQTT Bridge plugin started');
@@ -173,7 +178,7 @@ export default class MqttBridgePlugin {
       this._client = null;
     }
 
-    this._cleanupBindingHandlers();
+    this._bindings.cleanup();
 
     this._running = false;
     this._connected = false;
@@ -199,46 +204,11 @@ export default class MqttBridgePlugin {
   // --- Input bindings ---
 
   getInputBindings() {
-    return [...this._inputBindings];
+    return this._bindings.getBindings();
   }
 
   async setInputBindings(bindings) {
-    this._inputBindings = bindings;
-    this._config.inputBindings = bindings;
-    if (this._ctx) {
-      this._ctx.configService.set('plugins.mqtt-bridge', this._config);
-      await this._ctx.configService.save();
-    }
-    this._applyInputBindings();
-  }
-
-  _applyInputBindings() {
-    if (!this._ctx) return;
-    const pm = this._ctx.pluginManager;
-    applyBindings({
-      bindings: this._inputBindings,
-      mqttService: this._ctx.mqttService,
-      logger: this._ctx.logger,
-      sendToTarget: (uuid, value) => {
-        // Route through Loxone plugin's WebSocket
-        try {
-          const loxone = pm && pm.getInstance('loxone');
-          if (loxone && typeof loxone.sendControlCommand === 'function') {
-            loxone.sendControlCommand(uuid, value);
-          }
-        } catch { /* Loxone plugin not available */ }
-      },
-      handlerMap: this._bindingHandlers,
-      lastSendMap: this._bindingLastSend,
-    });
-  }
-
-  _cleanupBindingHandlers() {
-    cleanupBindings({
-      mqttService: this._ctx?.mqttService,
-      handlerMap: this._bindingHandlers,
-      lastSendMap: this._bindingLastSend,
-    });
+    await this._bindings.setBindings(bindings);
   }
 
   /**

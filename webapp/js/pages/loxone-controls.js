@@ -1,7 +1,8 @@
 import { html } from 'htm/preact';
 import { useEffect, useState, useCallback, useRef } from 'preact/hooks';
 import { fetchLoxoneControlsDetailed, sendLoxoneCommand } from '../lib/api-client.js';
-import { fmtNum, mqttIcon } from '../lib/format.js';
+import { mqttIcon } from '../lib/format.js';
+import { primaryValue, isControllable, flattenControls, buildGroups } from '../lib/control-utils.js';
 
 function DirBadge({ dir }) {
   const title = dir === 'out' ? 'Plugin → MQTT (outgoing)' : dir === 'in' ? 'MQTT → Plugin (incoming)' : 'bidirectional';
@@ -9,98 +10,6 @@ function DirBadge({ dir }) {
     return html`<span class="lox-dir-badge" title=${title}>${mqttIcon}<span class="lox-dir-both"><span class="lox-topic-arrow lox-topic-dir--out">\u2190</span><span class="lox-topic-arrow lox-topic-dir--in">\u2192</span></span></span>`;
   }
   return html`<span class="lox-dir-badge" title=${title}>${mqttIcon}<span class="lox-topic-arrow lox-topic-dir--${dir}">${dir === 'out' ? '\u2190' : '\u2192'}</span></span>`;
-}
-
-/** Extract the primary display value from states */
-function primaryValue(type, states) {
-  if (!states) return null;
-  switch (type) {
-    case 'Switch':
-      return states.active != null ? (states.active.value > 0 ? 'ON' : 'OFF') : null;
-    case 'Dimmer':
-      return states.position != null ? states.position.value + '%' : null;
-    case 'InfoOnlyAnalog':
-      return states.value != null ? fmtNum(states.value.value) : null;
-    case 'InfoOnlyDigital':
-      return states.active != null ? (states.active.value > 0 ? 'Active' : 'Inactive') : null;
-    case 'Meter':
-      return states.actual != null ? fmtNum(states.actual.value) + ' kW' : null;
-    case 'Jalousie':
-      return states.position != null ? Math.round(states.position.value * 100) + '%' : null;
-    default:
-      return null;
-  }
-}
-
-function isControllable(type) {
-  return ['Switch', 'Dimmer', 'LightControllerV2'].includes(type);
-}
-
-function isSensor(type) {
-  return ['InfoOnlyAnalog', 'InfoOnlyDigital', 'Meter'].includes(type);
-}
-
-/** Flatten controls + subcontrols into a single list */
-function flattenControls(controls) {
-  const items = [];
-  for (const ctrl of controls) {
-    if (ctrl.subControls && ctrl.subControls.length > 0) {
-      for (const sub of ctrl.subControls) {
-        items.push({
-          uuid: sub.uuid,
-          name: sub.name,
-          type: sub.type,
-          room: ctrl.room,
-          category: ctrl.category,
-          topic: sub.topic,
-          states: sub.states,
-          parentName: ctrl.name,
-        });
-      }
-    } else {
-      items.push({
-        uuid: ctrl.uuid,
-        name: ctrl.name,
-        type: ctrl.type,
-        room: ctrl.room,
-        category: ctrl.category,
-        topic: ctrl.topic,
-        states: ctrl.states,
-        parentName: null,
-      });
-    }
-  }
-  return items.filter(item => isControllable(item.type) || isSensor(item.type));
-}
-
-/** Group items by category, then by room within each category */
-function buildGroups(items) {
-  const catMap = {};
-  for (const item of items) {
-    const cat = item.category || 'Other';
-    if (!catMap[cat]) catMap[cat] = {};
-    const room = item.room || 'Unknown';
-    if (!catMap[cat][room]) catMap[cat][room] = [];
-    catMap[cat][room].push(item);
-  }
-  // Sort categories, rooms, items
-  return Object.entries(catMap)
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([cat, rooms]) => ({
-      category: cat,
-      rooms: Object.entries(rooms)
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([room, items]) => ({
-          room,
-          items: items.sort((a, b) => {
-            const ac = isControllable(a.type) ? 0 : 1;
-            const bc = isControllable(b.type) ? 0 : 1;
-            if (ac !== bc) return ac - bc;
-            return a.name.localeCompare(b.name);
-          }),
-        })),
-      count: Object.values(rooms).reduce((s, r) => s + r.length, 0),
-    }));
 }
 
 function CategorySection({ group, search, typeFilter, expanded, setExpanded, onCmd, prevValues }) {

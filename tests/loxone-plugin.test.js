@@ -114,6 +114,14 @@ vi.mock('../plugins/loxone/loxone-structure.js', () => {
       return [...this._controls];
     }
 
+    getControlTree() {
+      return this._controls.map(ctrl => ({
+        ...ctrl,
+        states: [],
+        subControls: [],
+      }));
+    }
+
     slugify(str) {
       if (!str) return 'unknown';
       return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
