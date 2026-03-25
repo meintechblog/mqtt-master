@@ -30,9 +30,20 @@ MQTT Master provides a real-time web interface for monitoring your Mosquitto MQT
 ### Loxone Miniserver Bridge
 - Bidirectional bridge with auto-discovery from LoxAPP3.json
 - Human-readable MQTT topics: `loxone/{room}/{control}/state`
+- **UUID-based stable topics**: `loxone/by-uuid/{uuid}/cmd` — survive control renames in Loxone Config
 - Proper German umlaut handling: ä→ae, ö→oe, ü→ue, ß→ss
 - Token-based authentication (firmware v16.x)
-- Elements page with live values, On/Off testing, MQTT topic inspector
+- **Elements page** with live values, copy-to-clipboard on all topics, search/filter
+- **Inline command testing**: dropdown with all available commands per control type, instant trigger
+  - Switch: On, Off, Pulse
+  - Dimmer: On, Off, +, −
+  - LightControllerV2: Stimmung +/−, changeTo/{name}, On, Off
+  - Jalousie: Up, Down, Full Up/Down, Stop
+  - Gate, Alarm, IRoomController, Ventilation: type-specific commands
+- **Mood Mapping** for LightControllerV2: configurable mood ID → name resolution
+  - Default mappings (Nacht, Abend, Tag, Viel Licht, Aus, Manuell)
+  - Per-controller overrides via web UI
+  - Active mood name published as `loxone/{room}/{control}/mood/state`
 - Direction indicators showing data flow (outgoing/incoming)
 - Structure change detection (auto-cleanup on rename/remove)
 - Home Assistant auto-detection via MQTT Discovery
@@ -97,8 +108,9 @@ wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/script
 ### Loxone Setup
 1. Add a Loxone plugin, enter Miniserver IP, port, username, password
 2. Start the plugin — controls are auto-discovered
-3. Browse **Elements** to see live values and test On/Off
-4. Use **Input Bindings** to feed external data (PV inverters, energy meters) into Loxone
+3. Browse **Elements** to see live values, test commands via dropdown, copy MQTT topics
+4. Configure **Mood Mapping** for LightControllerV2 mood names (defaults included)
+5. Use **Input Bindings** to feed external data (PV inverters, energy meters) into Loxone
 
 ### MQTT-Bridge Setup (Venus OS)
 1. Add an MQTT-Bridge plugin → select the **Venus OS** preset
@@ -118,6 +130,37 @@ Config file: `/opt/mqtt-master/config.json`
 | `pluginDir` | `plugins/` | Plugin directory |
 
 Plugin settings are managed through the web UI and stored under `plugins.*` in config.json. Passwords are automatically encrypted.
+
+## MQTT Topic Reference
+
+### Loxone Topics (name-based, human-readable)
+
+```
+loxone/{room}/{control}/state              ← state updates (JSON: value/text, name, type, uuid, room)
+loxone/{room}/{control}/cmd                → commands (on, off, plus, minus, changeTo/Nacht, ...)
+loxone/{room}/{control}/mood/state         ← resolved mood name (JSON: id, name, uuid)
+loxone/{room}/{control}/{state}/state      ← sub-state (activeMoodsNum, position, presence, ...)
+```
+
+### Loxone Topics (UUID-based, rename-safe)
+
+```
+loxone/by-uuid/{uuid}/state               ← same payload as name-based
+loxone/by-uuid/{uuid}/cmd                 → same commands as name-based
+loxone/by-uuid/{uuid}/mood/state          ← same mood payload
+```
+
+Use UUID-based topics in automations — they survive control renames in Loxone Config.
+
+### LightControllerV2 Commands
+
+| Payload | Effect |
+|---------|--------|
+| `plus` | Next mood |
+| `minus` | Previous mood |
+| `changeTo/Nacht` | Set specific mood by name |
+| `on` | Turn on (last active mood) |
+| `off` | All off |
 
 ## Plugin Development
 
