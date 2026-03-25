@@ -454,7 +454,7 @@ export function InputBindings({ pluginId = 'loxone', defaultPattern } = {}) {
       <div class="page-header">
         MQTT Input Bindings
         <span style="font-size:14px;color:var(--ve-text-dim);font-weight:400;margin-left:8px;">
-          MQTT → Loxone
+          MQTT → ${pluginId}
         </span>
       </div>
 
