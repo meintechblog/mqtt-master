@@ -58,6 +58,8 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
   }, [mappings, save]);
 
   const handleDeleteEntry = useCallback((key, moodId) => {
+    const name = (key === '_defaults' ? mappings._defaults : mappings[key] || {})[String(moodId)] || moodId;
+    if (!confirm(`Mood "${name}" (ID ${moodId}) wirklich löschen?`)) return;
     const section = { ...(key === '_defaults' ? mappings._defaults : mappings[key] || {}) };
     delete section[String(moodId)];
     save({ ...mappings, [key]: section });
