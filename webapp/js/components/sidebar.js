@@ -189,7 +189,7 @@ export function Sidebar({ currentHash }) {
               pluginMsgCounts[p.id] = { count: p.messageCount, ts: now };
             }
             // Plugin type label (technical name)
-            const typeLabel = pluginLabel(p.id);
+            const typeLabel = pluginLabel(p.type || p.id);
             return {
               id: p.id,
               type: p.type || p.id,
