@@ -19,15 +19,18 @@ MQTT Master provides a real-time web interface for monitoring your Mosquitto MQT
 
 ### Plugin System
 - Add/remove plugins from the web UI (no filesystem access needed)
+- **Presets**: pre-configured templates for common devices (e.g. Venus OS)
 - Custom display names per plugin instance
-- Multiple instances of the same plugin type
+- Multiple instances of the same plugin type (e.g. two Loxone Miniservers)
 - Plugin templates: Loxone, MQTT-Bridge (extensible)
 - Connection status indicators (green/orange/red dots)
 - Message rate display per plugin
+- Auto-start: plugins restart automatically on server reboot
 
 ### Loxone Miniserver Bridge
 - Bidirectional bridge with auto-discovery from LoxAPP3.json
 - Human-readable MQTT topics: `loxone/{room}/{control}/state`
+- Proper German umlaut handling: ä→ae, ö→oe, ü→ue, ß→ss
 - Token-based authentication (firmware v16.x)
 - Elements page with live values, On/Off testing, MQTT topic inspector
 - Direction indicators showing data flow (outgoing/incoming)
@@ -36,23 +39,24 @@ MQTT Master provides a real-time web interface for monitoring your Mosquitto MQT
 - Grouped by category and room with search/filter
 
 ### MQTT-Bridge (External Broker)
-- Connect to any external MQTT broker (designed for Venus OS / Victron Energy)
+- Connect to any external MQTT broker
+- **Venus OS preset**: pre-configured topic filter (`N/#`), local prefix, keepalive
 - Auto-detects Venus OS portal ID
 - Smart republishing: only forwards changed values, 30s keepalive for unchanged
-- Reduces broker traffic by ~92% compared to naive bridging
+- Bare IP auto-fix: entering `192.168.1.100` automatically becomes `mqtt://192.168.1.100:1883`
 - Elements page with collapsible category tree and live values
 
 ### Input Bindings
-- Feed external MQTT data into Loxone controls via WebSocket
+- Feed external MQTT data into plugin controls
 - 4-step guided wizard: Discover topics → Pick field → Select target → Configure
 - Smart throttling: instant on value change, configurable keepalive
 - Auto-suggest transforms (e.g. W → kW)
-- Per-plugin binding storage (Loxone and MQTT-Bridge have separate bindings)
+- Per-plugin binding storage
 - Already-bound targets greyed out to prevent duplicates
 - Editable: change label, transform, keepalive on existing bindings
 
 ### General
-- Venus OS-inspired dark theme (consistent with PV Inverter Proxy)
+- Venus OS-inspired dark theme
 - Responsive design (desktop, tablet, mobile)
 - No database — JSON config + in-memory state
 - Passwords encrypted at rest (AES-256-CBC)
@@ -86,8 +90,9 @@ wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/script
 
 1. Open the dashboard at `http://<server-ip>:3000`
 2. Click the **+** button next to "Plugins" in the sidebar
-3. Choose **Loxone** or **MQTT-Bridge**, give it a name
-4. Configure connection details and click **Start**
+3. Choose **Loxone** or **MQTT-Bridge**
+4. For MQTT-Bridge: pick a preset (e.g. Venus OS) or start with a custom config
+5. Enter connection details and click **Start**
 
 ### Loxone Setup
 1. Add a Loxone plugin, enter Miniserver IP, port, username, password
@@ -96,9 +101,9 @@ wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/script
 4. Use **Input Bindings** to feed external data (PV inverters, energy meters) into Loxone
 
 ### MQTT-Bridge Setup (Venus OS)
-1. Add an MQTT-Bridge plugin, enter the external broker URL (e.g. `mqtt://192.168.1.100:1883`)
-2. Set subscribe topic to `N/#` (for Venus OS) and local prefix to `venus`
-3. Start — all topics are bridged to `venus/...` on your local broker
+1. Add an MQTT-Bridge plugin → select the **Venus OS** preset
+2. Enter the GX device IP (e.g. `192.168.1.100`) — protocol and port are added automatically
+3. Start — all Venus OS topics are bridged to `venus/...` on your local broker
 4. Use **Input Bindings** to forward Venus OS data to Loxone controls
 
 ## Configuration
@@ -120,15 +125,42 @@ Plugins live in `plugins/{name}/plugin.js` and export a default class:
 
 ```javascript
 export default class MyPlugin {
-  async start(context) { }   // context: { mqttService, configService, logger, pluginManager }
+  async start(context) { }   // context: { mqttService, configService, logger, pluginId, pluginManager }
   async stop() { }
   getStatus() { }            // return { running, connected, messageCount, ... }
   getConfigSchema() { }      // JSON Schema → auto-generated config form
 }
 ```
 
+The `pluginId` in the context is the instance ID (e.g. `venus-os`), not the template type. Use it for reading config: `configService.get(\`plugins.${pluginId}\`)`.
+
 Shared utilities available in `plugins/lib/`:
 - `binding-utils.js` — input binding execution, field extraction, transforms
+- `bindings-manager.js` — binding lifecycle management (apply, cleanup, persist)
+
+### Adding Presets
+
+Presets are defined in `server/services/plugin-manager.js` under the `PRESETS` constant. Each preset pre-fills config values when creating a new plugin instance:
+
+```javascript
+const PRESETS = {
+  'mqtt-bridge': [
+    {
+      id: 'venus-os',
+      label: 'Venus OS (Victron Energy)',
+      description: 'GX device with MQTT enabled',
+      suggestedId: 'venus-os',
+      config: {
+        displayName: 'Venus OS',
+        subscribeTopic: 'N/#',
+        localPrefix: 'venus',
+        keepaliveEnabled: true,
+        keepaliveIntervalMs: 30000,
+      },
+    },
+  ],
+};
+```
 
 ## Service Management
 
@@ -150,14 +182,6 @@ npm test
 ./scripts/deploy-vm.sh             # deploy to test VM
 ```
 
-## Tech Stack
-
-- **Backend**: Node.js 20, Fastify 5, mqtt.js, ws
-- **Frontend**: Preact + HTM (no build step), Preact Signals
-- **Styling**: CSS custom properties (Venus OS Dark Theme)
-- **MQTT Broker**: Mosquitto
-- **Storage**: JSON config files, in-memory state, no database
-
 ## Architecture
 
 ```
@@ -171,7 +195,9 @@ npm test
 │  ┌─────────────┐  ┌──────────────────────────┐  │
 │  │ MQTT Service │  │ Plugin Manager           │  │
 │  │ (mqtt.js)   │  │  ├─ Loxone Plugin        │  │
-│  │             │  │  │  (WS to Miniserver)    │  │
+│  │             │  │  │  ├─ ha-discovery.js    │  │
+│  │             │  │  │  ├─ mood-manager.js    │  │
+│  │             │  │  │  └─ structure-monitor  │  │
 │  │             │  │  ├─ MQTT-Bridge Plugin    │  │
 │  │             │  │  │  (external broker)     │  │
 │  │             │  │  └─ ... more plugins      │  │
