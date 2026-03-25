@@ -68,32 +68,37 @@ export function publishMqtt(topic, payload, { retain = false, qos = 0 } = {}) {
   });
 }
 
-// --- Loxone-specific endpoints ---
+// --- Plugin control endpoints (dynamic pluginId) ---
 
-/** GET /api/plugins/loxone/controls -- list all discovered controls */
-export function fetchLoxoneControls() {
-  return request('/api/plugins/loxone/controls');
+/** GET /api/plugins/:id/controls */
+export function fetchLoxoneControls(pluginId = 'loxone') {
+  return request(`/api/plugins/${encodeURIComponent(pluginId)}/controls`);
 }
 
-/** GET /api/plugins/loxone/controls/detailed -- controls with subcontrols and live state */
-export function fetchLoxoneControlsDetailed() {
-  return request('/api/plugins/loxone/controls/detailed');
+/** GET /api/plugins/:id/controls/detailed */
+export function fetchLoxoneControlsDetailed(pluginId = 'loxone') {
+  return request(`/api/plugins/${encodeURIComponent(pluginId)}/controls/detailed`);
 }
 
-/** PUT /api/plugins/loxone/controls/:uuid -- toggle control enabled state */
-export function toggleLoxoneControl(uuid, enabled) {
-  return request(`/api/plugins/loxone/controls/${encodeURIComponent(uuid)}`, {
+/** PUT /api/plugins/:id/controls/:uuid */
+export function toggleLoxoneControl(uuid, enabled, pluginId = 'loxone') {
+  return request(`/api/plugins/${encodeURIComponent(pluginId)}/controls/${encodeURIComponent(uuid)}`, {
     method: 'PUT',
     body: JSON.stringify({ enabled }),
   });
 }
 
-/** POST /api/plugins/loxone/controls/:uuid/cmd -- send command directly via WebSocket */
-export function sendLoxoneCommand(uuid, command) {
-  return request(`/api/plugins/loxone/controls/${encodeURIComponent(uuid)}/cmd`, {
+/** POST /api/plugins/:id/controls/:uuid/cmd */
+export function sendLoxoneCommand(uuid, command, pluginId = 'loxone') {
+  return request(`/api/plugins/${encodeURIComponent(pluginId)}/controls/${encodeURIComponent(uuid)}/cmd`, {
     method: 'POST',
     body: JSON.stringify({ command }),
   });
+}
+
+/** GET /api/plugins/:id/elements */
+export function fetchBridgeElements(pluginId) {
+  return request(`/api/plugins/${encodeURIComponent(pluginId)}/elements`);
 }
 
 /** GET /api/plugins/:id/bindings -- list MQTT input bindings for a plugin */

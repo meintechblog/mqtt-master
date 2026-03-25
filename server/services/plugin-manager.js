@@ -111,6 +111,7 @@ export class PluginManager {
       this.plugins.set(id, {
         id,
         name: id,
+        type: template ? template.type : id,
         status: 'stopped',
         instance: null,
         error: null,
@@ -214,6 +215,7 @@ export class PluginManager {
       const config = this.configService.get(`plugins.${meta.id}`, {});
       const entry = {
         id: meta.id,
+        type: meta.type || meta.id,
         name: labelFor(meta.id),
         displayName: config.displayName || '',
         status: meta.status,

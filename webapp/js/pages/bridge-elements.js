@@ -121,7 +121,7 @@ function CategorySection({ cat, search, defaultOpen, prevValues }) {
   `;
 }
 
-export function BridgeElements() {
+export function BridgeElements({ pluginId = 'mqtt-bridge' } = {}) {
   const [elements, setElements] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -129,9 +129,12 @@ export function BridgeElements() {
   const prevValues = useRef({});
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
+    setElements([]);
     async function load() {
       try {
-        const res = await fetch('/api/plugins/mqtt-bridge/elements');
+        const res = await fetch(`/api/plugins/${encodeURIComponent(pluginId)}/elements`);
         if (!res.ok) throw new Error((await res.json()).error || res.statusText);
         setElements(await res.json());
       } catch (err) {
@@ -143,12 +146,12 @@ export function BridgeElements() {
     load();
     const interval = setInterval(async () => {
       try {
-        const res = await fetch('/api/plugins/mqtt-bridge/elements');
+        const res = await fetch(`/api/plugins/${encodeURIComponent(pluginId)}/elements`);
         if (res.ok) setElements(await res.json());
       } catch { /* ignore */ }
     }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [pluginId]);
 
   if (loading) return html`<div class="page-placeholder">Loading...</div>`;
 

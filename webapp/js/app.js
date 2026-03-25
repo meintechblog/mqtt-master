@@ -41,20 +41,19 @@ const currentRoute = computed(() => {
     return { component: routes[hash], props: {} };
   }
 
-  // Loxone-specific sub-pages
-  if (hash === '#/loxone/controls') {
-    return { component: LoxoneControls, props: {} };
-  }
-  if (hash === '#/loxone/bindings') {
-    return { component: InputBindings, props: { pluginId: 'loxone', defaultPattern: 'pv-inverter-proxy/#' } };
-  }
-
-  // MQTT Bridge sub-pages
-  if (hash === '#/bridge/elements') {
-    return { component: BridgeElements, props: {} };
-  }
-  if (hash === '#/bridge/bindings') {
-    return { component: InputBindings, props: { pluginId: 'mqtt-bridge', defaultPattern: 'venus/#' } };
+  // Plugin sub-pages: #/plugins/:id/controls, #/plugins/:id/elements, #/plugins/:id/bindings
+  const pluginSubMatch = hash.match(/^#\/plugins\/([^/]+)\/(\w+)$/);
+  if (pluginSubMatch) {
+    const [, pluginId, subPage] = pluginSubMatch;
+    if (subPage === 'controls') {
+      return { component: LoxoneControls, props: { pluginId } };
+    }
+    if (subPage === 'elements') {
+      return { component: BridgeElements, props: { pluginId } };
+    }
+    if (subPage === 'bindings') {
+      return { component: InputBindings, props: { pluginId } };
+    }
   }
 
   // Dynamic plugin route: #/plugins/:id

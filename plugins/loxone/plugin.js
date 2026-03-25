@@ -49,12 +49,7 @@ export default class LoxonePlugin {
 
     this._moodManager = new MoodManager();
     this._structureMonitor = new StructureMonitor();
-    this._bindingsManager = new BindingsManager({
-      configKey: 'plugins.loxone',
-      sendToTarget: (uuid, value) => {
-        if (this._ws) this._ws.sendCommand(`jdev/sps/io/${uuid}/${value}`);
-      },
-    });
+    this._bindingsManager = null;
   }
 
   /**
@@ -63,10 +58,11 @@ export default class LoxonePlugin {
    */
   async start(context) {
     this._ctx = context;
-    const { mqttService, configService, logger } = context;
+    const { mqttService, configService, logger, pluginId } = context;
+    this._pluginId = pluginId || 'loxone';
 
     // 1. Read config
-    this._config = configService.get('plugins.loxone', {});
+    this._config = configService.get(`plugins.${this._pluginId}`, {});
     const {
       ip = '127.0.0.1',
       port = 80,
@@ -159,6 +155,12 @@ export default class LoxonePlugin {
     this._applyTopicRoutes();
 
     // 12. Set up MQTT input bindings
+    this._bindingsManager = new BindingsManager({
+      configKey: `plugins.${this._pluginId}`,
+      sendToTarget: (uuid, value) => {
+        if (this._ws) this._ws.sendCommand(`jdev/sps/io/${uuid}/${value}`);
+      },
+    });
     this._bindingsManager.init(context, this._config);
 
     // 13. Periodic structure check
@@ -207,7 +209,7 @@ export default class LoxonePlugin {
 
     // 5. Clean up sub-modules
     this._cleanupRouteHandlers();
-    this._bindingsManager.cleanup();
+    if (this._bindingsManager) this._bindingsManager.cleanup();
     this._structureMonitor.stopPolling();
 
     // 6. Clear state
@@ -349,7 +351,7 @@ export default class LoxonePlugin {
     }
     this._config.disabledControls = this._disabledControls;
     if (this._ctx) {
-      this._ctx.configService.set('plugins.loxone', this._config);
+      this._ctx.configService.set(`plugins.${this._pluginId}`, this._config);
       await this._ctx.configService.save();
     }
   }
@@ -371,7 +373,7 @@ export default class LoxonePlugin {
     this._topicRoutes = routes;
     this._config.topicRoutes = routes;
     if (this._ctx) {
-      this._ctx.configService.set('plugins.loxone', this._config);
+      this._ctx.configService.set(`plugins.${this._pluginId}`, this._config);
       await this._ctx.configService.save();
     }
     this._applyTopicRoutes();

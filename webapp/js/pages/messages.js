@@ -194,10 +194,17 @@ function CreateBindingDialog({ topic, value, onClose }) {
   useEffect(() => {
     Promise.all([
       fetch('/api/plugins').then(r => r.json()),
-      fetch('/api/plugins/loxone/controls/detailed').then(r => r.json()).catch(() => []),
-    ]).then(([pluginData, controlData]) => {
+    ]).then(async ([pluginData]) => {
       const running = pluginData.filter(p => p.status === 'running');
       setPlugins(running);
+      // Load controls from the first loxone-type plugin
+      const loxonePlugin = pluginData.find(p => p.type === 'loxone' && p.status === 'running');
+      let controlData = [];
+      if (loxonePlugin) {
+        try {
+          controlData = await fetch(`/api/plugins/${loxonePlugin.id}/controls/detailed`).then(r => r.json());
+        } catch { /* ignore */ }
+      }
       if (running.length > 0) setSelectedPlugin(running[0].id);
       setControls(controlData);
     }).catch(() => {});

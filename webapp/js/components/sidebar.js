@@ -147,6 +147,7 @@ export function Sidebar({ currentHash }) {
             const typeLabel = pluginLabel(p.id);
             return {
               id: p.id,
+              type: p.type || p.id,
               label: p.displayName || typeLabel,
               typeLabel: p.displayName ? typeLabel : '',
               hash: '#/plugins/' + p.id,
@@ -221,36 +222,36 @@ export function Sidebar({ currentHash }) {
                 ${item.status === 'running' && html`<span class="sidebar-rate">${fmtMsgPerSec(item.rate ?? 0)}</span>`}
               </span>
             </a>
-            ${item.hash === '#/plugins/loxone' && item.status === 'running' && html`
+            ${item.type === 'loxone' && item.status === 'running' && html`
               <a
-                class="sidebar-nav-item ${currentHash.value === '#/loxone/controls' ? 'active' : ''}"
-                href="#/loxone/controls"
+                class="sidebar-nav-item ${currentHash.value === '#/plugins/' + item.id + '/controls' ? 'active' : ''}"
+                href="#/plugins/${item.id}/controls"
                 style="padding-left:36px;font-size:13px;"
                 onClick=${() => { menuOpen.value = false; }}
               >
                 Elements
               </a>
               <a
-                class="sidebar-nav-item ${currentHash.value === '#/loxone/bindings' ? 'active' : ''}"
-                href="#/loxone/bindings"
+                class="sidebar-nav-item ${currentHash.value === '#/plugins/' + item.id + '/bindings' ? 'active' : ''}"
+                href="#/plugins/${item.id}/bindings"
                 style="padding-left:36px;font-size:13px;"
                 onClick=${() => { menuOpen.value = false; }}
               >
                 Input Bindings
               </a>
             `}
-            ${item.hash === '#/plugins/mqtt-bridge' && item.status === 'running' && html`
+            ${item.type === 'mqtt-bridge' && item.status === 'running' && html`
               <a
-                class="sidebar-nav-item ${currentHash.value === '#/bridge/elements' ? 'active' : ''}"
-                href="#/bridge/elements"
+                class="sidebar-nav-item ${currentHash.value === '#/plugins/' + item.id + '/elements' ? 'active' : ''}"
+                href="#/plugins/${item.id}/elements"
                 style="padding-left:36px;font-size:13px;"
                 onClick=${() => { menuOpen.value = false; }}
               >
                 Elements
               </a>
               <a
-                class="sidebar-nav-item ${currentHash.value === '#/bridge/bindings' ? 'active' : ''}"
-                href="#/bridge/bindings"
+                class="sidebar-nav-item ${currentHash.value === '#/plugins/' + item.id + '/bindings' ? 'active' : ''}"
+                href="#/plugins/${item.id}/bindings"
                 style="padding-left:36px;font-size:13px;"
                 onClick=${() => { menuOpen.value = false; }}
               >

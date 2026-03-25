@@ -184,14 +184,14 @@ export default async function apiPlugins(app) {
     }
   });
 
-  // --- Loxone-specific endpoints ---
+  // --- Plugin-specific endpoints (dynamic :id) ---
 
-  // GET /api/plugins/loxone/controls -- list all discovered controls
-  app.get('/api/plugins/loxone/controls', async (request, reply) => {
+  // GET /api/plugins/:id/controls -- list all discovered controls
+  app.get('/api/plugins/:id/controls', async (request, reply) => {
     try {
-      const instance = app.pluginManager.getInstance('loxone');
+      const instance = app.pluginManager.getInstance(request.params.id);
       if (!instance || typeof instance.getControls !== 'function') {
-        return reply.status(400).send({ error: 'Loxone plugin is not running' });
+        return reply.status(400).send({ error: 'Plugin is not running or has no controls' });
       }
       return instance.getControls();
     } catch (err) {
@@ -199,12 +199,12 @@ export default async function apiPlugins(app) {
     }
   });
 
-  // GET /api/plugins/loxone/controls/detailed -- controls with subcontrols and live state
-  app.get('/api/plugins/loxone/controls/detailed', async (request, reply) => {
+  // GET /api/plugins/:id/controls/detailed -- controls with subcontrols and live state
+  app.get('/api/plugins/:id/controls/detailed', async (request, reply) => {
     try {
-      const instance = app.pluginManager.getInstance('loxone');
+      const instance = app.pluginManager.getInstance(request.params.id);
       if (!instance || typeof instance.getDetailedControls !== 'function') {
-        return reply.status(400).send({ error: 'Loxone plugin is not running' });
+        return reply.status(400).send({ error: 'Plugin is not running or has no detailed controls' });
       }
       return instance.getDetailedControls();
     } catch (err) {
@@ -212,12 +212,12 @@ export default async function apiPlugins(app) {
     }
   });
 
-  // PUT /api/plugins/loxone/controls/:uuid -- toggle control enabled state
-  app.put('/api/plugins/loxone/controls/:uuid', async (request, reply) => {
+  // PUT /api/plugins/:id/controls/:uuid -- toggle control enabled state
+  app.put('/api/plugins/:id/controls/:uuid', async (request, reply) => {
     try {
-      const instance = app.pluginManager.getInstance('loxone');
+      const instance = app.pluginManager.getInstance(request.params.id);
       if (!instance || typeof instance.setControlEnabled !== 'function') {
-        return reply.status(400).send({ error: 'Loxone plugin is not running' });
+        return reply.status(400).send({ error: 'Plugin is not running or does not support control toggling' });
       }
       const { uuid } = request.params;
       const { enabled } = request.body || {};
@@ -228,12 +228,12 @@ export default async function apiPlugins(app) {
     }
   });
 
-  // POST /api/plugins/loxone/controls/:uuid/cmd -- send command to a control via WebSocket
-  app.post('/api/plugins/loxone/controls/:uuid/cmd', async (request, reply) => {
+  // POST /api/plugins/:id/controls/:uuid/cmd -- send command to a control via WebSocket
+  app.post('/api/plugins/:id/controls/:uuid/cmd', async (request, reply) => {
     try {
-      const instance = app.pluginManager.getInstance('loxone');
+      const instance = app.pluginManager.getInstance(request.params.id);
       if (!instance || typeof instance.sendControlCommand !== 'function') {
-        return reply.status(400).send({ error: 'Loxone plugin is not running' });
+        return reply.status(400).send({ error: 'Plugin is not running or does not support commands' });
       }
       const { uuid } = request.params;
       const { command } = request.body || {};
@@ -324,14 +324,12 @@ export default async function apiPlugins(app) {
     return [...collected.values()];
   });
 
-  // --- MQTT Bridge endpoints ---
-
-  // GET /api/plugins/mqtt-bridge/elements -- list bridged topics with live values
-  app.get('/api/plugins/mqtt-bridge/elements', async (request, reply) => {
+  // GET /api/plugins/:id/elements -- list bridged topics with live values
+  app.get('/api/plugins/:id/elements', async (request, reply) => {
     try {
-      const instance = app.pluginManager.getInstance('mqtt-bridge');
+      const instance = app.pluginManager.getInstance(request.params.id);
       if (!instance || typeof instance.getElements !== 'function') {
-        return reply.status(400).send({ error: 'MQTT Bridge plugin is not running' });
+        return reply.status(400).send({ error: 'Plugin is not running or has no elements' });
       }
       return instance.getElements();
     } catch (err) {
