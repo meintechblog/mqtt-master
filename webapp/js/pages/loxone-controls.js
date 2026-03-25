@@ -4,6 +4,75 @@ import { fetchLoxoneControlsDetailed, sendLoxoneCommand } from '../lib/api-clien
 import { mqttIcon } from '../lib/format.js';
 import { primaryValue, isControllable, flattenControls, buildGroups } from '../lib/control-utils.js';
 
+/** Build list of available commands for a control type */
+function getCommands(type, moods) {
+  switch (type) {
+    case 'Switch':
+      return [
+        { value: 'on', label: 'On' },
+        { value: 'off', label: 'Off' },
+        { value: 'pulse', label: 'Pulse' },
+      ];
+    case 'Dimmer':
+      return [
+        { value: 'on', label: 'On' },
+        { value: 'off', label: 'Off' },
+        { value: 'plus', label: 'Dimmer +' },
+        { value: 'minus', label: 'Dimmer −' },
+      ];
+    case 'LightControllerV2': {
+      const cmds = [
+        { value: 'plus', label: 'Stimmung +' },
+        { value: 'minus', label: 'Stimmung −' },
+        { value: 'on', label: 'On' },
+        { value: 'off', label: 'Off (alles aus)' },
+      ];
+      if (moods && moods.length > 0) {
+        for (const m of moods) {
+          cmds.push({ value: `changeTo/${m.name}`, label: `→ ${m.name}` });
+        }
+      }
+      return cmds;
+    }
+    case 'Jalousie':
+      return [
+        { value: 'up', label: 'Up' },
+        { value: 'down', label: 'Down' },
+        { value: 'FullUp', label: 'Full Up' },
+        { value: 'FullDown', label: 'Full Down' },
+        { value: 'stop', label: 'Stop' },
+      ];
+    default:
+      return [];
+  }
+}
+
+function CmdDropdown({ commands, onSend }) {
+  const [selected, setSelected] = useState(commands[0]?.value || '');
+  const [sent, setSent] = useState(false);
+
+  const handleSend = (e) => {
+    e.stopPropagation();
+    if (!selected) return;
+    onSend(selected);
+    setSent(true);
+    setTimeout(() => setSent(false), 800);
+  };
+
+  if (commands.length === 0) return null;
+
+  return html`
+    <span class="lox-cmd-inline" onClick=${(e) => e.stopPropagation()}>
+      <select class="lox-cmd-select" value=${selected} onChange=${(e) => setSelected(e.target.value)}>
+        ${commands.map(c => html`<option key=${c.value} value=${c.value}>${c.label}</option>`)}
+      </select>
+      <button class="lox-cmd-send ${sent ? 'lox-cmd-sent' : ''}" onClick=${handleSend} title="Send command">
+        ${sent ? '✓' : '▶'}
+      </button>
+    </span>
+  `;
+}
+
 function DirBadge({ dir }) {
   const title = dir === 'out' ? 'Plugin → MQTT (outgoing)' : dir === 'in' ? 'MQTT → Plugin (incoming)' : 'bidirectional';
   if (dir === 'both') {
@@ -115,7 +184,13 @@ function CategorySection({ group, search, typeFilter, expanded, setExpanded, onC
                           ${t.value != null && html`
                             <span class="lox-topic-val">${typeof t.value === 'number' ? (Number.isInteger(t.value) ? t.value : t.value.toFixed(3)) : t.value}</span>
                           `}
-                          ${t.value == null && html`<span class="lox-topic-val" style="color:var(--ve-text-dim)">writable</span>`}
+                          ${t.dir === 'in' && !t.stable && html`
+                            <${CmdDropdown}
+                              commands=${getCommands(item.type, item.moods)}
+                              onSend=${(cmd) => onCmd(item.uuid, cmd)}
+                            />
+                          `}
+                          ${t.dir === 'out' && t.value == null && html`<span class="lox-topic-val" style="color:var(--ve-text-dim)">--</span>`}
                         </div>
                       `)}
                     </div>

@@ -824,6 +824,37 @@ body {
 .lox-topic-row:hover .lox-topic-copy { opacity: 1; }
 .lox-topic-copy:hover { color: var(--ve-text-primary); background: var(--ve-bg-widget); }
 .lox-topic-copy:active { color: var(--ve-green); }
+.lox-cmd-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.lox-cmd-select {
+  background: var(--ve-bg-widget);
+  color: var(--ve-text-secondary);
+  border: 1px solid var(--ve-border);
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: var(--ve-font-mono);
+  padding: 2px 6px;
+  cursor: pointer;
+  max-width: 160px;
+}
+.lox-cmd-select:focus { border-color: var(--ve-blue); outline: none; }
+.lox-cmd-send {
+  background: var(--ve-bg-widget);
+  border: 1px solid var(--ve-border);
+  color: var(--ve-text-dim);
+  border-radius: 3px;
+  font-size: 11px;
+  padding: 2px 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.lox-cmd-send:hover { color: var(--ve-text-primary); border-color: var(--ve-blue); }
+.lox-cmd-sent { color: var(--ve-green) !important; border-color: var(--ve-green) !important; }
 .lox-topic-stable {
   font-size: 9px;
   background: rgba(80, 200, 120, 0.15);
