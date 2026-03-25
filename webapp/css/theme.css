@@ -1365,7 +1365,10 @@ body {
   border-radius: 3px;
 }
 .mood-delete-btn:hover { color: var(--ve-red); background: rgba(255,80,80,0.1); }
-.mood-row--locked { opacity: 0.5; }
+.mood-row--locked { opacity: 0.6; }
+.mood-row--filled { background: rgba(56,125,197,0.05); }
+.mood-name-empty { opacity: 0.3; }
+.mood-name-empty:focus { opacity: 1; }
 .mood-id-locked {
   font-family: var(--ve-font-mono);
   font-size: 13px;
