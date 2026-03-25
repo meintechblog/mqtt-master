@@ -1369,8 +1369,8 @@ body {
 .mood-row--filled { }
 .mood-name-empty { opacity: 0.3; }
 .mood-name-empty:focus { opacity: 1; }
-.mood-row--changed { background: rgba(240, 150, 46, 0.08); }
-.mood-name-changed { border-color: var(--ve-orange) !important; }
+.mood-row--changed { background: rgba(240, 150, 46, 0.04); }
+.mood-name-changed { border-color: rgba(240, 150, 46, 0.4) !important; }
 .mood-id-locked {
   font-family: var(--ve-font-mono);
   font-size: 13px;
