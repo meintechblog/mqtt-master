@@ -8,6 +8,32 @@ const TYPE_DESCRIPTIONS = {
   'mqtt-bridge': 'Connect to an external MQTT broker and bridge topics locally',
 };
 
+/** Pre-configured presets for plugin types. Applied to config on instance creation. */
+const PRESETS = {
+  'mqtt-bridge': [
+    {
+      id: 'venus-os',
+      label: 'Venus OS (Victron Energy)',
+      description: 'GX device with MQTT enabled — auto-detects portal ID, sends keepalive',
+      suggestedId: 'venus-os',
+      config: {
+        displayName: 'Venus OS',
+        subscribeTopic: 'N/#',
+        localPrefix: 'venus',
+        keepaliveEnabled: true,
+        keepaliveIntervalMs: 30000,
+      },
+    },
+    {
+      id: 'custom',
+      label: 'Custom Broker',
+      description: 'Connect to any external MQTT broker',
+      suggestedId: '',
+      config: {},
+    },
+  ],
+};
+
 function labelFor(id) { return TYPE_LABELS[id] || id.charAt(0).toUpperCase() + id.slice(1); }
 
 export class PluginManager {
@@ -267,7 +293,11 @@ export class PluginManager {
    * List available plugin templates (for "Add Plugin" UI).
    */
   getTemplates() {
-    return [...this._templates.values()];
+    return [...this._templates.values()].map(t => ({
+      ...t,
+      modulePath: undefined,
+      presets: PRESETS[t.type] || [],
+    }));
   }
 
   /**
@@ -275,7 +305,7 @@ export class PluginManager {
    * For core templates: uses the template directory directly.
    * For additional instances: creates a re-export directory.
    */
-  async createInstance(type, instanceId) {
+  async createInstance(type, instanceId, presetId = null) {
     if (!instanceId || !/^[a-z0-9-]+$/.test(instanceId)) {
       throw new Error('Invalid instance ID (use lowercase, numbers, hyphens)');
     }
@@ -304,14 +334,19 @@ export class PluginManager {
       modulePath = join(newDir, 'plugin.js');
     }
 
-    // Create config entry (triggers discovery on next restart)
-    this.configService.set(`plugins.${instanceId}`, { displayName: '' });
+    // Apply preset config if provided
+    const presets = PRESETS[type] || [];
+    const preset = presetId ? presets.find(p => p.id === presetId) : null;
+    const initialConfig = { displayName: '', ...(preset ? preset.config : {}) };
+
+    this.configService.set(`plugins.${instanceId}`, initialConfig);
     await this.configService.save();
 
     // Register immediately
     this.plugins.set(instanceId, {
       id: instanceId,
       name: instanceId,
+      type,
       status: 'stopped',
       instance: null,
       error: null,

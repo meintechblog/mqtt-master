@@ -39,6 +39,7 @@ function AddPluginButton() {
   const [templates, setTemplates] = useState([]);
   const [newId, setNewId] = useState('');
   const [selectedType, setSelectedType] = useState('');
+  const [selectedPreset, setSelectedPreset] = useState(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
 
@@ -47,6 +48,7 @@ function AddPluginButton() {
     setError('');
     setNewId('');
     setSelectedType('');
+    setSelectedPreset(null);
     try {
       const res = await fetch('/api/plugins/templates');
       if (res.ok) {
@@ -54,6 +56,24 @@ function AddPluginButton() {
         setTemplates(data);
       }
     } catch { /* ignore */ }
+  };
+
+  const handleSelectType = (type) => {
+    setSelectedType(type);
+    setSelectedPreset(null);
+    const tmpl = templates.find(t => t.type === type);
+    // If type has presets, don't auto-fill ID yet — let preset do it
+    if (!tmpl || !tmpl.presets || tmpl.presets.length === 0) {
+      if (!newId) setNewId(type);
+    } else {
+      setNewId('');
+    }
+  };
+
+  const handleSelectPreset = (preset) => {
+    setSelectedPreset(preset.id);
+    if (preset.suggestedId) setNewId(preset.suggestedId);
+    else if (!newId) setNewId('');
   };
 
   const handleCreate = async () => {
@@ -65,7 +85,7 @@ function AddPluginButton() {
       const res = await fetch('/api/plugins/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: selectedType, id: cleanId }),
+        body: JSON.stringify({ type: selectedType, id: cleanId, preset: selectedPreset }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -78,6 +98,9 @@ function AddPluginButton() {
     }
   };
 
+  const currentTemplate = templates.find(t => t.type === selectedType);
+  const presets = currentTemplate?.presets || [];
+
   return html`
     <button class="sidebar-add-btn" onClick=${handleOpen} title="Add plugin">+</button>
     ${open && html`
@@ -89,14 +112,31 @@ function AddPluginButton() {
               <div
                 key=${t.type}
                 class="ve-modal-type-card ${selectedType === t.type ? 've-modal-type-card--selected' : ''}"
-                onClick=${() => { setSelectedType(t.type); if (!newId) setNewId(t.type); }}
+                onClick=${() => handleSelectType(t.type)}
               >
                 <div class="ve-modal-type-label">${t.label}</div>
                 <div class="ve-modal-type-desc">${t.description}</div>
               </div>
             `)}
           </div>
-          ${selectedType && html`
+          ${selectedType && presets.length > 0 && !selectedPreset && html`
+            <div class="ve-modal-form">
+              <label class="ve-modal-field-label">Preset</label>
+              <div class="ve-modal-type-picker" style="margin-top:6px">
+                ${presets.map(p => html`
+                  <div
+                    key=${p.id}
+                    class="ve-modal-type-card"
+                    onClick=${() => handleSelectPreset(p)}
+                  >
+                    <div class="ve-modal-type-label">${p.label}</div>
+                    <div class="ve-modal-type-desc">${p.description}</div>
+                  </div>
+                `)}
+              </div>
+            </div>
+          `}
+          ${selectedType && (presets.length === 0 || selectedPreset) && html`
             <div class="ve-modal-form">
               <label class="ve-modal-field-label">Instance Name</label>
               <input
@@ -107,6 +147,11 @@ function AddPluginButton() {
                 onInput=${(e) => setNewId(e.target.value)}
                 onKeyDown=${(e) => { if (e.key === 'Enter') handleCreate(); }}
               />
+              ${selectedPreset && selectedPreset !== 'custom' && html`
+                <div style="font-size:12px;color:var(--ve-text-dim);margin-top:4px;">
+                  Pre-configured for ${presets.find(p => p.id === selectedPreset)?.label || selectedPreset}
+                </div>
+              `}
             </div>
           `}
           ${error && html`<div style="font-size:13px;color:var(--ve-red);margin-top:12px;">${error}</div>`}

@@ -54,12 +54,12 @@ export default async function apiPlugins(app) {
 
   // POST /api/plugins/create -- create a new plugin instance
   app.post('/api/plugins/create', async (request, reply) => {
-    const { type, id } = request.body || {};
+    const { type, id, preset } = request.body || {};
     if (!type || !id) {
       return reply.status(400).send({ error: 'type and id are required' });
     }
     try {
-      const result = await app.pluginManager.createInstance(type, id);
+      const result = await app.pluginManager.createInstance(type, id, preset || null);
       return result;
     } catch (err) {
       return reply.status(400).send({ error: err.message });
