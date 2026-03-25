@@ -41,9 +41,12 @@ MQTT Master provides a real-time web interface for monitoring your Mosquitto MQT
   - Jalousie: Up, Down, Full Up/Down, Stop
   - Gate, Alarm, IRoomController, Ventilation: type-specific commands
 - **Mood Mapping** for LightControllerV2: configurable mood ID → name resolution
-  - Default mappings (Nacht, Abend, Tag, Viel Licht, Aus, Manuell)
-  - Per-controller overrides via web UI
+  - Fixed grid of all 35 mood slots (IDs -1, 1-31, 777, 778) — just fill in names
+  - Locked system moods: Manuell (-1), Viel Licht (777), Aus (778)
+  - Default mappings (Nacht, Abend, Tag) + per-controller overrides via web UI
+  - `changeTo/{name}` commands auto-translated to IDs (e.g. changeTo/Studio → changeTo/31)
   - Active mood name published as `loxone/{room}/{control}/mood/state`
+  - Unsaved changes warning on navigation with Save/Discard buttons
 - Direction indicators showing data flow (outgoing/incoming)
 - Structure change detection (auto-cleanup on rename/remove)
 - Home Assistant auto-detection via MQTT Discovery
