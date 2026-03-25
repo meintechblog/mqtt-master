@@ -550,7 +550,28 @@ export default class LoxonePlugin {
       return;
     }
 
-    const cmd = `jdev/sps/io/${uuid}/${payload}`;
+    // Translate changeTo/{moodName} → changeTo/{moodId} using mood mapping
+    let resolvedPayload = payload;
+    const changeToMatch = payload.match(/^changeTo\/(.+)$/);
+    if (changeToMatch) {
+      const moodRef = changeToMatch[1];
+      // If it's not already a number, look up the name in mappings
+      if (isNaN(Number(moodRef))) {
+        const defaults = this._moodMappings._defaults || LoxonePlugin.DEFAULT_MOODS;
+        const perControl = this._moodMappings[uuid] || {};
+        const merged = { ...defaults, ...perControl };
+        // Find ID by name (case-insensitive)
+        const entry = Object.entries(merged).find(
+          ([, name]) => name.toLowerCase() === moodRef.toLowerCase()
+        );
+        if (entry) {
+          resolvedPayload = `changeTo/${entry[0]}`;
+          this._ctx.logger.info(`Mood resolved: ${moodRef} → ID ${entry[0]}`);
+        }
+      }
+    }
+
+    const cmd = `jdev/sps/io/${uuid}/${resolvedPayload}`;
     this._ctx.logger.info(`MQTT→Loxone: ${topic} → ${cmd}`);
     this._ws.sendCommand(cmd);
   }
