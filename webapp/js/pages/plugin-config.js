@@ -118,8 +118,17 @@ export function PluginConfig({ pluginId }) {
 
   async function handleSave() {
     try {
-      await savePluginConfig(pluginId, configData);
-      showFeedback('success', 'Configuration saved');
+      const result = await savePluginConfig(pluginId, configData);
+      if (result.autoStarted && result.status === 'running') {
+        showFeedback('success', 'Saved & connected');
+      } else if (result.autoStarted && result.status === 'error') {
+        showFeedback('error', result.error || 'Connection failed — check IP, port, and credentials');
+      } else if (result.startError) {
+        showFeedback('error', result.startError);
+      } else {
+        showFeedback('success', 'Configuration saved');
+      }
+      await refreshStatus();
     } catch (err) {
       showFeedback('error', err.message);
     }

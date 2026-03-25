@@ -175,6 +175,19 @@ export default async function apiPlugins(app) {
         }
       }
       await app.pluginManager.setConfig(id, newConfig);
+
+      // Auto-start: if plugin is stopped, try to start it after config save
+      const status = app.pluginManager.getStatus(id);
+      if (status.status === 'stopped' || status.status === 'error') {
+        try {
+          await app.pluginManager.start(id);
+          const newStatus = app.pluginManager.getStatus(id);
+          return { ok: true, autoStarted: true, status: newStatus.status, error: newStatus.error };
+        } catch (startErr) {
+          return { ok: true, autoStarted: false, startError: startErr.message };
+        }
+      }
+
       return { ok: true };
     } catch (err) {
       if (err.message.includes('not found')) {
