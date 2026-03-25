@@ -805,11 +805,25 @@ body {
 .lox-topic-dir--in { color: var(--ve-orange); }
 .lox-topic-path {
   font-family: var(--ve-font-mono);
-  color: var(--ve-blue);
+  color: #6cb4ee;
   flex: 1;
   word-break: break-all;
   user-select: all;
 }
+.lox-topic-copy {
+  background: none;
+  border: none;
+  color: var(--ve-text-dim);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.lox-topic-row:hover .lox-topic-copy { opacity: 1; }
+.lox-topic-copy:hover { color: var(--ve-text-primary); background: var(--ve-bg-widget); }
+.lox-topic-copy:active { color: var(--ve-green); }
 .lox-topic-label {
   color: var(--ve-text-dim);
   font-size: 11px;

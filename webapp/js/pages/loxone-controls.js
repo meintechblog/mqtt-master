@@ -98,6 +98,9 @@ function CategorySection({ group, search, typeFilter, expanded, setExpanded, onC
                             <span class="lox-topic-arrow lox-topic-dir--${t.dir}">${t.dir === 'out' ? '\u2190' : '\u2192'}</span>
                           </span>
                           <span class="lox-topic-path">${t.topic}</span>
+                          <button class="lox-topic-copy" onClick=${(e) => { e.stopPropagation(); navigator.clipboard.writeText(t.topic); }} title="Copy topic">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                          </button>
                           <span class="lox-topic-label">${t.label}</span>
                           ${t.value != null && html`
                             <span class="lox-topic-val">${typeof t.value === 'number' ? (Number.isInteger(t.value) ? t.value : t.value.toFixed(3)) : t.value}</span>
