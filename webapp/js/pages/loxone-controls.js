@@ -176,10 +176,17 @@ function CategorySection({ group, search, typeFilter, expanded, setExpanded, onC
                     }
                   }
                 }
+                // Mood topic for LightControllerV2
+                if (item.type === 'LightControllerV2' && item.activeMoodName) {
+                  topics.push({ topic: item.topic + '/mood/state', label: 'mood', value: item.activeMoodName, dir: 'out' });
+                }
                 if (controllable) {
                   topics.push({ topic: item.topic + '/cmd', label: 'command', value: null, dir: 'in' });
                 }
                 // UUID-based stable topics (rename-safe)
+                if (item.type === 'LightControllerV2') {
+                  topics.push({ topic: prefix + '/by-uuid/' + item.uuid + '/mood/state', label: 'mood (stable)', value: item.activeMoodName, dir: 'out', stable: true });
+                }
                 topics.push({ topic: prefix + '/by-uuid/' + item.uuid + '/cmd', label: 'command (stable)', value: null, dir: 'in', stable: true });
               }
 
