@@ -30,8 +30,8 @@ function getCommands(type, moods) {
       ];
       if (moods && moods.length > 0) {
         for (const m of moods) {
-          if (m.name !== 'Aus') { // Aus = off, already have that
-            cmds.push({ value: `changeTo/${m.name}`, label: `→ ${m.name}` });
+          if (m.name !== 'Aus') {
+            cmds.push({ value: `changeTo/${m.id}`, label: `→ ${m.name} (${m.id})` });
           }
         }
       }
