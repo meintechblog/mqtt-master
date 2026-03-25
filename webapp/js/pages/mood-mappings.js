@@ -57,15 +57,45 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
     save({ ...mappings, [key]: updated });
   }, [mappings, save]);
 
+  /** Special IDs that live outside the regular 0-31 range */
+  const SPECIAL_IDS = new Set([-1, 777, 778]);
+  const MAX_REGULAR_ID = 31;
+
   const handleChangeId = useCallback((key, oldId, newId) => {
     if (String(oldId) === String(newId)) return;
     const section = { ...(key === '_defaults' ? mappings._defaults : mappings[key] || {}) };
-    if (section[String(newId)] != null) return; // ID already exists
-    const name = section[String(oldId)];
-    delete section[String(oldId)];
-    section[String(newId)] = name;
+    // Validate range: -1, 0-31, 777, 778
+    if (!SPECIAL_IDS.has(newId) && (newId < 0 || newId > MAX_REGULAR_ID)) return;
+    if (section[String(newId)] != null) {
+      // Swap: move the other entry to the old ID
+      const otherName = section[String(newId)];
+      section[String(newId)] = section[String(oldId)];
+      section[String(oldId)] = otherName;
+    } else {
+      const name = section[String(oldId)];
+      delete section[String(oldId)];
+      section[String(newId)] = name;
+    }
     save({ ...mappings, [key]: section });
   }, [mappings, save]);
+
+  /** Move entry up (swap with previous in sorted list) */
+  const handleMoveUp = useCallback((key, id) => {
+    const section = key === '_defaults' ? mappings._defaults : (mappings[key] || {});
+    const sorted = Object.keys(section).map(Number).sort((a, b) => a - b);
+    const idx = sorted.indexOf(Number(id));
+    if (idx <= 0) return;
+    handleChangeId(key, id, sorted[idx - 1]);
+  }, [mappings, handleChangeId]);
+
+  /** Move entry down (swap with next in sorted list) */
+  const handleMoveDown = useCallback((key, id) => {
+    const section = key === '_defaults' ? mappings._defaults : (mappings[key] || {});
+    const sorted = Object.keys(section).map(Number).sort((a, b) => a - b);
+    const idx = sorted.indexOf(Number(id));
+    if (idx < 0 || idx >= sorted.length - 1) return;
+    handleChangeId(key, id, sorted[idx + 1]);
+  }, [mappings, handleChangeId]);
 
   const handleDeleteEntry = useCallback((key, moodId) => {
     const name = (key === '_defaults' ? mappings._defaults : mappings[key] || {})[String(moodId)] || moodId;
@@ -164,17 +194,34 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
 
           <div class="mood-list">
             <div class="mood-row mood-row--header">
+              <span class="mood-move-col"></span>
               <span class="mood-id-col">ID</span>
               <span class="mood-name-col">Mood Name</span>
               <span class="mood-actions-col"></span>
             </div>
-            ${entries.map(([id, name]) => html`
+            ${entries.map(([id, name], idx) => html`
               <div class="mood-row" key=${id}>
+                <span class="mood-move-col">
+                  <button
+                    class="mood-move-btn"
+                    onClick=${() => handleMoveUp(currentKey, id)}
+                    disabled=${idx === 0}
+                    title="Move up (swap IDs)"
+                  >▲</button>
+                  <button
+                    class="mood-move-btn"
+                    onClick=${() => handleMoveDown(currentKey, id)}
+                    disabled=${idx === entries.length - 1}
+                    title="Move down (swap IDs)"
+                  >▼</button>
+                </span>
                 <span class="mood-id-col">
                   <input
                     type="number"
                     class="mood-id-input"
                     value=${id}
+                    min="-1"
+                    max="778"
                     onBlur=${(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v !== Number(id)) handleChangeId(currentKey, id, v); else e.target.value = id; }}
                     onKeyDown=${(e) => { if (e.key === 'Enter') e.target.blur(); }}
                   />
