@@ -385,7 +385,6 @@ export default class LoxonePlugin {
     1: 'Nacht',
     2: 'Abend',
     3: 'Tag',
-    99: 'Viel Licht',
     777: 'Viel Licht',
     778: 'Aus',
   };
