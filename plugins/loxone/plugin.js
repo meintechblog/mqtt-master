@@ -381,6 +381,7 @@ export default class LoxonePlugin {
 
   /** Default mood names (apply to all LightControllerV2 unless overridden) */
   static DEFAULT_MOODS = {
+    '-1': 'Manuell',
     0: 'Aus',
     1: 'Nacht',
     2: 'Abend',
