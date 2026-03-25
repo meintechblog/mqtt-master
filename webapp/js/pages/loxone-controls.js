@@ -83,7 +83,13 @@ function CategorySection({ group, search, typeFilter, expanded, setExpanded, onC
                       <span class="lox-item-meta">${item.type}</span>
                     </div>
                     <div class="lox-item-value ${val && (val === 'ON' || val === 'Active' || (controllable && isOn)) ? 'on' : ''}">${val || '--'}</div>
-                    ${controllable && html`
+                    ${controllable && item.type === 'LightControllerV2' && html`
+                      <div class="lox-item-actions">
+                        <button class="lox-push-btn" onClick=${(e) => { e.stopPropagation(); onCmd(item.uuid, 'minus'); }} title="Previous mood">−</button>
+                        <button class="lox-push-btn" onClick=${(e) => { e.stopPropagation(); onCmd(item.uuid, 'plus'); }} title="Next mood">+</button>
+                      </div>
+                    `}
+                    ${controllable && item.type !== 'LightControllerV2' && html`
                       <div class="lox-item-actions">
                         <button class="lox-push-btn" onClick=${(e) => { e.stopPropagation(); onCmd(item.uuid, 'on'); }}>On</button>
                         <button class="lox-push-btn" onClick=${(e) => { e.stopPropagation(); onCmd(item.uuid, 'off'); }}>Off</button>
