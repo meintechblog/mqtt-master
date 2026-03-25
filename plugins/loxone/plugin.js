@@ -579,7 +579,7 @@ export default class LoxonePlugin {
   async _refreshStructure() {
     if (!this._ctx || !this._structure) return;
     const { mqttService, logger } = this._ctx;
-    const { ip, port, username, password, enableHaDiscovery } = this._config;
+    const { ip, port = 80, username, password, enableHaDiscovery } = this._config;
 
     try {
       const loxApp3 = await this._structure.fetchStructure(ip, port, username, password);
