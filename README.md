@@ -107,10 +107,22 @@ wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/script
 
 ### Loxone Setup
 1. Add a Loxone plugin, enter Miniserver IP, port, username, password
-2. Start the plugin — controls are auto-discovered
+2. Click **Save** — plugin connects automatically, controls are auto-discovered
 3. Browse **Elements** to see live values, test commands via dropdown, copy MQTT topics
 4. Configure **Mood Mapping** for LightControllerV2 mood names (defaults included)
 5. Use **Input Bindings** to feed external data (PV inverters, energy meters) into Loxone
+
+### Multiple Miniservers
+
+Each Loxone instance uses its own **MQTT Topic Prefix** (configured in the plugin settings). This keeps all topics cleanly separated:
+
+```
+Miniserver 1:  prefix "loxone"         → loxone/buero/licht/cmd
+Miniserver 2:  prefix "loxone-og"      → loxone-og/schlafzimmer/dimmer/cmd
+Miniserver 3:  prefix "loxone-hallbude" → loxone-hallbude/buero/licht/cmd
+```
+
+Each instance has its own Elements page, Mood Mappings, and Input Bindings.
 
 ### MQTT-Bridge Setup (Venus OS)
 1. Add an MQTT-Bridge plugin → select the **Venus OS** preset
