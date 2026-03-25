@@ -48,9 +48,18 @@ export default class MqttBridgePlugin {
       throw new Error('brokerUrl is required (e.g. mqtt://192.168.3.146:1883)');
     }
 
-    logger.info(`MQTT Bridge connecting to ${brokerUrl}...`);
+    // Auto-fix bare IP/hostname: add mqtt:// protocol and default port
+    let url = brokerUrl.trim();
+    if (!url.includes('://')) {
+      url = `mqtt://${url}`;
+    }
+    if (!url.match(/:\d+$/) && !url.match(/:\d+\//)) {
+      url = `${url}:1883`;
+    }
 
-    this._client = mqtt.connect(brokerUrl, {
+    logger.info(`MQTT Bridge connecting to ${url}...`);
+
+    this._client = mqtt.connect(url, {
       reconnectPeriod: RECONNECT_MS,
       connectTimeout: 10000,
       clientId: 'mqtt-master-bridge-' + Date.now(),
@@ -58,7 +67,7 @@ export default class MqttBridgePlugin {
 
     this._client.on('connect', () => {
       this._connected = true;
-      logger.info(`MQTT Bridge connected to ${brokerUrl}`);
+      logger.info(`MQTT Bridge connected to ${url}`);
 
       // Subscribe to external broker topics
       this._client.subscribe(subscribeTopic, (err) => {
