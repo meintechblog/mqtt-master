@@ -28,7 +28,8 @@ export function primaryValue(type, states, extra) {
     case 'Ventilation':
       return states.level != null ? 'Level ' + states.level.value : null;
     case 'LightControllerV2': {
-      // Show active mood name or ID
+      // Show resolved mood name from config mapping
+      if (extra?.activeMoodName) return extra.activeMoodName;
       const moods = extra?.moods || [];
       const moodIds = extra?.activeMoodIds || [];
       if (moodIds.length > 0) {
@@ -69,6 +70,7 @@ export function flattenControls(controls) {
         states: ctrl.states,
         moods: ctrl.moods,
         activeMoodIds: ctrl.activeMoodIds,
+        activeMoodName: ctrl.activeMoodName,
         parentName: null,
       });
     }

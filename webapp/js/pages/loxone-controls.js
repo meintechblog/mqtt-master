@@ -30,7 +30,9 @@ function getCommands(type, moods) {
       ];
       if (moods && moods.length > 0) {
         for (const m of moods) {
-          cmds.push({ value: `changeTo/${m.name}`, label: `→ ${m.name}` });
+          if (m.name !== 'Aus') { // Aus = off, already have that
+            cmds.push({ value: `changeTo/${m.name}`, label: `→ ${m.name}` });
+          }
         }
       }
       return cmds;
@@ -151,7 +153,7 @@ function CategorySection({ group, search, typeFilter, expanded, setExpanded, onC
           ${filtered.map(r => html`
             ${filtered.length > 1 && html`<div class="bridge-group-label">${r.room}</div>`}
             ${r.items.map(item => {
-              const val = primaryValue(item.type, item.states, { moods: item.moods, activeMoodIds: item.activeMoodIds });
+              const val = primaryValue(item.type, item.states, { moods: item.moods, activeMoodIds: item.activeMoodIds, activeMoodName: item.activeMoodName });
               const controllable = isControllable(item.type);
               const isOn = item.type === 'Switch' ? item.states?.active?.value > 0
                 : item.type === 'Dimmer' ? item.states?.position?.value > 0

@@ -247,6 +247,33 @@ export default async function apiPlugins(app) {
     }
   });
 
+  // GET /api/plugins/:id/moods -- get mood mappings
+  app.get('/api/plugins/:id/moods', async (request, reply) => {
+    try {
+      const instance = app.pluginManager.getInstance(request.params.id);
+      if (!instance || typeof instance.getMoodMappings !== 'function') {
+        return reply.status(400).send({ error: 'Plugin does not support mood mappings' });
+      }
+      return instance.getMoodMappings();
+    } catch (err) {
+      return reply.status(500).send({ error: err.message });
+    }
+  });
+
+  // PUT /api/plugins/:id/moods -- save mood mappings
+  app.put('/api/plugins/:id/moods', async (request, reply) => {
+    try {
+      const instance = app.pluginManager.getInstance(request.params.id);
+      if (!instance || typeof instance.setMoodMappings !== 'function') {
+        return reply.status(400).send({ error: 'Plugin does not support mood mappings' });
+      }
+      await instance.setMoodMappings(request.body || {});
+      return { ok: true };
+    } catch (err) {
+      return reply.status(500).send({ error: err.message });
+    }
+  });
+
   // GET /api/plugins/:id/bindings -- list MQTT input bindings for a plugin
   app.get('/api/plugins/:id/bindings', async (request, reply) => {
     const { id } = request.params;

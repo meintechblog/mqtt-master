@@ -1284,3 +1284,80 @@ body {
   .ve-modal { width: 95%; padding: 16px; }
   .ve-modal-type-picker { grid-template-columns: 1fr; }
 }
+
+/* Mood Mapping */
+.mood-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.mood-tab {
+  background: var(--ve-bg-widget);
+  border: 1px solid var(--ve-border);
+  color: var(--ve-text-secondary);
+  padding: 6px 12px;
+  border-radius: var(--ve-radius-sm);
+  font-size: 13px;
+  cursor: pointer;
+}
+.mood-tab:hover { border-color: var(--ve-blue); }
+.mood-tab.active { background: var(--ve-blue); color: #fff; border-color: var(--ve-blue); }
+.mood-tab--has-override::after { content: '●'; color: var(--ve-green); margin-left: 4px; font-size: 8px; vertical-align: super; }
+.mood-tab-room { font-size: 11px; color: var(--ve-text-dim); margin-left: 4px; }
+.mood-tab.active .mood-tab-room { color: rgba(255,255,255,0.7); }
+.mood-editor {
+  background: var(--ve-bg-widget);
+  border-radius: var(--ve-radius-lg);
+  padding: 16px;
+}
+.mood-list { display: flex; flex-direction: column; gap: 2px; }
+.mood-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+.mood-row--header {
+  font-size: 11px;
+  color: var(--ve-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--ve-border);
+  margin-bottom: 4px;
+}
+.mood-id-col { width: 60px; flex-shrink: 0; }
+.mood-name-col { flex: 1; }
+.mood-actions-col { width: 30px; flex-shrink: 0; text-align: center; }
+.mood-id-input {
+  width: 50px;
+  background: var(--ve-bg-surface);
+  border: 1px solid var(--ve-border);
+  border-radius: 3px;
+  color: var(--ve-text-dim);
+  font-family: var(--ve-font-mono);
+  font-size: 13px;
+  padding: 4px 6px;
+  text-align: center;
+}
+.mood-name-input {
+  width: 100%;
+  background: var(--ve-bg-surface);
+  border: 1px solid var(--ve-border);
+  border-radius: 3px;
+  color: var(--ve-text-primary);
+  font-size: 13px;
+  padding: 4px 8px;
+}
+.mood-name-input:focus { border-color: var(--ve-blue); outline: none; }
+.mood-delete-btn {
+  background: none;
+  border: none;
+  color: var(--ve-text-dim);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.mood-delete-btn:hover { color: var(--ve-red); background: rgba(255,80,80,0.1); }

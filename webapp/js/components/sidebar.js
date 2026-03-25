@@ -277,6 +277,14 @@ export function Sidebar({ currentHash }) {
                 Elements
               </a>
               <a
+                class="sidebar-nav-item ${currentHash.value === '#/plugins/' + item.id + '/moods' ? 'active' : ''}"
+                href="#/plugins/${item.id}/moods"
+                style="padding-left:36px;font-size:13px;"
+                onClick=${() => { menuOpen.value = false; }}
+              >
+                Mood Mapping
+              </a>
+              <a
                 class="sidebar-nav-item ${currentHash.value === '#/plugins/' + item.id + '/bindings' ? 'active' : ''}"
                 href="#/plugins/${item.id}/bindings"
                 style="padding-left:36px;font-size:13px;"

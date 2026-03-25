@@ -74,6 +74,7 @@ export default class LoxonePlugin {
 
     this._prefix = prefix;
     this._disabledControls = this._config.disabledControls || [];
+    this._moodMappings = this._config.moodMappings || {};
 
     // 2. Create structure parser and fetch structure
     this._structure = new LoxoneStructure(prefix);
@@ -317,7 +318,7 @@ export default class LoxonePlugin {
         return { uuid: sub.uuid, name: sub.name, type: sub.type, topic: sub.topic, states: subStates };
       });
 
-      const moods = this._moodManager.getMoods(ctrl.uuid);
+      let moods = this._moodManager.getMoods(ctrl.uuid);
 
       // Determine active mood IDs
       let activeMoodIds = [];
@@ -325,6 +326,15 @@ export default class LoxonePlugin {
         try { activeMoodIds = JSON.parse(states.activeMoods.text); } catch { /* ignore */ }
       } else if (states.activeMoodsNum && states.activeMoodsNum.value != null) {
         activeMoodIds = [states.activeMoodsNum.value];
+      }
+
+      // Resolve mood names from config mapping (per-control override → defaults)
+      if (ctrl.type === 'LightControllerV2') {
+        const resolved = this._resolveMoodMapping(ctrl.uuid, activeMoodIds);
+        moods = resolved.moods;
+        if (resolved.activeMoodName) {
+          // Attach for display
+        }
       }
 
       return {
@@ -339,6 +349,8 @@ export default class LoxonePlugin {
         subControls,
         moods,
         activeMoodIds,
+        activeMoodName: ctrl.type === 'LightControllerV2'
+          ? this._getMoodName(ctrl.uuid, activeMoodIds[0]) : null,
       };
     });
   }
@@ -363,6 +375,71 @@ export default class LoxonePlugin {
     const cmd = `jdev/sps/io/${uuid}/${command}`;
     this._ctx.logger.info(`API→Loxone: ${uuid} → ${cmd}`);
     this._ws.sendCommand(cmd);
+  }
+
+  // --- Mood mapping ---
+
+  /** Default mood names (apply to all LightControllerV2 unless overridden) */
+  static DEFAULT_MOODS = {
+    0: 'Aus',
+    1: 'Nacht',
+    2: 'Abend',
+    3: 'Tag',
+    99: 'Viel Licht',
+  };
+
+  /**
+   * Get mood name for a given activeMoodsNum value.
+   * Checks per-control override first, then defaults.
+   */
+  _getMoodName(controlUuid, moodNum) {
+    if (moodNum == null) return null;
+    const perControl = this._moodMappings[controlUuid];
+    if (perControl && perControl[String(moodNum)] != null) return perControl[String(moodNum)];
+    const defaults = this._moodMappings._defaults || LoxonePlugin.DEFAULT_MOODS;
+    if (defaults[String(moodNum)] != null) return defaults[String(moodNum)];
+    return `Mood #${moodNum}`;
+  }
+
+  /**
+   * Build moods array from config mapping for a control.
+   * Merges defaults + per-control overrides.
+   */
+  _resolveMoodMapping(controlUuid, activeMoodIds) {
+    const defaults = this._moodMappings._defaults || LoxonePlugin.DEFAULT_MOODS;
+    const perControl = this._moodMappings[controlUuid] || {};
+    const merged = { ...defaults, ...perControl };
+
+    const moods = Object.entries(merged).map(([id, name]) => ({
+      id: Number(id),
+      name,
+    })).sort((a, b) => a.id - b.id);
+
+    const activeMoodName = activeMoodIds.length > 0
+      ? this._getMoodName(controlUuid, activeMoodIds[0])
+      : null;
+
+    return { moods, activeMoodName };
+  }
+
+  /** Get mood mappings (defaults + per-control). */
+  getMoodMappings() {
+    return {
+      _defaults: this._moodMappings._defaults || LoxonePlugin.DEFAULT_MOODS,
+      ...Object.fromEntries(
+        Object.entries(this._moodMappings).filter(([k]) => k !== '_defaults')
+      ),
+    };
+  }
+
+  /** Set mood mappings and persist. */
+  async setMoodMappings(mappings) {
+    this._moodMappings = mappings;
+    this._config.moodMappings = mappings;
+    if (this._ctx) {
+      this._ctx.configService.set(`plugins.${this._pluginId}`, this._config);
+      await this._ctx.configService.save();
+    }
   }
 
   // --- Topic routes management ---

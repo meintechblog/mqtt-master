@@ -8,6 +8,7 @@ import { PluginConfig } from './pages/plugin-config.js';
 import { LoxoneControls } from './pages/loxone-controls.js';
 import { InputBindings } from './pages/input-bindings.js';
 import { BridgeElements } from './pages/bridge-elements.js';
+import { MoodMappings } from './pages/mood-mappings.js';
 import { NotFound } from './pages/not-found.js';
 
 const currentHash = signal(window.location.hash || '#/dashboard');
@@ -47,6 +48,9 @@ const currentRoute = computed(() => {
     const [, pluginId, subPage] = pluginSubMatch;
     if (subPage === 'controls') {
       return { component: LoxoneControls, props: { pluginId } };
+    }
+    if (subPage === 'moods') {
+      return { component: MoodMappings, props: { pluginId } };
     }
     if (subPage === 'elements') {
       return { component: BridgeElements, props: { pluginId } };
