@@ -1,19 +1,15 @@
 import { html } from 'htm/preact';
-import { useEffect, useState, useCallback, useRef } from 'preact/hooks';
+import { useEffect, useState, useCallback } from 'preact/hooks';
 import { fetchLoxoneControlsDetailed } from '../lib/api-client.js';
 
-/** Special IDs outside the regular 0-31 range */
-const SPECIAL_IDS = new Set([-1, 777, 778]);
+/** Locked entries: always visible, not editable, not deletable */
+const LOCKED_IDS = new Set([-1, 777, 778]);
 const MAX_REGULAR_ID = 31;
 
 function isValidId(id) {
-  return SPECIAL_IDS.has(id) || (id >= 0 && id <= MAX_REGULAR_ID);
+  return LOCKED_IDS.has(id) || (id >= 0 && id <= MAX_REGULAR_ID);
 }
 
-/**
- * Mood Mapping page — configure mood ID → name mappings for LightControllerV2.
- * Edits are collected locally and only persisted when clicking Save.
- */
 export function MoodMappings({ pluginId = 'loxone' } = {}) {
   const [savedMappings, setSavedMappings] = useState(null);
   const [draft, setDraft] = useState(null);
@@ -48,8 +44,6 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  // --- Draft manipulation (local only, no API calls) ---
-
   const updateDraft = useCallback((fn) => {
     setDraft(prev => {
       const next = JSON.parse(JSON.stringify(prev));
@@ -83,34 +77,20 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
     });
   }, [updateDraft]);
 
-  const handleMoveUp = useCallback((key, id) => {
-    const section = key === '_defaults' ? draft._defaults : (draft[key] || {});
-    const sorted = Object.keys(section).map(Number).sort((a, b) => a - b);
-    const idx = sorted.indexOf(Number(id));
-    if (idx <= 0) return;
-    handleChangeId(key, id, sorted[idx - 1]);
-  }, [draft, handleChangeId]);
-
-  const handleMoveDown = useCallback((key, id) => {
-    const section = key === '_defaults' ? draft._defaults : (draft[key] || {});
-    const sorted = Object.keys(section).map(Number).sort((a, b) => a - b);
-    const idx = sorted.indexOf(Number(id));
-    if (idx < 0 || idx >= sorted.length - 1) return;
-    handleChangeId(key, id, sorted[idx + 1]);
-  }, [draft, handleChangeId]);
-
   const handleAddEntry = useCallback((key) => {
     updateDraft(d => {
       const section = key === '_defaults' ? d._defaults : d[key];
       if (!section) return;
       const ids = Object.keys(section).map(Number);
       let nextId = 0;
-      while (ids.includes(nextId)) nextId++;
+      while (ids.includes(nextId) || LOCKED_IDS.has(nextId)) nextId++;
+      if (nextId > MAX_REGULAR_ID) return; // no free IDs
       section[String(nextId)] = '';
     });
   }, [updateDraft]);
 
   const handleDeleteEntry = useCallback((key, moodId) => {
+    if (LOCKED_IDS.has(Number(moodId))) return;
     const section = key === '_defaults' ? draft._defaults : (draft[key] || {});
     const name = section[String(moodId)] || moodId;
     if (!confirm(`Mood "${name}" (ID ${moodId}) wirklich löschen?`)) return;
@@ -121,21 +101,15 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
   }, [draft, updateDraft]);
 
   const handleCreateOverride = useCallback((uuid) => {
-    updateDraft(d => {
-      d[uuid] = { ...d._defaults };
-    });
+    updateDraft(d => { d[uuid] = { ...d._defaults }; });
     setEditControl(uuid);
   }, [updateDraft]);
 
   const handleDeleteOverride = useCallback((uuid) => {
     if (!confirm('Override entfernen? Es gelten dann wieder die Defaults.')) return;
-    updateDraft(d => {
-      delete d[uuid];
-    });
+    updateDraft(d => { delete d[uuid]; });
     setEditControl(null);
   }, [updateDraft]);
-
-  // --- Save to server ---
 
   const handleSave = useCallback(async () => {
     try {
@@ -156,8 +130,6 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
     setDraft(JSON.parse(JSON.stringify(savedMappings)));
   }, [savedMappings]);
 
-  // --- Render ---
-
   if (loading) return html`<div class="page-placeholder">Loading...</div>`;
 
   if (!draft) {
@@ -173,16 +145,17 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
   const currentSection = currentKey === '_defaults' ? draft._defaults : (draft[currentKey] || {});
   const entries = Object.entries(currentSection).sort((a, b) => Number(a[0]) - Number(b[0]));
   const overrideUuids = Object.keys(draft).filter(k => k !== '_defaults');
+  const canAddMore = Object.keys(currentSection).map(Number).filter(id => !LOCKED_IDS.has(id) && id >= 0 && id <= MAX_REGULAR_ID).length < (MAX_REGULAR_ID + 1);
 
   return html`
     <div>
-      <div class="page-header">Mood Mapping</div>
+      <div class="page-header">
+        Mood Mapping
+        ${hasChanges && html`<span class="mood-unsaved">Unsaved changes</span>`}
+      </div>
 
       <div class="mood-tabs">
-        <button
-          class="mood-tab ${!editControl ? 'active' : ''}"
-          onClick=${() => setEditControl(null)}
-        >
+        <button class="mood-tab ${!editControl ? 'active' : ''}" onClick=${() => setEditControl(null)}>
           Defaults
         </button>
         ${controls.map(c => {
@@ -225,59 +198,56 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
 
           <div class="mood-list">
             <div class="mood-row mood-row--header">
-              <span class="mood-move-col"></span>
               <span class="mood-id-col">ID</span>
               <span class="mood-name-col">Mood Name</span>
               <span class="mood-actions-col"></span>
             </div>
-            ${entries.map(([id, name], idx) => html`
-              <div class="mood-row" key=${currentKey + ':' + id}>
-                <span class="mood-move-col">
-                  <button
-                    class="mood-move-btn"
-                    onClick=${() => handleMoveUp(currentKey, id)}
-                    disabled=${idx === 0}
-                    title="Move up (swap IDs)"
-                  >▲</button>
-                  <button
-                    class="mood-move-btn"
-                    onClick=${() => handleMoveDown(currentKey, id)}
-                    disabled=${idx === entries.length - 1}
-                    title="Move down (swap IDs)"
-                  >▼</button>
-                </span>
-                <span class="mood-id-col">
-                  <input
-                    type="number"
-                    class="mood-id-input"
-                    value=${id}
-                    min="-1"
-                    max="778"
-                    onBlur=${(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v !== Number(id)) handleChangeId(currentKey, id, v); else e.target.value = id; }}
-                    onKeyDown=${(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                  />
-                </span>
-                <span class="mood-name-col">
-                  <input
-                    type="text"
-                    class="mood-name-input"
-                    value=${name}
-                    placeholder="Mood name..."
-                    onInput=${(e) => handleUpdateName(currentKey, id, e.target.value)}
-                  />
-                </span>
-                <span class="mood-actions-col">
-                  <button class="mood-delete-btn" onClick=${() => handleDeleteEntry(currentKey, id)} title="Remove">×</button>
-                </span>
-              </div>
-            `)}
+            ${entries.map(([id, name]) => {
+              const locked = LOCKED_IDS.has(Number(id));
+              return html`
+                <div class="mood-row ${locked ? 'mood-row--locked' : ''}" key=${currentKey + ':' + id}>
+                  <span class="mood-id-col">
+                    ${locked
+                      ? html`<span class="mood-id-locked">${id}</span>`
+                      : html`<input
+                          type="number"
+                          class="mood-id-input"
+                          value=${id}
+                          min="0"
+                          max=${MAX_REGULAR_ID}
+                          onBlur=${(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v !== Number(id)) handleChangeId(currentKey, id, v); else e.target.value = id; }}
+                          onKeyDown=${(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                        />`
+                    }
+                  </span>
+                  <span class="mood-name-col">
+                    ${locked
+                      ? html`<span class="mood-name-locked">${name}</span>`
+                      : html`<input
+                          type="text"
+                          class="mood-name-input"
+                          value=${name}
+                          placeholder="Mood name..."
+                          onInput=${(e) => handleUpdateName(currentKey, id, e.target.value)}
+                        />`
+                    }
+                  </span>
+                  <span class="mood-actions-col">
+                    ${!locked && html`
+                      <button class="mood-delete-btn" onClick=${() => handleDeleteEntry(currentKey, id)} title="Remove">×</button>
+                    `}
+                  </span>
+                </div>
+              `;
+            })}
           </div>
 
-          <div style="display:flex;gap:8px;align-items:center;margin-top:12px;">
-            <button class="lox-push-btn" onClick=${() => handleAddEntry(currentKey)}>+ Add Mood</button>
+          <div class="mood-actions-bar">
+            ${canAddMore && html`
+              <button class="lox-push-btn" onClick=${() => handleAddEntry(currentKey)}>+ Add Mood</button>
+            `}
             <div style="flex:1"></div>
             ${hasChanges && html`
-              <span style="font-size:12px;color:var(--ve-orange);">Unsaved changes</span>
               <button class="lox-push-btn" onClick=${handleDiscard}>Discard</button>
               <button class="lox-cmd-btn" onClick=${handleSave}>Save</button>
             `}

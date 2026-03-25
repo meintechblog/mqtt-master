@@ -1327,25 +1327,6 @@ body {
   border-bottom: 1px solid var(--ve-border);
   margin-bottom: 4px;
 }
-.mood-move-col {
-  width: 24px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-.mood-move-btn {
-  background: none;
-  border: none;
-  color: var(--ve-text-dim);
-  font-size: 9px;
-  cursor: pointer;
-  padding: 0 2px;
-  line-height: 1;
-  border-radius: 2px;
-}
-.mood-move-btn:hover:not(:disabled) { color: var(--ve-blue); background: rgba(56,125,197,0.1); }
-.mood-move-btn:disabled { opacity: 0.2; cursor: default; }
 .mood-id-col { width: 60px; flex-shrink: 0; }
 .mood-name-col { flex: 1; }
 .mood-actions-col { width: 30px; flex-shrink: 0; text-align: center; }
@@ -1381,3 +1362,31 @@ body {
   border-radius: 3px;
 }
 .mood-delete-btn:hover { color: var(--ve-red); background: rgba(255,80,80,0.1); }
+.mood-row--locked { opacity: 0.5; }
+.mood-id-locked {
+  font-family: var(--ve-font-mono);
+  font-size: 13px;
+  color: var(--ve-text-dim);
+  display: inline-block;
+  width: 50px;
+  text-align: center;
+}
+.mood-name-locked {
+  font-size: 13px;
+  color: var(--ve-text-dim);
+  font-style: italic;
+}
+.mood-unsaved {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ve-orange);
+  margin-left: 10px;
+  animation: mood-pulse 1.5s ease-in-out infinite;
+}
+@keyframes mood-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+.mood-actions-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
