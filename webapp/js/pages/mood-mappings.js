@@ -189,8 +189,11 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
               const key = String(id);
               const name = currentSection[key] || '';
               const locked = !!LOCKED_NAMES[key];
+              const savedSection = currentKey === '_defaults' ? savedMappings._defaults : (savedMappings[currentKey] || {});
+              const savedName = savedSection[key] || '';
+              const changed = !locked && name !== savedName;
               return html`
-                <div class="mood-row ${locked ? 'mood-row--locked' : ''} ${!locked && name ? 'mood-row--filled' : ''}" key=${currentKey + ':' + id}>
+                <div class="mood-row ${locked ? 'mood-row--locked' : ''} ${!locked && name ? 'mood-row--filled' : ''} ${changed ? 'mood-row--changed' : ''}" key=${currentKey + ':' + id}>
                   <span class="mood-id-col">
                     <span class="mood-id-locked">${id}</span>
                   </span>
@@ -199,7 +202,7 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
                       ? html`<span class="mood-name-locked">${name}</span>`
                       : html`<input
                           type="text"
-                          class="mood-name-input ${name ? '' : 'mood-name-empty'}"
+                          class="mood-name-input ${name ? '' : 'mood-name-empty'} ${changed ? 'mood-name-changed' : ''}"
                           value=${name}
                           placeholder="—"
                           onInput=${(e) => handleUpdateName(currentKey, id, e.target.value)}
