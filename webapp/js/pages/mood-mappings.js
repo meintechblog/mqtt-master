@@ -1,5 +1,5 @@
 import { html } from 'htm/preact';
-import { useEffect, useState, useCallback } from 'preact/hooks';
+import { useEffect, useState, useCallback, useRef } from 'preact/hooks';
 import { fetchLoxoneControlsDetailed } from '../lib/api-client.js';
 
 /** All possible mood IDs: -1, 0-31, 777, 778 */
@@ -31,6 +31,43 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
   const [editControl, setEditControl] = useState(null);
 
   const hasChanges = draft && savedMappings && JSON.stringify(draft) !== JSON.stringify(savedMappings);
+  const hasChangesRef = useRef(false);
+  hasChangesRef.current = hasChanges;
+
+  // Warn on browser/tab navigation away
+  useEffect(() => {
+    const handler = (e) => {
+      if (hasChangesRef.current) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
+
+  // Warn on hash navigation (sidebar clicks)
+  useEffect(() => {
+    const handler = () => {
+      if (hasChangesRef.current) {
+        if (!confirm('Du hast ungespeicherte Änderungen. Verwerfen?')) {
+          // Revert hash change
+          window.location.hash = `#/plugins/${pluginId}/moods`;
+        }
+      }
+    };
+    window.addEventListener('hashchange', handler);
+    return () => window.removeEventListener('hashchange', handler);
+  }, [pluginId]);
+
+  /** Switch tab with unsaved-changes guard */
+  const switchTab = useCallback((target) => {
+    if (hasChangesRef.current) {
+      if (!confirm('Du hast ungespeicherte Änderungen. Verwerfen?')) return;
+      setDraft(JSON.parse(JSON.stringify(savedMappings)));
+    }
+    setEditControl(target);
+  }, [savedMappings]);
 
   useEffect(() => {
     async function load() {
@@ -139,7 +176,7 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
       </div>
 
       <div class="mood-tabs">
-        <button class="mood-tab ${!editControl ? 'active' : ''}" onClick=${() => setEditControl(null)}>
+        <button class="mood-tab ${!editControl ? 'active' : ''}" onClick=${() => switchTab(null)}>
           Defaults
         </button>
         ${controls.map(c => {
@@ -148,7 +185,7 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
             <button
               key=${c.uuid}
               class="mood-tab ${editControl === c.uuid ? 'active' : ''} ${hasOverride ? 'mood-tab--has-override' : ''}"
-              onClick=${() => setEditControl(c.uuid)}
+              onClick=${() => switchTab(c.uuid)}
             >
               ${c.name} <span class="mood-tab-room">${c.room}</span>
             </button>
