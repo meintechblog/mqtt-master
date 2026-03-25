@@ -483,8 +483,22 @@ export default class LoxonePlugin {
       value, name: meta.name, type: meta.type, uuid: meta.uuid, room: meta.room,
     });
     this._ctx.mqttService.publish(`${meta.topic}/state`, payload);
-    // Parallel UUID-based topic for rename-safe subscriptions
     this._ctx.mqttService.publish(`${this._prefix}/by-uuid/${meta.uuid}/state`, payload);
+
+    // Publish resolved mood name when activeMoodsNum changes
+    if (meta.stateKey === 'activeMoodsNum') {
+      const controlTopic = meta.topic.replace(/\/activeMoodsNum$/, '');
+      const controlUuid = this._structure.topicToUuid(controlTopic);
+      if (controlUuid) {
+        const moodName = this._getMoodName(controlUuid, value);
+        const moodPayload = JSON.stringify({
+          id: value, name: moodName, uuid: controlUuid,
+        });
+        this._ctx.mqttService.publish(`${controlTopic}/mood/state`, moodPayload);
+        this._ctx.mqttService.publish(`${this._prefix}/by-uuid/${controlUuid}/mood/state`, moodPayload);
+      }
+    }
+
     this._lastEvent = Date.now();
     this._messageCount++;
   }
