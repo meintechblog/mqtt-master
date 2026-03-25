@@ -1301,11 +1301,11 @@ body {
   font-size: 13px;
   cursor: pointer;
 }
-.mood-tab:hover { border-color: var(--ve-blue); }
-.mood-tab.active { background: var(--ve-blue); color: #fff; border-color: var(--ve-blue); }
+.mood-tab:hover { border-color: var(--ve-text-dim); }
+.mood-tab.active { background: var(--ve-bg-surface); color: var(--ve-text-primary); border-color: var(--ve-text-secondary); }
 .mood-tab--has-override::after { content: '●'; color: var(--ve-green); margin-left: 4px; font-size: 8px; vertical-align: super; }
 .mood-tab-room { font-size: 11px; color: var(--ve-text-dim); margin-left: 4px; }
-.mood-tab.active .mood-tab-room { color: rgba(255,255,255,0.7); }
+.mood-tab.active .mood-tab-room { color: var(--ve-text-dim); }
 .mood-editor {
   background: var(--ve-bg-widget);
   border-radius: var(--ve-radius-lg);
@@ -1341,7 +1341,7 @@ body {
   padding: 4px 6px;
   text-align: center;
 }
-.mood-id-input:focus { border-color: var(--ve-blue); outline: none; }
+.mood-id-input:focus { border-color: var(--ve-text-dim); outline: none; }
 .mood-id-input::-webkit-inner-spin-button,
 .mood-id-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .mood-id-input { -moz-appearance: textfield; }
@@ -1354,7 +1354,7 @@ body {
   font-size: 13px;
   padding: 4px 8px;
 }
-.mood-name-input:focus { border-color: var(--ve-blue); outline: none; }
+.mood-name-input:focus { border-color: var(--ve-text-dim); outline: none; }
 .mood-delete-btn {
   background: none;
   border: none;
@@ -1366,7 +1366,7 @@ body {
 }
 .mood-delete-btn:hover { color: var(--ve-red); background: rgba(255,80,80,0.1); }
 .mood-row--locked { opacity: 0.6; }
-.mood-row--filled { background: rgba(56,125,197,0.05); }
+.mood-row--filled { }
 .mood-name-empty { opacity: 0.3; }
 .mood-name-empty:focus { opacity: 1; }
 .mood-row--changed { background: rgba(240, 150, 46, 0.08); }
