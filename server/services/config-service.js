@@ -26,7 +26,8 @@ const SENSITIVE_KEYS = ['password', 'token', 'secret', 'apiKey', 'apikey', 'cred
  */
 function deriveKey(configPath) {
   const salt = `mqtt-master:${configPath}`;
-  return scryptSync('mqtt-master-secret-seed', salt, 32);
+  const secret = process.env.ENCRYPTION_SECRET || 'change-me-in-production';
+  return scryptSync(secret, salt, 32);
 }
 
 function encrypt(text, key) {

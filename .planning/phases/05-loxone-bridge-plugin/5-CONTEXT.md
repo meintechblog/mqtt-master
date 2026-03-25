@@ -60,7 +60,7 @@ Users can bridge their entire Loxone Miniserver into MQTT with human-readable to
 ## Test Environment
 
 - Miniserver IP: `192.168.3.152` (hostname: `mqtt-testserver`)
-- Credentials: user=`mqtt-master`, password=`meinpasswort`
+- Credentials: user=`mqtt-master`, password=`[REDACTED]`
 - Test elements:
   - "Helligkeit" -- Virtueller Eingang (virtual input) -- can receive data via MQTT
   - "Anwesenheit" -- Merker (memory flag) -- can read status
