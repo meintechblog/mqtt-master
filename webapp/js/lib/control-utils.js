@@ -20,6 +20,13 @@ export function primaryValue(type, states, extra) {
       return states.actual != null ? fmtNum(states.actual.value) + ' kW' : null;
     case 'Jalousie':
       return states.position != null ? Math.round(states.position.value * 100) + '%' : null;
+    case 'Gate':
+      return states.position != null ? Math.round(states.position.value * 100) + '%'
+        : states.active != null ? (states.active.value > 0 ? 'Open' : 'Closed') : null;
+    case 'IRoomControllerV2':
+      return states.tempActual != null ? fmtNum(states.tempActual.value) + ' °C' : null;
+    case 'Ventilation':
+      return states.level != null ? 'Level ' + states.level.value : null;
     case 'LightControllerV2': {
       // Show active mood name or ID
       const moods = extra?.moods || [];
@@ -36,7 +43,10 @@ export function primaryValue(type, states, extra) {
 }
 
 export function isControllable(type) {
-  return ['Switch', 'Dimmer', 'LightControllerV2'].includes(type);
+  return ['Switch', 'Dimmer', 'LightControllerV2', 'Jalousie',
+    'Gate', 'Slider', 'ColorPickerV2', 'IRoomControllerV2',
+    'Alarm', 'TimedSwitch', 'Ventilation',
+  ].includes(type);
 }
 
 export function isSensor(type) {

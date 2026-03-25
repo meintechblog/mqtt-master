@@ -8,6 +8,7 @@ import { primaryValue, isControllable, flattenControls, buildGroups } from '../l
 function getCommands(type, moods) {
   switch (type) {
     case 'Switch':
+    case 'TimedSwitch':
       return [
         { value: 'on', label: 'On' },
         { value: 'off', label: 'Off' },
@@ -42,8 +43,45 @@ function getCommands(type, moods) {
         { value: 'FullDown', label: 'Full Down' },
         { value: 'stop', label: 'Stop' },
       ];
+    case 'Gate':
+      return [
+        { value: 'open', label: 'Open' },
+        { value: 'close', label: 'Close' },
+        { value: 'stop', label: 'Stop' },
+      ];
+    case 'Slider':
+    case 'ColorPickerV2':
+      return [
+        { value: 'on', label: 'On' },
+        { value: 'off', label: 'Off' },
+      ];
+    case 'IRoomControllerV2':
+      return [
+        { value: 'plus', label: 'Temp +' },
+        { value: 'minus', label: 'Temp −' },
+        { value: 'setManual/1', label: 'Manual On' },
+        { value: 'setManual/0', label: 'Manual Off' },
+      ];
+    case 'Alarm':
+      return [
+        { value: 'on', label: 'Arm' },
+        { value: 'off', label: 'Disarm' },
+        { value: 'delayedon', label: 'Delayed Arm' },
+      ];
+    case 'Ventilation':
+      return [
+        { value: '0', label: 'Off' },
+        { value: '1', label: 'Level 1' },
+        { value: '2', label: 'Level 2' },
+        { value: '3', label: 'Level 3' },
+        { value: '4', label: 'Level 4' },
+      ];
     default:
-      return [];
+      // Generic fallback for unknown controllable types
+      return [
+        { value: 'on', label: 'On' },
+        { value: 'off', label: 'Off' },
+      ];
   }
 }
 
@@ -155,16 +193,18 @@ function CategorySection({ group, search, typeFilter, expanded, setExpanded, onC
                       <span class="lox-item-meta">${item.type}</span>
                     </div>
                     <div class="lox-item-value ${val && (val === 'ON' || val === 'Active' || (controllable && isOn)) ? 'on' : ''}">${val || '--'}</div>
-                    ${controllable && item.type === 'LightControllerV2' && html`
+                    ${controllable && html`
                       <div class="lox-item-actions">
-                        <button class="lox-push-btn" onClick=${(e) => { e.stopPropagation(); onCmd(item.uuid, 'minus'); }} title="Previous mood">−</button>
-                        <button class="lox-push-btn" onClick=${(e) => { e.stopPropagation(); onCmd(item.uuid, 'plus'); }} title="Next mood">+</button>
-                      </div>
-                    `}
-                    ${controllable && item.type !== 'LightControllerV2' && html`
-                      <div class="lox-item-actions">
-                        <button class="lox-push-btn" onClick=${(e) => { e.stopPropagation(); onCmd(item.uuid, 'on'); }}>On</button>
-                        <button class="lox-push-btn" onClick=${(e) => { e.stopPropagation(); onCmd(item.uuid, 'off'); }}>Off</button>
+                        ${item.type === 'LightControllerV2' ? html`
+                          <button class="lox-push-btn" onClick=${(e) => { e.stopPropagation(); onCmd(item.uuid, 'minus'); }} title="Previous mood">−</button>
+                          <button class="lox-push-btn" onClick=${(e) => { e.stopPropagation(); onCmd(item.uuid, 'plus'); }} title="Next mood">+</button>
+                        ` : item.type === 'Jalousie' ? html`
+                          <button class="lox-push-btn" onClick=${(e) => { e.stopPropagation(); onCmd(item.uuid, 'up'); }} title="Up">▲</button>
+                          <button class="lox-push-btn" onClick=${(e) => { e.stopPropagation(); onCmd(item.uuid, 'down'); }} title="Down">▼</button>
+                        ` : html`
+                          <button class="lox-push-btn" onClick=${(e) => { e.stopPropagation(); onCmd(item.uuid, 'on'); }}>On</button>
+                          <button class="lox-push-btn" onClick=${(e) => { e.stopPropagation(); onCmd(item.uuid, 'off'); }}>Off</button>
+                        `}
                       </div>
                     `}
                   </div>
