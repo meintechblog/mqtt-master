@@ -1335,12 +1335,13 @@ body {
   background: var(--ve-bg-surface);
   border: 1px solid var(--ve-border);
   border-radius: 3px;
-  color: var(--ve-text-dim);
+  color: var(--ve-text-primary);
   font-family: var(--ve-font-mono);
   font-size: 13px;
   padding: 4px 6px;
   text-align: center;
 }
+.mood-id-input:focus { border-color: var(--ve-blue); outline: none; }
 .mood-name-input {
   width: 100%;
   background: var(--ve-bg-surface);

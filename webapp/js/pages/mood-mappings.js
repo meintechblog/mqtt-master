@@ -57,6 +57,16 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
     save({ ...mappings, [key]: updated });
   }, [mappings, save]);
 
+  const handleChangeId = useCallback((key, oldId, newId) => {
+    if (String(oldId) === String(newId)) return;
+    const section = { ...(key === '_defaults' ? mappings._defaults : mappings[key] || {}) };
+    if (section[String(newId)] != null) return; // ID already exists
+    const name = section[String(oldId)];
+    delete section[String(oldId)];
+    section[String(newId)] = name;
+    save({ ...mappings, [key]: section });
+  }, [mappings, save]);
+
   const handleDeleteEntry = useCallback((key, moodId) => {
     const name = (key === '_defaults' ? mappings._defaults : mappings[key] || {})[String(moodId)] || moodId;
     if (!confirm(`Mood "${name}" (ID ${moodId}) wirklich löschen?`)) return;
@@ -165,7 +175,8 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
                     type="number"
                     class="mood-id-input"
                     value=${id}
-                    disabled
+                    onBlur=${(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v !== Number(id)) handleChangeId(currentKey, id, v); else e.target.value = id; }}
+                    onKeyDown=${(e) => { if (e.key === 'Enter') e.target.blur(); }}
                   />
                 </span>
                 <span class="mood-name-col">
