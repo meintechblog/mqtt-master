@@ -1,6 +1,7 @@
 import { html } from 'htm/preact';
 import { useEffect, useState, useCallback, useRef } from 'preact/hooks';
 import { fetchLoxoneControlsDetailed } from '../lib/api-client.js';
+import { navGuard } from '../app.js';
 
 /** All possible mood IDs: -1, 0-31, 777, 778 */
 const ALL_IDS = [-1, ...Array.from({ length: 32 }, (_, i) => i), 777, 778];
@@ -34,31 +35,21 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
   const hasChangesRef = useRef(false);
   hasChangesRef.current = hasChanges;
 
-  // Warn on browser/tab navigation away
+  // Register global navigation guard while this page is mounted
   useEffect(() => {
-    const handler = (e) => {
-      if (hasChangesRef.current) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
+    navGuard.check = () => {
+      if (!hasChangesRef.current) return true;
+      return confirm('Du hast ungespeicherte Änderungen. Verwerfen?');
     };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
+    const beforeUnload = (e) => {
+      if (hasChangesRef.current) { e.preventDefault(); e.returnValue = ''; }
+    };
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => {
+      navGuard.check = null;
+      window.removeEventListener('beforeunload', beforeUnload);
+    };
   }, []);
-
-  // Warn on hash navigation (sidebar clicks)
-  useEffect(() => {
-    const handler = () => {
-      if (hasChangesRef.current) {
-        if (!confirm('Du hast ungespeicherte Änderungen. Verwerfen?')) {
-          // Revert hash change
-          window.location.hash = `#/plugins/${pluginId}/moods`;
-        }
-      }
-    };
-    window.addEventListener('hashchange', handler);
-    return () => window.removeEventListener('hashchange', handler);
-  }, [pluginId]);
 
   /** Switch tab with unsaved-changes guard */
   const switchTab = useCallback((target) => {

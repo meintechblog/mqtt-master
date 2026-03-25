@@ -18,8 +18,22 @@ if (!window.location.hash) {
   window.location.hash = '#/dashboard';
 }
 
-// Listen for hash changes
+/**
+ * Global navigation guard. If set, called before hash navigation.
+ * Return false to block the navigation.
+ * @type {{ check: (() => boolean) | null }}
+ */
+export const navGuard = { check: null };
+
+// Listen for hash changes (with navigation guard)
+let lastHash = window.location.hash || '#/dashboard';
 window.addEventListener('hashchange', () => {
+  if (navGuard.check && !navGuard.check()) {
+    // Block navigation — revert hash
+    window.history.replaceState(null, '', lastHash);
+    return;
+  }
+  lastHash = window.location.hash;
   currentHash.value = window.location.hash;
   menuOpen.value = false;
 });
