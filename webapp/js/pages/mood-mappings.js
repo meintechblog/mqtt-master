@@ -17,8 +17,9 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
   const [editControl, setEditControl] = useState(null);
+  const [dirtyFields, setDirtyFields] = useState(false);
 
-  const hasChanges = draft && savedMappings && JSON.stringify(draft) !== JSON.stringify(savedMappings);
+  const hasChanges = dirtyFields || (draft && savedMappings && JSON.stringify(draft) !== JSON.stringify(savedMappings));
 
   useEffect(() => {
     async function load() {
@@ -120,6 +121,7 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
       });
       if (!res.ok) throw new Error((await res.json()).error);
       setSavedMappings(JSON.parse(JSON.stringify(draft)));
+      setDirtyFields(false);
       showToast('ok', 'Saved');
     } catch (err) {
       showToast('error', err.message);
@@ -128,6 +130,7 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
 
   const handleDiscard = useCallback(() => {
     setDraft(JSON.parse(JSON.stringify(savedMappings)));
+    setDirtyFields(false);
   }, [savedMappings]);
 
   if (loading) return html`<div class="page-placeholder">Loading...</div>`;
@@ -215,6 +218,7 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
                           value=${id}
                           min="0"
                           max=${MAX_REGULAR_ID}
+                          onInput=${() => setDirtyFields(true)}
                           onBlur=${(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v !== Number(id)) handleChangeId(currentKey, id, v); else e.target.value = id; }}
                           onKeyDown=${(e) => { if (e.key === 'Enter') e.target.blur(); }}
                         />`
