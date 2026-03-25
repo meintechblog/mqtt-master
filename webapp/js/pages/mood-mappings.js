@@ -1,17 +1,28 @@
 import { html } from 'htm/preact';
-import { useEffect, useState, useCallback } from 'preact/hooks';
+import { useEffect, useState, useCallback, useRef } from 'preact/hooks';
 import { fetchLoxoneControlsDetailed } from '../lib/api-client.js';
+
+/** Special IDs outside the regular 0-31 range */
+const SPECIAL_IDS = new Set([-1, 777, 778]);
+const MAX_REGULAR_ID = 31;
+
+function isValidId(id) {
+  return SPECIAL_IDS.has(id) || (id >= 0 && id <= MAX_REGULAR_ID);
+}
 
 /**
  * Mood Mapping page — configure mood ID → name mappings for LightControllerV2.
- * Default mappings apply to all controllers; per-control overrides are possible.
+ * Edits are collected locally and only persisted when clicking Save.
  */
 export function MoodMappings({ pluginId = 'loxone' } = {}) {
-  const [mappings, setMappings] = useState(null);
+  const [savedMappings, setSavedMappings] = useState(null);
+  const [draft, setDraft] = useState(null);
   const [controls, setControls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
-  const [editControl, setEditControl] = useState(null); // null = defaults, uuid = per-control
+  const [editControl, setEditControl] = useState(null);
+
+  const hasChanges = draft && savedMappings && JSON.stringify(draft) !== JSON.stringify(savedMappings);
 
   useEffect(() => {
     async function load() {
@@ -20,10 +31,11 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
           fetch(`/api/plugins/${pluginId}/moods`).then(r => r.json()),
           fetchLoxoneControlsDetailed(pluginId).catch(() => []),
         ]);
-        setMappings(moodRes);
+        setSavedMappings(moodRes);
+        setDraft(JSON.parse(JSON.stringify(moodRes)));
         setControls(ctrlData.filter(c => c.type === 'LightControllerV2'));
       } catch (err) {
-        setToast({ type: 'error', text: err.message });
+        showToast('error', err.message);
       } finally {
         setLoading(false);
       }
@@ -36,100 +48,119 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  const save = useCallback(async (newMappings) => {
-    try {
-      const res = await fetch(`/api/plugins/${pluginId}/moods`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newMappings),
-      });
-      if (!res.ok) throw new Error((await res.json()).error);
-      setMappings(newMappings);
-      showToast('ok', 'Saved');
-    } catch (err) {
-      showToast('error', err.message);
-    }
-  }, [pluginId, showToast]);
+  // --- Draft manipulation (local only, no API calls) ---
 
-  const handleUpdateEntry = useCallback((key, moodId, name) => {
-    const section = key === '_defaults' ? mappings._defaults : (mappings[key] || {});
-    const updated = { ...section, [String(moodId)]: name };
-    save({ ...mappings, [key]: updated });
-  }, [mappings, save]);
+  const updateDraft = useCallback((fn) => {
+    setDraft(prev => {
+      const next = JSON.parse(JSON.stringify(prev));
+      fn(next);
+      return next;
+    });
+  }, []);
 
-  /** Special IDs that live outside the regular 0-31 range */
-  const SPECIAL_IDS = new Set([-1, 777, 778]);
-  const MAX_REGULAR_ID = 31;
+  const handleUpdateName = useCallback((key, moodId, name) => {
+    updateDraft(d => {
+      const section = key === '_defaults' ? d._defaults : d[key];
+      if (section) section[String(moodId)] = name;
+    });
+  }, [updateDraft]);
 
   const handleChangeId = useCallback((key, oldId, newId) => {
     if (String(oldId) === String(newId)) return;
-    const section = { ...(key === '_defaults' ? mappings._defaults : mappings[key] || {}) };
-    // Validate range: -1, 0-31, 777, 778
-    if (!SPECIAL_IDS.has(newId) && (newId < 0 || newId > MAX_REGULAR_ID)) return;
-    if (section[String(newId)] != null) {
-      // Swap: move the other entry to the old ID
-      const otherName = section[String(newId)];
-      section[String(newId)] = section[String(oldId)];
-      section[String(oldId)] = otherName;
-    } else {
-      const name = section[String(oldId)];
-      delete section[String(oldId)];
-      section[String(newId)] = name;
-    }
-    save({ ...mappings, [key]: section });
-  }, [mappings, save]);
+    if (!isValidId(newId)) return;
+    updateDraft(d => {
+      const section = key === '_defaults' ? d._defaults : d[key];
+      if (!section) return;
+      if (section[String(newId)] != null) {
+        // Swap
+        const otherName = section[String(newId)];
+        section[String(newId)] = section[String(oldId)];
+        section[String(oldId)] = otherName;
+      } else {
+        section[String(newId)] = section[String(oldId)];
+        delete section[String(oldId)];
+      }
+    });
+  }, [updateDraft]);
 
-  /** Move entry up (swap with previous in sorted list) */
   const handleMoveUp = useCallback((key, id) => {
-    const section = key === '_defaults' ? mappings._defaults : (mappings[key] || {});
+    const section = key === '_defaults' ? draft._defaults : (draft[key] || {});
     const sorted = Object.keys(section).map(Number).sort((a, b) => a - b);
     const idx = sorted.indexOf(Number(id));
     if (idx <= 0) return;
     handleChangeId(key, id, sorted[idx - 1]);
-  }, [mappings, handleChangeId]);
+  }, [draft, handleChangeId]);
 
-  /** Move entry down (swap with next in sorted list) */
   const handleMoveDown = useCallback((key, id) => {
-    const section = key === '_defaults' ? mappings._defaults : (mappings[key] || {});
+    const section = key === '_defaults' ? draft._defaults : (draft[key] || {});
     const sorted = Object.keys(section).map(Number).sort((a, b) => a - b);
     const idx = sorted.indexOf(Number(id));
     if (idx < 0 || idx >= sorted.length - 1) return;
     handleChangeId(key, id, sorted[idx + 1]);
-  }, [mappings, handleChangeId]);
-
-  const handleDeleteEntry = useCallback((key, moodId) => {
-    const name = (key === '_defaults' ? mappings._defaults : mappings[key] || {})[String(moodId)] || moodId;
-    if (!confirm(`Mood "${name}" (ID ${moodId}) wirklich löschen?`)) return;
-    const section = { ...(key === '_defaults' ? mappings._defaults : mappings[key] || {}) };
-    delete section[String(moodId)];
-    save({ ...mappings, [key]: section });
-  }, [mappings, save]);
+  }, [draft, handleChangeId]);
 
   const handleAddEntry = useCallback((key) => {
-    const section = key === '_defaults' ? mappings._defaults : (mappings[key] || {});
-    // Find next free ID
-    const ids = Object.keys(section).map(Number);
-    let nextId = 0;
-    while (ids.includes(nextId)) nextId++;
-    save({ ...mappings, [key]: { ...section, [String(nextId)]: '' } });
-  }, [mappings, save]);
+    updateDraft(d => {
+      const section = key === '_defaults' ? d._defaults : d[key];
+      if (!section) return;
+      const ids = Object.keys(section).map(Number);
+      let nextId = 0;
+      while (ids.includes(nextId)) nextId++;
+      section[String(nextId)] = '';
+    });
+  }, [updateDraft]);
 
-  const handleDeleteOverride = useCallback((uuid) => {
-    const next = { ...mappings };
-    delete next[uuid];
-    save(next);
-    setEditControl(null);
-  }, [mappings, save]);
+  const handleDeleteEntry = useCallback((key, moodId) => {
+    const section = key === '_defaults' ? draft._defaults : (draft[key] || {});
+    const name = section[String(moodId)] || moodId;
+    if (!confirm(`Mood "${name}" (ID ${moodId}) wirklich löschen?`)) return;
+    updateDraft(d => {
+      const s = key === '_defaults' ? d._defaults : d[key];
+      if (s) delete s[String(moodId)];
+    });
+  }, [draft, updateDraft]);
 
   const handleCreateOverride = useCallback((uuid) => {
-    // Copy defaults as starting point
-    save({ ...mappings, [uuid]: { ...mappings._defaults } });
+    updateDraft(d => {
+      d[uuid] = { ...d._defaults };
+    });
     setEditControl(uuid);
-  }, [mappings, save]);
+  }, [updateDraft]);
+
+  const handleDeleteOverride = useCallback((uuid) => {
+    if (!confirm('Override entfernen? Es gelten dann wieder die Defaults.')) return;
+    updateDraft(d => {
+      delete d[uuid];
+    });
+    setEditControl(null);
+  }, [updateDraft]);
+
+  // --- Save to server ---
+
+  const handleSave = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/plugins/${pluginId}/moods`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(draft),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      setSavedMappings(JSON.parse(JSON.stringify(draft)));
+      showToast('ok', 'Saved');
+    } catch (err) {
+      showToast('error', err.message);
+    }
+  }, [pluginId, draft, showToast]);
+
+  const handleDiscard = useCallback(() => {
+    setDraft(JSON.parse(JSON.stringify(savedMappings)));
+  }, [savedMappings]);
+
+  // --- Render ---
 
   if (loading) return html`<div class="page-placeholder">Loading...</div>`;
 
-  if (!mappings) {
+  if (!draft) {
     return html`
       <div>
         <div class="page-header">Mood Mapping</div>
@@ -139,9 +170,9 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
   }
 
   const currentKey = editControl || '_defaults';
-  const currentSection = currentKey === '_defaults' ? mappings._defaults : (mappings[currentKey] || {});
+  const currentSection = currentKey === '_defaults' ? draft._defaults : (draft[currentKey] || {});
   const entries = Object.entries(currentSection).sort((a, b) => Number(a[0]) - Number(b[0]));
-  const overrideUuids = Object.keys(mappings).filter(k => k !== '_defaults');
+  const overrideUuids = Object.keys(draft).filter(k => k !== '_defaults');
 
   return html`
     <div>
@@ -168,7 +199,7 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
         })}
       </div>
 
-      ${editControl && !mappings[editControl] && html`
+      ${editControl && !draft[editControl] && html`
         <div class="ve-card" style="padding:20px;text-align:center;">
           <div style="color:var(--ve-text-dim);margin-bottom:12px;">
             Using default mappings. Create an override to customize moods for this controller.
@@ -179,7 +210,7 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
         </div>
       `}
 
-      ${(currentKey === '_defaults' || mappings[currentKey]) && html`
+      ${(currentKey === '_defaults' || draft[currentKey]) && html`
         <div class="mood-editor">
           ${currentKey !== '_defaults' && html`
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
@@ -200,7 +231,7 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
               <span class="mood-actions-col"></span>
             </div>
             ${entries.map(([id, name], idx) => html`
-              <div class="mood-row" key=${id}>
+              <div class="mood-row" key=${currentKey + ':' + id}>
                 <span class="mood-move-col">
                   <button
                     class="mood-move-btn"
@@ -232,8 +263,7 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
                     class="mood-name-input"
                     value=${name}
                     placeholder="Mood name..."
-                    onBlur=${(e) => { if (e.target.value !== name) handleUpdateEntry(currentKey, id, e.target.value); }}
-                    onKeyDown=${(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                    onInput=${(e) => handleUpdateName(currentKey, id, e.target.value)}
                   />
                 </span>
                 <span class="mood-actions-col">
@@ -243,9 +273,15 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
             `)}
           </div>
 
-          <button class="lox-push-btn" style="margin-top:8px;" onClick=${() => handleAddEntry(currentKey)}>
-            + Add Mood
-          </button>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:12px;">
+            <button class="lox-push-btn" onClick=${() => handleAddEntry(currentKey)}>+ Add Mood</button>
+            <div style="flex:1"></div>
+            ${hasChanges && html`
+              <span style="font-size:12px;color:var(--ve-orange);">Unsaved changes</span>
+              <button class="lox-push-btn" onClick=${handleDiscard}>Discard</button>
+              <button class="lox-cmd-btn" onClick=${handleSave}>Save</button>
+            `}
+          </div>
 
           ${controls.length > 0 && currentKey === '_defaults' && html`
             <div style="margin-top:16px;font-size:12px;color:var(--ve-text-dim);">
