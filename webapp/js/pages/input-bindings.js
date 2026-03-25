@@ -360,6 +360,7 @@ export function InputBindings({ pluginId = 'loxone', defaultPattern } = {}) {
   const [controls, setControls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
+  const [pluginDisplayName, setPluginDisplayName] = useState(pluginId);
 
   // Wizard state
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -379,6 +380,12 @@ export function InputBindings({ pluginId = 'loxone', defaultPattern } = {}) {
   useEffect(() => {
     async function load() {
       try {
+        // Fetch display name from plugin list
+        fetch('/api/plugins').then(r => r.json()).then(plugins => {
+          const p = plugins.find(p => p.id === pluginId);
+          if (p) setPluginDisplayName(p.displayName || p.name || pluginId);
+        }).catch(() => {});
+
         const [b, c] = await Promise.all([
           fetchInputBindings(pluginId),
           fetchLoxoneControlsDetailed().catch(() => []),
@@ -454,7 +461,7 @@ export function InputBindings({ pluginId = 'loxone', defaultPattern } = {}) {
       <div class="page-header">
         MQTT Input Bindings
         <span style="font-size:14px;color:var(--ve-text-dim);font-weight:400;margin-left:8px;">
-          MQTT → ${pluginId}
+          MQTT → ${pluginDisplayName}
         </span>
       </div>
 
