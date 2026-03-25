@@ -1342,6 +1342,9 @@ body {
   text-align: center;
 }
 .mood-id-input:focus { border-color: var(--ve-blue); outline: none; }
+.mood-id-input::-webkit-inner-spin-button,
+.mood-id-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.mood-id-input { -moz-appearance: textfield; }
 .mood-name-input {
   width: 100%;
   background: var(--ve-bg-surface);
