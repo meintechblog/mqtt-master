@@ -26,25 +26,16 @@ export default class MqttBridgePlugin {
     /** @type {Map<string, { localTopic: string, value: any, ts: number }>} remote topic -> state */
     this._topicCache = new Map();
 
-    /** @type {BindingsManager} */
-    this._bindings = new BindingsManager({
-      configKey: 'plugins.mqtt-bridge',
-      sendToTarget: (uuid, value) => {
-        try {
-          const loxone = this._ctx?.pluginManager?.getInstance('loxone');
-          if (loxone && typeof loxone.sendControlCommand === 'function') {
-            loxone.sendControlCommand(uuid, value);
-          }
-        } catch { /* Loxone plugin not available */ }
-      },
-    });
+    /** @type {BindingsManager|null} */
+    this._bindings = null;
   }
 
   async start(context) {
     this._ctx = context;
-    const { configService, logger } = context;
+    const { configService, logger, pluginId } = context;
+    this._pluginId = pluginId || 'mqtt-bridge';
 
-    this._config = configService.get('plugins.mqtt-bridge', {});
+    this._config = configService.get(`plugins.${this._pluginId}`, {});
     const {
       brokerUrl = '',
       subscribeTopic = '#',
@@ -161,6 +152,17 @@ export default class MqttBridgePlugin {
     });
 
     // Set up input bindings (local MQTT topic → Loxone control via main MQTT)
+    this._bindings = new BindingsManager({
+      configKey: `plugins.${this._pluginId}`,
+      sendToTarget: (uuid, value) => {
+        try {
+          const loxone = this._ctx?.pluginManager?.getInstance('loxone');
+          if (loxone && typeof loxone.sendControlCommand === 'function') {
+            loxone.sendControlCommand(uuid, value);
+          }
+        } catch { /* Loxone plugin not available */ }
+      },
+    });
     this._bindings.init(context, this._config);
 
     this._running = true;
@@ -178,7 +180,7 @@ export default class MqttBridgePlugin {
       this._client = null;
     }
 
-    this._bindings.cleanup();
+    if (this._bindings) this._bindings.cleanup();
 
     this._running = false;
     this._connected = false;
