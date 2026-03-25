@@ -88,9 +88,15 @@ describe('LoxoneStructure', () => {
       expect(structure.slugify('Living Room')).toBe('living-room');
     });
 
-    it('converts special characters: "Buro/Office" to "b-ro-office"', () => {
-      // Simulating umlaut-like chars; the actual umlaut u gets stripped
-      expect(structure.slugify('Büro/Office')).toBe('b-ro-office');
+    it('converts German umlauts: "Büro/Office" to "buero-office"', () => {
+      expect(structure.slugify('Büro/Office')).toBe('buero-office');
+    });
+
+    it('converts all German special characters', () => {
+      expect(structure.slugify('Netzzähler')).toBe('netzzaehler');
+      expect(structure.slugify('Türöffner')).toBe('tueroeffner');
+      expect(structure.slugify('Außentemperatur')).toBe('aussentemperatur');
+      expect(structure.slugify('Kühlschränke')).toBe('kuehlschraenke');
     });
 
     it('returns "unknown" for empty string', () => {

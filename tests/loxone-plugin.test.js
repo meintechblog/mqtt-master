@@ -124,7 +124,9 @@ vi.mock('../plugins/loxone/loxone-structure.js', () => {
 
     slugify(str) {
       if (!str) return 'unknown';
-      return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      return str.toLowerCase()
+        .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+        .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     }
   }
 
