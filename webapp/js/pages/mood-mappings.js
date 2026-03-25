@@ -7,7 +7,7 @@ import { navGuard } from '../app.js';
 const ALL_IDS = [-1, ...Array.from({ length: 32 }, (_, i) => i), 777, 778];
 
 /** IDs where the name is fixed and not editable */
-const LOCKED_NAMES = { '-1': 'Manuell', '777': 'Viel Licht', '778': 'Aus' };
+const LOCKED_NAMES = { '-1': 'Manuell', '0': 'Aus', '777': 'Viel Licht', '778': 'Aus' };
 
 /** Ensure a section has all IDs, filling missing ones with '' */
 function fillSection(section) {
