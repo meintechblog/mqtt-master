@@ -208,6 +208,14 @@ export function MoodMappings({ pluginId = 'loxone' } = {}) {
             </div>
           `}
 
+          ${hasChanges && html`
+            <div class="mood-actions-bar">
+              <div style="flex:1"></div>
+              <button class="lox-push-btn" onClick=${handleDiscard}>Discard</button>
+              <button class="lox-cmd-btn" onClick=${handleSave}>Save</button>
+            </div>
+          `}
+
           <div class="mood-list">
             <div class="mood-row mood-row--header">
               <span class="mood-id-col">ID</span>
