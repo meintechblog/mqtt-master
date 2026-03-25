@@ -117,9 +117,10 @@ export default class LoxonePlugin {
       this._ws.on(event, handler);
     }
 
-    // 5. Subscribe to MQTT cmd topics
+    // 5. Subscribe to MQTT cmd topics (name-based and UUID-based)
     mqttService.subscribe(`${prefix}/+/+/cmd`);
     mqttService.subscribe(`${prefix}/+/+/+/cmd`);
+    mqttService.subscribe(`${prefix}/by-uuid/+/cmd`);
 
     // 6. Wire MQTT messages -> WebSocket commands
     this._mqttHandler = (msg) => this._onMqttMessage(msg);
@@ -199,6 +200,7 @@ export default class LoxonePlugin {
     if (mqttService) {
       mqttService.unsubscribe(`${this._prefix}/+/+/cmd`);
       mqttService.unsubscribe(`${this._prefix}/+/+/+/cmd`);
+      mqttService.unsubscribe(`${this._prefix}/by-uuid/+/cmd`);
     }
 
     // 4. Remove MQTT message listener
@@ -398,9 +400,12 @@ export default class LoxonePlugin {
     const meta = this._structure.getMeta(uuid);
     if (!meta) return;
 
-    this._ctx.mqttService.publish(`${meta.topic}/state`, JSON.stringify({
+    const payload = JSON.stringify({
       value, name: meta.name, type: meta.type, uuid: meta.uuid, room: meta.room,
-    }));
+    });
+    this._ctx.mqttService.publish(`${meta.topic}/state`, payload);
+    // Parallel UUID-based topic for rename-safe subscriptions
+    this._ctx.mqttService.publish(`${this._prefix}/by-uuid/${meta.uuid}/state`, payload);
     this._lastEvent = Date.now();
     this._messageCount++;
   }
@@ -423,9 +428,11 @@ export default class LoxonePlugin {
       }
     }
 
-    this._ctx.mqttService.publish(`${meta.topic}/state`, JSON.stringify({
+    const payload = JSON.stringify({
       text, name: meta.name, type: meta.type, uuid: meta.uuid, room: meta.room,
-    }));
+    });
+    this._ctx.mqttService.publish(`${meta.topic}/state`, payload);
+    this._ctx.mqttService.publish(`${this._prefix}/by-uuid/${meta.uuid}/state`, payload);
     this._lastEvent = Date.now();
     this._messageCount++;
   }
@@ -433,8 +440,17 @@ export default class LoxonePlugin {
   _onMqttMessage({ topic, payload }) {
     if (!topic.startsWith(this._prefix + '/') || !topic.endsWith('/cmd')) return;
 
-    const controlTopic = topic.slice(0, -4);
-    const uuid = this._structure.topicToUuid(controlTopic);
+    let uuid;
+    const uuidPrefix = `${this._prefix}/by-uuid/`;
+
+    if (topic.startsWith(uuidPrefix)) {
+      // UUID-based: loxone/by-uuid/{uuid}/cmd
+      uuid = topic.slice(uuidPrefix.length, -4); // strip prefix and /cmd
+    } else {
+      // Name-based: loxone/{room}/{control}/cmd
+      const controlTopic = topic.slice(0, -4);
+      uuid = this._structure.topicToUuid(controlTopic);
+    }
 
     if (!uuid) {
       this._ctx.logger.warn(`No UUID found for cmd topic: ${topic}`);

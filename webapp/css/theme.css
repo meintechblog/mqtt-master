@@ -824,6 +824,18 @@ body {
 .lox-topic-row:hover .lox-topic-copy { opacity: 1; }
 .lox-topic-copy:hover { color: var(--ve-text-primary); background: var(--ve-bg-widget); }
 .lox-topic-copy:active { color: var(--ve-green); }
+.lox-topic-stable {
+  font-size: 9px;
+  background: rgba(80, 200, 120, 0.15);
+  color: var(--ve-green);
+  padding: 1px 4px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  vertical-align: middle;
+  margin-left: 4px;
+}
 .lox-topic-label {
   color: var(--ve-text-dim);
   font-size: 11px;

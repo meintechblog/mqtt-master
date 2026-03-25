@@ -57,6 +57,7 @@ function CategorySection({ group, search, typeFilter, expanded, setExpanded, onC
               prevValues.current[item.uuid] = val;
 
               const topics = [];
+              const prefix = item.topic ? item.topic.split('/')[0] : 'loxone';
               if (item.topic) {
                 if (item.states) {
                   for (const [key, state] of Object.entries(item.states)) {
@@ -69,6 +70,8 @@ function CategorySection({ group, search, typeFilter, expanded, setExpanded, onC
                 if (controllable) {
                   topics.push({ topic: item.topic + '/cmd', label: 'command', value: null, dir: 'in' });
                 }
+                // UUID-based stable topics (rename-safe)
+                topics.push({ topic: prefix + '/by-uuid/' + item.uuid + '/cmd', label: 'command (stable)', value: null, dir: 'in', stable: true });
               }
 
               return html`
@@ -108,7 +111,7 @@ function CategorySection({ group, search, typeFilter, expanded, setExpanded, onC
                           <button class="lox-topic-copy" onClick=${(e) => { e.stopPropagation(); navigator.clipboard.writeText(t.topic); }} title="Copy topic">
                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                           </button>
-                          <span class="lox-topic-label">${t.label}</span>
+                          <span class="lox-topic-label">${t.label}${t.stable ? html` <span class="lox-topic-stable" title="UUID-based — survives renames in Loxone Config">stable</span>` : ''}</span>
                           ${t.value != null && html`
                             <span class="lox-topic-val">${typeof t.value === 'number' ? (Number.isInteger(t.value) ? t.value : t.value.toFixed(3)) : t.value}</span>
                           `}
