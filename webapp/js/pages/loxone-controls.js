@@ -44,10 +44,11 @@ function CategorySection({ group, search, typeFilter, expanded, setExpanded, onC
           ${filtered.map(r => html`
             ${filtered.length > 1 && html`<div class="bridge-group-label">${r.room}</div>`}
             ${r.items.map(item => {
-              const val = primaryValue(item.type, item.states);
+              const val = primaryValue(item.type, item.states, { moods: item.moods, activeMoodIds: item.activeMoodIds });
               const controllable = isControllable(item.type);
               const isOn = item.type === 'Switch' ? item.states?.active?.value > 0
                 : item.type === 'Dimmer' ? item.states?.position?.value > 0
+                : item.type === 'LightControllerV2' ? (item.activeMoodIds?.length > 0)
                 : false;
               const isExpanded = expanded === item.uuid;
 

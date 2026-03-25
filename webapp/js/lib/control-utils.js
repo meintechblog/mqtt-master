@@ -5,7 +5,7 @@
 import { fmtNum } from './format.js';
 
 /** Extract the primary display value from states based on control type */
-export function primaryValue(type, states) {
+export function primaryValue(type, states, extra) {
   if (!states) return null;
   switch (type) {
     case 'Switch':
@@ -20,6 +20,16 @@ export function primaryValue(type, states) {
       return states.actual != null ? fmtNum(states.actual.value) + ' kW' : null;
     case 'Jalousie':
       return states.position != null ? Math.round(states.position.value * 100) + '%' : null;
+    case 'LightControllerV2': {
+      // Show active mood name or ID
+      const moods = extra?.moods || [];
+      const moodIds = extra?.activeMoodIds || [];
+      if (moodIds.length > 0) {
+        const mood = moods.find(m => m.id === moodIds[0]);
+        return mood ? mood.name : `Mood #${moodIds[0]}`;
+      }
+      return null;
+    }
     default:
       return null;
   }
@@ -37,20 +47,8 @@ export function isSensor(type) {
 export function flattenControls(controls) {
   const items = [];
   for (const ctrl of controls) {
-    if (ctrl.subControls && ctrl.subControls.length > 0) {
-      for (const sub of ctrl.subControls) {
-        items.push({
-          uuid: sub.uuid,
-          name: sub.name,
-          type: sub.type,
-          room: ctrl.room,
-          category: ctrl.category,
-          topic: sub.topic,
-          states: sub.states,
-          parentName: ctrl.name,
-        });
-      }
-    } else {
+    // Always include the parent control if it's controllable/sensor
+    if (isControllable(ctrl.type) || isSensor(ctrl.type)) {
       items.push({
         uuid: ctrl.uuid,
         name: ctrl.name,
@@ -59,11 +57,30 @@ export function flattenControls(controls) {
         category: ctrl.category,
         topic: ctrl.topic,
         states: ctrl.states,
+        moods: ctrl.moods,
+        activeMoodIds: ctrl.activeMoodIds,
         parentName: null,
       });
     }
+    // Include sub-controls
+    if (ctrl.subControls && ctrl.subControls.length > 0) {
+      for (const sub of ctrl.subControls) {
+        if (isControllable(sub.type) || isSensor(sub.type)) {
+          items.push({
+            uuid: sub.uuid,
+            name: sub.name,
+            type: sub.type,
+            room: ctrl.room,
+            category: ctrl.category,
+            topic: sub.topic,
+            states: sub.states,
+            parentName: ctrl.name,
+          });
+        }
+      }
+    }
   }
-  return items.filter(item => isControllable(item.type) || isSensor(item.type));
+  return items;
 }
 
 /** Group items by category, then by room within each category */
