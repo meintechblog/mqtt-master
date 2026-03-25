@@ -117,7 +117,7 @@ function CategorySection({ group, search, typeFilter, expanded, setExpanded, onC
   `;
 }
 
-export function LoxoneControls() {
+export function LoxoneControls({ pluginId = 'loxone' } = {}) {
   const [controls, setControls] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -130,7 +130,7 @@ export function LoxoneControls() {
   async function loadControls() {
     try {
       setError(null);
-      const data = await fetchLoxoneControlsDetailed();
+      const data = await fetchLoxoneControlsDetailed(pluginId);
       setControls(data);
     } catch (err) {
       setError(err.message);
@@ -141,19 +141,22 @@ export function LoxoneControls() {
   }
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
+    setControls([]);
     loadControls();
     const interval = setInterval(async () => {
       try {
-        const data = await fetchLoxoneControlsDetailed();
+        const data = await fetchLoxoneControlsDetailed(pluginId);
         setControls(data);
       } catch { /* ignore */ }
     }, 2000);
     return () => clearInterval(interval);
-  }, []);
+  }, [pluginId]);
 
   const handleCmd = useCallback(async (uuid, command) => {
     try {
-      await sendLoxoneCommand(uuid, command);
+      await sendLoxoneCommand(uuid, command, pluginId);
       setToast({ type: 'ok', text: command });
     } catch (err) {
       setToast({ type: 'error', text: err.message });
@@ -166,7 +169,7 @@ export function LoxoneControls() {
   if (error) {
     return html`
       <div>
-        <div class="page-header">Loxone Elements</div>
+        <div class="page-header">Elements</div>
         <div class="ve-card" style="padding:20px;color:var(--ve-text-dim);">
           Plugin not running or unavailable: ${error}
         </div>
@@ -193,7 +196,7 @@ export function LoxoneControls() {
   return html`
     <div>
       <div class="page-header">
-        Loxone Elements
+        Elements
         <span style="font-size:14px;color:var(--ve-text-dim);font-weight:400;margin-left:8px;">
           (${filteredCount}${filteredCount !== allItems.length ? ' / ' + allItems.length : ''})
         </span>

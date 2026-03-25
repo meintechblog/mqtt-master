@@ -226,7 +226,7 @@ function StepPickTarget({ source, field, controls, existingBindings, onSelect, o
 
   return html`
     <div class="wiz-step">
-      <div class="wiz-step-title">3. Select Loxone Target</div>
+      <div class="wiz-step-title">3. Select Target</div>
       <div class="wiz-step-desc">
         Where should <strong>${field.key}</strong> be sent to?
       </div>

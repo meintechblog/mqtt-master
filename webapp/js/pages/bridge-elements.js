@@ -158,7 +158,7 @@ export function BridgeElements({ pluginId = 'mqtt-bridge' } = {}) {
   if (error) {
     return html`
       <div>
-        <div class="page-header">MQTT-Bridge Elements</div>
+        <div class="page-header">Elements</div>
         <div class="ve-card" style="padding:20px;color:var(--ve-text-dim);">
           Plugin not running or unavailable: ${error}
         </div>
@@ -177,7 +177,7 @@ export function BridgeElements({ pluginId = 'mqtt-bridge' } = {}) {
   return html`
     <div>
       <div class="page-header">
-        MQTT-Bridge Elements
+        Elements
         <span style="font-size:14px;color:var(--ve-text-dim);font-weight:400;margin-left:8px;">
           (${visibleCount}${visibleCount !== elements.length ? ' / ' + elements.length : ''})
         </span>

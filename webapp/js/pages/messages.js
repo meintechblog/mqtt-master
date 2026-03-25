@@ -305,7 +305,7 @@ function CreateBindingDialog({ topic, value, onClose }) {
           </select>
         </div>
         <div style="margin-bottom:12px;">
-          <div class="ve-modal-field-label">Loxone Target</div>
+          <div class="ve-modal-field-label">Target Control</div>
           <input
             type="text"
             class="bind-input"
