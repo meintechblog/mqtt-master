@@ -19,7 +19,7 @@ BRANCH="main"
 SERVICE_NAME="mqtt-master"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 APP_USER="mqtt-master"
-APP_PORT=3000
+APP_PORT=80
 NODE_MAJOR=20
 
 # Colors
@@ -165,7 +165,7 @@ if [ ! -f "${APP_DIR}/config.json" ]; then
     cat > "${APP_DIR}/config.json" << 'CFGEOF'
 {
   "mqtt": { "broker": "mqtt://localhost:1883" },
-  "web": { "port": 3000 },
+  "web": { "port": 80 },
   "logLevel": "info"
 }
 CFGEOF
@@ -176,6 +176,15 @@ fi
 # Set permissions
 # ---------------------------------------------------------------------------
 chown -R "${APP_USER}:${APP_USER}" "${APP_DIR}"
+
+# ---------------------------------------------------------------------------
+# Allow Node.js to bind to port 80
+# ---------------------------------------------------------------------------
+NODE_BIN=$(command -v node)
+if [ -n "${NODE_BIN}" ]; then
+    setcap cap_net_bind_service=+ep "${NODE_BIN}"
+    ok "Node.js allowed to bind port 80"
+fi
 
 # ---------------------------------------------------------------------------
 # Install / update systemd service
@@ -210,7 +219,11 @@ fi
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 IP=$(hostname -I | awk '{print $1}')
-echo -e "  Dashboard:   ${BLUE}http://${IP}:${APP_PORT}${NC}"
+if [ "${APP_PORT}" = "80" ]; then
+    echo -e "  Dashboard:   ${BLUE}http://${IP}${NC}"
+else
+    echo -e "  Dashboard:   ${BLUE}http://${IP}:${APP_PORT}${NC}"
+fi
 echo -e "  MQTT Broker: ${BLUE}mqtt://${IP}:1883${NC}"
 echo -e "  WebSocket:   ${BLUE}ws://${IP}:9001${NC}"
 echo ""

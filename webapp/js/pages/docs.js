@@ -153,7 +153,7 @@ journalctl -u mqtt-master -f     # View live logs`} />
       <!-- Quick Start -->
       <${Section} id="quickstart" title="Quick Start">
         <ol class="docs-list docs-list--ordered">
-          <li>Open the dashboard at <code>http://&lt;server-ip&gt;:3000</code></li>
+          <li>Open the dashboard at <code>http://&lt;server-ip&gt;</code></li>
           <li>Click the <strong>+</strong> button next to "Plugins" in the sidebar</li>
           <li>Choose a plugin type: <strong>Loxone</strong> or <strong>MQTT Bridge</strong></li>
           <li>Enter connection details and click <strong>Save</strong></li>

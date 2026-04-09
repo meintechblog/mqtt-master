@@ -139,7 +139,7 @@ if [ ! -f "${APP_DIR}/config.json" ]; then
     cat > "${APP_DIR}/config.json" << 'CFGEOF'
 {
   "mqtt": { "broker": "mqtt://localhost:1883" },
-  "web": { "port": 3000 },
+  "web": { "port": 80 },
   "logLevel": "info"
 }
 CFGEOF

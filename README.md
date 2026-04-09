@@ -107,7 +107,7 @@ Both options install:
 - Mosquitto MQTT broker (port 1883 + WebSocket 9001, anonymous LAN access)
 - MQTT Master as systemd service with auto-restart
 
-After installation: `http://<your-server-ip>:3000`
+After installation: `http://<your-server-ip>`
 
 ## Updating
 
@@ -119,7 +119,7 @@ wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/instal
 
 ## Quick Start
 
-1. Open the dashboard at `http://<server-ip>:3000`
+1. Open the dashboard at `http://<server-ip>`
 2. Click the **+** button next to "Plugins" in the sidebar
 3. Choose **Loxone** or **MQTT-Bridge**
 4. For MQTT-Bridge: pick a preset (e.g. Venus OS) or start with a custom config
