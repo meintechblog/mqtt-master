@@ -10,6 +10,7 @@ import { InputBindings } from './pages/input-bindings.js';
 import { BridgeElements } from './pages/bridge-elements.js';
 import { MoodMappings } from './pages/mood-mappings.js';
 import { NotFound } from './pages/not-found.js';
+import { Docs } from './pages/docs.js';
 
 const currentHash = signal(window.location.hash || '#/dashboard');
 
@@ -42,6 +43,7 @@ window.addEventListener('hashchange', () => {
 const routes = {
   '#/dashboard': Dashboard,
   '#/messages': Messages,
+  '#/docs': Docs,
 };
 
 /**

@@ -23,6 +23,7 @@ const brokerSection = {
   items: [
     { label: 'Dashboard', hash: '#/dashboard' },
     { label: 'Live Messages', hash: '#/messages' },
+    { label: 'Documentation', hash: '#/docs' },
   ],
 };
 

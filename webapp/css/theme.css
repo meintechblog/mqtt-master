@@ -1398,3 +1398,181 @@ body {
   align-items: center;
   margin-top: 12px;
 }
+
+/* ─── Documentation page ─── */
+.docs-page { max-width: 820px; }
+
+.docs-intro {
+  color: var(--ve-text-secondary);
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+/* Table of contents */
+.docs-toc {
+  background: var(--ve-bg-surface);
+  border: 1px solid var(--ve-border);
+  border-radius: var(--ve-radius-lg);
+  padding: 16px 20px;
+  margin-bottom: 32px;
+}
+.docs-toc-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ve-text-dim);
+  margin-bottom: 8px;
+}
+.docs-toc-link {
+  display: block;
+  color: var(--ve-blue);
+  text-decoration: none;
+  font-size: 14px;
+  padding: 3px 0;
+  transition: color 0.15s;
+}
+.docs-toc-link:hover { color: var(--ve-text-primary); }
+.docs-toc-sub { padding-left: 16px; font-size: 13px; }
+
+/* Sections */
+.docs-section {
+  margin-bottom: 36px;
+  padding-bottom: 36px;
+  border-bottom: 1px solid var(--ve-border);
+}
+.docs-section:last-of-type { border-bottom: none; }
+.docs-section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ve-text-primary);
+  margin-bottom: 12px;
+}
+.docs-h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ve-text-secondary);
+  margin: 20px 0 8px;
+}
+.docs-section p {
+  color: var(--ve-text-secondary);
+  font-size: 14px;
+  line-height: 1.65;
+  margin-bottom: 12px;
+}
+
+/* Code blocks */
+.docs-code-block {
+  position: relative;
+  background: #0d0d0d;
+  border: 1px solid var(--ve-border);
+  border-radius: var(--ve-radius-sm);
+  margin: 10px 0 16px;
+  overflow-x: auto;
+}
+.docs-code-block pre {
+  margin: 0;
+  padding: 14px 16px;
+  font-family: var(--ve-font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ve-text-primary);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.docs-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--ve-bg-surface);
+  border: 1px solid var(--ve-border);
+  border-radius: var(--ve-radius-sm);
+  color: var(--ve-text-dim);
+  font-size: 11px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.docs-copy-btn:hover { color: var(--ve-text-primary); border-color: var(--ve-text-dim); }
+
+/* Inline code */
+.docs-section code {
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: var(--ve-font-mono);
+  font-size: 13px;
+  color: var(--ve-orange);
+}
+.docs-code-block code {
+  background: none;
+  padding: 0;
+  color: var(--ve-text-primary);
+}
+
+/* Tables */
+.docs-table-wrap {
+  overflow-x: auto;
+  margin: 10px 0 16px;
+}
+.docs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.docs-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ve-text-dim);
+  border-bottom: 1px solid var(--ve-border);
+  background: var(--ve-bg-surface);
+}
+.docs-table td {
+  padding: 8px 12px;
+  color: var(--ve-text-secondary);
+  border-bottom: 1px solid rgba(100,99,95,0.3);
+}
+.docs-table tr:hover td { background: rgba(56,125,197,0.04); }
+
+/* Lists */
+.docs-list {
+  padding-left: 20px;
+  margin: 8px 0 16px;
+  color: var(--ve-text-secondary);
+  font-size: 14px;
+  line-height: 1.65;
+}
+.docs-list li { margin-bottom: 4px; }
+.docs-list--ordered { list-style: decimal; }
+
+/* Callouts */
+.docs-callout {
+  border-left: 3px solid var(--ve-blue);
+  background: rgba(56,125,197,0.06);
+  border-radius: 0 var(--ve-radius-sm) var(--ve-radius-sm) 0;
+  padding: 12px 16px;
+  margin: 12px 0 16px;
+  font-size: 13px;
+  color: var(--ve-text-secondary);
+  line-height: 1.5;
+}
+.docs-callout--info { border-left-color: var(--ve-blue); }
+.docs-callout--warn { border-left-color: var(--ve-orange); background: rgba(240,150,46,0.06); }
+
+/* Footer */
+.docs-footer {
+  padding-top: 24px;
+  text-align: center;
+}
+.docs-footer-link {
+  color: var(--ve-text-dim);
+  text-decoration: none;
+  font-size: 13px;
+  transition: color 0.15s;
+}
+.docs-footer-link:hover { color: var(--ve-blue); }
