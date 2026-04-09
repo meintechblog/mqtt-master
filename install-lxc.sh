@@ -74,15 +74,16 @@ log "Using Container ID: ${CTID}"
 # Download Debian template
 # ---------------------------------------------------------------------------
 log "Checking for Debian template..."
-TEMPLATE=$(pveam list "${TEMPLATE_STORAGE}" 2>/dev/null | grep -oP 'debian-12-standard_[^\s]+' | sort -V | tail -1)
+TEMPLATE=$(pveam list "${TEMPLATE_STORAGE}" 2>/dev/null | grep -oP 'debian-12-standard_[^\s]+' | sort -V | tail -1 || true)
 
 if [ -z "${TEMPLATE}" ]; then
-    log "Downloading Debian 12 template..."
-    pveam update >/dev/null 2>&1
-    TEMPLATE_NAME=$(pveam available --section system | grep -oP 'debian-12-standard_[^\s]+' | sort -V | tail -1)
+    log "No local template found. Downloading Debian 12..."
+    pveam update >/dev/null 2>&1 || true
+    TEMPLATE_NAME=$(pveam available --section system 2>/dev/null | grep -oP 'debian-12-standard_[^\s]+' | sort -V | tail -1 || true)
     if [ -z "${TEMPLATE_NAME}" ]; then
         err "No Debian 12 template found. Download one manually via Proxmox web UI."
     fi
+    log "Downloading ${TEMPLATE_NAME}..."
     pveam download "${TEMPLATE_STORAGE}" "${TEMPLATE_NAME}"
     TEMPLATE="${TEMPLATE_NAME}"
 fi
