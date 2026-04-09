@@ -79,13 +79,30 @@ MQTT Master provides a real-time web interface for monitoring your Mosquitto MQT
 
 ## Installation
 
+### Option 1: Proxmox LXC (recommended)
+
+One command on your Proxmox host — creates a Debian LXC container and installs everything inside:
+
+```bash
+wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/install-lxc.sh | bash
+```
+
+Customizable via environment variables:
+
+```bash
+CTID=200 CT_HOSTNAME=mqtt CT_MEMORY=1024 CT_DISK=8 \
+  wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/install-lxc.sh | bash
+```
+
+### Option 2: Direct install (Debian/Ubuntu)
+
 One command on a fresh Debian 12+ or Ubuntu 22.04+ system:
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/scripts/install.sh | bash
+wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/install.sh | bash
 ```
 
-This installs:
+Both options install:
 - Node.js 20 LTS
 - Mosquitto MQTT broker (port 1883 + WebSocket 9001, anonymous LAN access)
 - MQTT Master as systemd service with auto-restart
@@ -97,7 +114,7 @@ After installation: `http://<your-server-ip>:3000`
 Same command — detects existing installation, pulls latest code, preserves config:
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/scripts/install.sh | bash
+wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/install.sh | bash
 ```
 
 ## Quick Start

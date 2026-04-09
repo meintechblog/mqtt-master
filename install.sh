@@ -1,147 +1,222 @@
-#!/bin/bash
-# MQTT Master Installer
-# Usage: wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/install.sh | bash
+#!/usr/bin/env bash
+# ============================================================================
+# MQTT Master - Direct Installer (Debian/Ubuntu)
+# Installs MQTT Master directly on this machine.
+#
+# Usage:
+#   wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/install.sh | bash
 #   or:  bash install.sh
-set -e
+#
+# For Proxmox (creates an LXC container automatically):
+#   wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/install-lxc.sh | bash
+# ============================================================================
+set -euo pipefail
 
-export DEBIAN_FRONTEND=noninteractive
-
-INSTALL_DIR="/opt/mqtt-master"
+APP_NAME="mqtt-master"
+APP_DIR="/opt/mqtt-master"
 REPO_URL="https://github.com/meintechblog/mqtt-master.git"
-SERVICE_FILE="/etc/systemd/system/mqtt-master.service"
-MOSQUITTO_CONF="/etc/mosquitto/conf.d/mqtt-master.conf"
+BRANCH="main"
+SERVICE_NAME="mqtt-master"
+SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+APP_USER="mqtt-master"
+APP_PORT=3000
+NODE_MAJOR=20
 
-# --- Root check ---
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+log()  { echo -e "${BLUE}[MQTT Master]${NC} $1"; }
+ok()   { echo -e "${GREEN}[✓]${NC} $1"; }
+warn() { echo -e "${YELLOW}[!]${NC} $1"; }
+err()  { echo -e "${RED}[✗]${NC} $1"; exit 1; }
+
+# ---------------------------------------------------------------------------
+# Pre-checks
+# ---------------------------------------------------------------------------
 if [ "$(id -u)" -ne 0 ]; then
-  echo "Error: This script must be run as root."
-  echo "Usage: sudo bash install.sh"
-  exit 1
+    err "This script must be run as root."
 fi
 
-# --- OS check ---
-if [ ! -f /etc/os-release ]; then
-  echo "Error: Cannot detect OS. This installer supports Debian and Ubuntu only."
-  exit 1
+# --- Proxmox host detection ---
+if command -v pveversion &>/dev/null; then
+    echo ""
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${RED}  WARNING: This is a Proxmox host!${NC}"
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo -e "  You should NOT install directly on a Proxmox host."
+    echo -e "  Use the LXC installer instead — it creates a container for you:"
+    echo ""
+    echo -e "  ${GREEN}wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/install-lxc.sh | bash${NC}"
+    echo ""
+    echo -e "  To force direct install anyway, set: ${YELLOW}FORCE_HOST_INSTALL=1${NC}"
+    echo ""
+    if [ "${FORCE_HOST_INSTALL:-0}" != "1" ]; then
+        exit 1
+    fi
+    warn "FORCE_HOST_INSTALL is set — installing directly on Proxmox host..."
 fi
 
-. /etc/os-release
-if [ "$ID" != "debian" ] && [ "$ID" != "ubuntu" ]; then
-  echo "Error: Unsupported OS '$ID'. This installer supports Debian and Ubuntu only."
-  exit 1
-fi
-
-echo "============================================"
-echo "  MQTT Master Installer"
-echo "============================================"
-echo ""
-
-# --- Node.js check/install ---
-NEED_NODE=0
-if command -v node >/dev/null 2>&1; then
-  NODE_MAJOR=$(node -v | sed 's/v\([0-9]*\).*/\1/')
-  if [ "$NODE_MAJOR" -lt 20 ]; then
-    echo "Node.js v${NODE_MAJOR} found, but v20+ is required."
-    NEED_NODE=1
-  else
-    echo "Node.js $(node -v) found."
-  fi
+IS_UPDATE=false
+if [ -d "${APP_DIR}/.git" ]; then
+    IS_UPDATE=true
+    log "Existing installation detected — running update..."
 else
-  NEED_NODE=1
+    log "Starting fresh installation of MQTT Master..."
 fi
 
-if [ "$NEED_NODE" -eq 1 ]; then
-  echo "Installing Node.js 20..."
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-  apt-get install -y nodejs
-  echo "Node.js $(node -v) installed."
-fi
+# ---------------------------------------------------------------------------
+# Install Node.js (if needed)
+# ---------------------------------------------------------------------------
+install_node() {
+    if command -v node &>/dev/null; then
+        NODE_VER=$(node -v | sed 's/v//' | cut -d. -f1)
+        if [ "${NODE_VER}" -ge "${NODE_MAJOR}" ]; then
+            ok "Node.js $(node -v) already installed"
+            return
+        fi
+        log "Node.js $(node -v) is too old, upgrading..."
+    fi
 
-# --- Git install ---
-if ! command -v git >/dev/null 2>&1; then
-  echo "Installing git..."
-  apt-get install -y git
-fi
+    log "Installing Node.js ${NODE_MAJOR}.x..."
+    apt-get update -qq
+    apt-get install -y -qq ca-certificates curl gnupg > /dev/null 2>&1
+    mkdir -p /etc/apt/keyrings
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg 2>/dev/null
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" > /etc/apt/sources.list.d/nodesource.list
+    apt-get update -qq
+    apt-get install -y -qq nodejs > /dev/null 2>&1
+    ok "Node.js $(node -v) installed"
+}
 
-# --- Mosquitto install ---
-echo "Installing Mosquitto MQTT broker..."
-apt-get install -y mosquitto
+# ---------------------------------------------------------------------------
+# Install system dependencies
+# ---------------------------------------------------------------------------
+log "Installing system dependencies..."
+apt-get update -qq
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq mosquitto mosquitto-clients git > /dev/null 2>&1
+ok "System dependencies installed"
 
-if [ ! -f "$MOSQUITTO_CONF" ]; then
-  echo "Configuring Mosquitto..."
-  cat > "$MOSQUITTO_CONF" <<'MQTTCONF'
-listener 1883
+install_node
+
+# ---------------------------------------------------------------------------
+# Configure Mosquitto (only on fresh install)
+# ---------------------------------------------------------------------------
+MOSQUITTO_CONF="/etc/mosquitto/conf.d/mqtt-master.conf"
+if [ ! -f "${MOSQUITTO_CONF}" ]; then
+    log "Configuring Mosquitto for open LAN access..."
+    cat > "${MOSQUITTO_CONF}" << 'MQTTEOF'
+# MQTT Master - Open LAN Configuration
 allow_anonymous true
-MQTTCONF
+
+# MQTT listener on all interfaces
+listener 1883 0.0.0.0
+
+# WebSocket listener for web dashboard
+listener 9001 0.0.0.0
+protocol websockets
+MQTTEOF
+    systemctl restart mosquitto
+    systemctl enable mosquitto
+    ok "Mosquitto configured and started"
 else
-  echo "Mosquitto config already exists, skipping."
+    ok "Mosquitto configuration already exists"
 fi
 
-systemctl enable mosquitto
-systemctl restart mosquitto
-echo "Mosquitto running on port 1883."
-
-# --- Application install/update ---
-if [ -d "${INSTALL_DIR}/.git" ]; then
-  echo "Updating MQTT Master..."
-  cd "$INSTALL_DIR"
-  git pull
-else
-  echo "Installing MQTT Master..."
-  git clone "$REPO_URL" "$INSTALL_DIR"
-  cd "$INSTALL_DIR"
+# ---------------------------------------------------------------------------
+# Create service user
+# ---------------------------------------------------------------------------
+if ! id "${APP_USER}" &>/dev/null; then
+    useradd --system --no-create-home --shell /usr/sbin/nologin "${APP_USER}"
+    ok "Created service user: ${APP_USER}"
 fi
 
-echo "Installing Node.js dependencies..."
-cd "$INSTALL_DIR"
-npm install --production
+# ---------------------------------------------------------------------------
+# Clone or update repository
+# ---------------------------------------------------------------------------
+if [ "${IS_UPDATE}" = true ]; then
+    log "Updating from GitHub..."
+    cd "${APP_DIR}"
+    git fetch origin "${BRANCH}" --quiet
+    git reset --hard "origin/${BRANCH}" --quiet
+    ok "Repository updated"
+else
+    log "Cloning repository..."
+    git clone --branch "${BRANCH}" --depth 1 "${REPO_URL}" "${APP_DIR}" --quiet
+    ok "Repository cloned"
+fi
 
-# --- Config preservation ---
-if [ ! -f "${INSTALL_DIR}/config.json" ]; then
-  echo "Creating default config.json..."
-  cat > "${INSTALL_DIR}/config.json" <<'CFGJSON'
+# ---------------------------------------------------------------------------
+# Install Node.js dependencies
+# ---------------------------------------------------------------------------
+log "Installing dependencies..."
+cd "${APP_DIR}"
+npm install --production --quiet 2>&1 | tail -3
+ok "Dependencies installed"
+
+# ---------------------------------------------------------------------------
+# Write default config (only if missing)
+# ---------------------------------------------------------------------------
+if [ ! -f "${APP_DIR}/config.json" ]; then
+    cat > "${APP_DIR}/config.json" << 'CFGEOF'
 {
   "mqtt": { "broker": "mqtt://localhost:1883" },
   "web": { "port": 3000 },
   "logLevel": "info"
 }
-CFGJSON
-else
-  echo "Existing config.json preserved."
+CFGEOF
+    ok "Default config created"
 fi
 
-# --- systemd service ---
-echo "Configuring systemd service..."
-cat > "$SERVICE_FILE" <<'SVCUNIT'
-[Unit]
-Description=MQTT Master
-After=network.target mosquitto.service
+# ---------------------------------------------------------------------------
+# Set permissions
+# ---------------------------------------------------------------------------
+chown -R "${APP_USER}:${APP_USER}" "${APP_DIR}"
 
-[Service]
-Type=simple
-WorkingDirectory=/opt/mqtt-master
-ExecStart=/usr/bin/node server/index.js
-Restart=always
-RestartSec=5
-Environment=NODE_ENV=production
-
-[Install]
-WantedBy=multi-user.target
-SVCUNIT
-
+# ---------------------------------------------------------------------------
+# Install / update systemd service
+# ---------------------------------------------------------------------------
+log "Configuring systemd service..."
+cp "${APP_DIR}/scripts/mqtt-master.service" "${SERVICE_FILE}"
 systemctl daemon-reload
-systemctl enable mqtt-master
-systemctl restart mqtt-master
+systemctl enable "${SERVICE_NAME}"
+systemctl restart "${SERVICE_NAME}"
+ok "Service installed and started"
 
-# --- Success message ---
-echo ""
-echo "============================================"
-echo "  MQTT Master installed successfully!"
-echo "============================================"
+# ---------------------------------------------------------------------------
+# Wait for startup & verify
+# ---------------------------------------------------------------------------
+sleep 2
+if systemctl is-active --quiet "${SERVICE_NAME}"; then
+    ok "MQTT Master is running!"
+else
+    warn "Service may still be starting... check: systemctl status ${SERVICE_NAME}"
+fi
 
-IP_ADDR=$(hostname -I | awk '{print $1}')
+# ---------------------------------------------------------------------------
+# Summary
+# ---------------------------------------------------------------------------
 echo ""
-echo "  Web UI:  http://${IP_ADDR}:3000"
-echo "  Config:  ${INSTALL_DIR}/config.json"
-echo "  Service: systemctl status mqtt-master"
-echo "  Logs:    journalctl -u mqtt-master -f"
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+if [ "${IS_UPDATE}" = true ]; then
+    echo -e "${GREEN}  MQTT Master updated successfully!${NC}"
+else
+    echo -e "${GREEN}  MQTT Master installed successfully!${NC}"
+fi
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+IP=$(hostname -I | awk '{print $1}')
+echo -e "  Dashboard:   ${BLUE}http://${IP}:${APP_PORT}${NC}"
+echo -e "  MQTT Broker: ${BLUE}mqtt://${IP}:1883${NC}"
+echo -e "  WebSocket:   ${BLUE}ws://${IP}:9001${NC}"
+echo ""
+echo -e "  Manage:  ${YELLOW}systemctl {start|stop|restart|status} ${SERVICE_NAME}${NC}"
+echo -e "  Logs:    ${YELLOW}journalctl -u ${SERVICE_NAME} -f${NC}"
+echo -e "  Config:  ${YELLOW}/opt/mqtt-master/config.json${NC}"
+echo ""
+echo -e "  Update:  ${YELLOW}wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/install.sh | bash${NC}"
 echo ""
