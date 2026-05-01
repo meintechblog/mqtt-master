@@ -1,6 +1,6 @@
 {
   "name": "mqtt-master",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MQTT Master Web Dashboard",
   "type": "module",
   "main": "server/index.js",

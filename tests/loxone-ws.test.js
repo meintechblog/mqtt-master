@@ -232,6 +232,34 @@ describe('LoxoneWs', () => {
     });
   });
 
+  describe('zombie connection detection', () => {
+    it('keepalive watchdog hard-terminates the socket so reconnect always runs', () => {
+      const terminate = vi.fn();
+      const close = vi.fn();
+      ws._ws = { terminate, close, readyState: 1 };
+
+      ws._startKeepaliveWatchdog();
+      vi.advanceTimersByTime(15_000);
+
+      expect(terminate).toHaveBeenCalledTimes(1);
+      expect(close).not.toHaveBeenCalled();
+    });
+
+    it('sendCommand falls back to terminate when the underlying socket throws', () => {
+      const terminate = vi.fn();
+      ws._ws = {
+        readyState: 1,
+        send: () => { throw new Error('write EPIPE'); },
+        terminate,
+        close: vi.fn(),
+      };
+
+      ws.sendCommand('keepalive');
+
+      expect(terminate).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('reconnect backoff calculation', () => {
     it('calculates exponential backoff: 1s, 2s, 4s, 8s, 16s, 30s, 30s', () => {
       const expected = [1000, 2000, 4000, 8000, 16000, 30000, 30000];

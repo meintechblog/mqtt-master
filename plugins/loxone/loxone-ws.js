@@ -127,8 +127,12 @@ export class LoxoneWs extends EventEmitter {
    * @param {string} cmd
    */
   sendCommand(cmd) {
-    if (this._ws && this._ws.readyState === WebSocket.OPEN) {
+    if (!this._ws || this._ws.readyState !== WebSocket.OPEN) return;
+    try {
       this._ws.send(cmd);
+    } catch {
+      // Underlying socket failed -- force a hard close so the reconnect path runs.
+      this._forceClose();
     }
   }
 
@@ -656,10 +660,23 @@ export class LoxoneWs extends EventEmitter {
   _startKeepaliveWatchdog() {
     if (this._keepaliveTimeout) clearTimeout(this._keepaliveTimeout);
     this._keepaliveTimeout = setTimeout(() => {
-      if (this._ws) {
-        this._ws.close();
-      }
+      // Hard-close: a dead Miniserver never finishes the WS close handshake,
+      // which would leave the socket stuck in CLOSING and skip the reconnect path.
+      this._forceClose();
     }, KEEPALIVE_TIMEOUT);
+  }
+
+  /**
+   * Force the WebSocket shut via TCP RST so the close handler always fires,
+   * even when the peer is unresponsive.
+   */
+  _forceClose() {
+    if (!this._ws) return;
+    try {
+      this._ws.terminate();
+    } catch {
+      // ignore; close handler will still run
+    }
   }
 
   /**
