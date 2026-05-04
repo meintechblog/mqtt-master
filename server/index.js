@@ -13,6 +13,8 @@ import wsMessages from './routes/ws-messages.js';
 import apiPlugins from './routes/api-plugins.js';
 import apiSystem from './routes/api-system.js';
 import apiDiscovery from './routes/api-discovery.js';
+import apiUpdate from './routes/api-update.js';
+import { UpdateService } from './services/update-service.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -53,6 +55,12 @@ export async function start(opts = {}) {
   const topicCacheService = new TopicCacheService(mqttService);
   app.decorate('topicCacheService', topicCacheService);
 
+  // UpdateService -- periodic GitHub poll + auto-apply via the sibling
+  // mqtt-master-updater.service unit.
+  const updateService = new UpdateService({ config, logger: app.log });
+  app.decorate('updateService', updateService);
+  updateService.start();
+
   // Plugin system
   const pluginManager = new PluginManager({
     pluginDir: config.get('pluginDir', join(__dirname, '..', 'plugins')),
@@ -67,6 +75,7 @@ export async function start(opts = {}) {
   await app.register(apiPlugins);
   await app.register(apiSystem);
   await app.register(apiDiscovery);
+  await app.register(apiUpdate);
 
   // WebSocket routes
   await app.register(wsDashboard);

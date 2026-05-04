@@ -35,6 +35,26 @@ export function fetchAllBindings() {
   return request('/api/bindings');
 }
 
+/** GET /api/update/status -- current version + GitHub-poll state + auto-update settings */
+export function fetchUpdateStatus() {
+  return request('/api/update/status');
+}
+
+/** POST /api/update/check -- force a fresh GitHub /commits/main check */
+export function triggerUpdateCheck() {
+  return request('/api/update/check', { method: 'POST', body: JSON.stringify({}) });
+}
+
+/** POST /api/update/run -- spawn the sibling updater unit (manual trigger) */
+export function triggerUpdateRun() {
+  return request('/api/update/run', { method: 'POST', body: JSON.stringify({}) });
+}
+
+/** PUT /api/update/settings -- toggle autoApply / autoUpdateHour */
+export function saveUpdateSettings(patch) {
+  return request('/api/update/settings', { method: 'PUT', body: JSON.stringify(patch) });
+}
+
 /** POST /api/plugins/:id/start */
 export function startPlugin(id) {
   return request(`/api/plugins/${encodeURIComponent(id)}/start`, { method: 'POST' });

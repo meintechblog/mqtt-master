@@ -203,6 +203,12 @@ fi
 # ---------------------------------------------------------------------------
 log "Configuring systemd service..."
 cp "${APP_DIR}/scripts/mqtt-master.service" "${SERVICE_FILE}"
+# Sibling self-updater unit (triggered on-demand, never enabled).
+if [ -f "${APP_DIR}/scripts/update/mqtt-master-updater.service" ]; then
+    cp "${APP_DIR}/scripts/update/mqtt-master-updater.service" "/etc/systemd/system/mqtt-master-updater.service"
+    chmod +x "${APP_DIR}/scripts/update/run-update.sh" 2>/dev/null || true
+    ok "Self-updater unit installed"
+fi
 systemctl daemon-reload
 systemctl enable "${SERVICE_NAME}"
 systemctl restart "${SERVICE_NAME}"

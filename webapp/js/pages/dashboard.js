@@ -1,7 +1,7 @@
 import { html } from 'htm/preact';
 import { useEffect, useState, useRef } from 'preact/hooks';
 import { dashboardState, brokerConnected } from '../lib/ws-client.js';
-import { fetchPlugins, fetchSystemInfo } from '../lib/api-client.js';
+import { fetchPlugins, fetchSystemInfo, fetchUpdateStatus, triggerUpdateCheck, triggerUpdateRun, saveUpdateSettings } from '../lib/api-client.js';
 import { StatusDot } from '../components/status-dot.js';
 import { fmtRate, fmtTotal, fmtUptime } from '../lib/format.js';
 
@@ -103,6 +103,126 @@ function ConnectionCard({ info }) {
         Diese Adressen erreichen MQTT Master und den lokalen Mosquitto-Broker aus dem LAN.
         Anonymer Zugriff ist auf Port 1883 (MQTT) und 9001 (WebSocket) konfiguriert.
       </div>
+    </div>
+  `;
+}
+
+function fmtRelativeTime(iso) {
+  if (!iso) return 'never';
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return iso;
+  const sec = Math.max(0, Math.floor((Date.now() - t) / 1000));
+  if (sec < 60) return `${sec}s ago`;
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
+  return `${Math.floor(sec / 86400)}d ago`;
+}
+
+function UpdateCard() {
+  const [status, setStatus] = useState(null);
+  const [checking, setChecking] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function refresh() {
+    try { setStatus(await fetchUpdateStatus()); }
+    catch (err) { setError(err.message); }
+  }
+
+  useEffect(() => {
+    refresh();
+    const t = setInterval(refresh, 15000);
+    return () => clearInterval(t);
+  }, []);
+
+  async function handleCheck() {
+    setChecking(true); setError(null);
+    try { await triggerUpdateCheck(); await refresh(); }
+    catch (err) { setError(err.message); }
+    finally { setChecking(false); }
+  }
+  async function handleRun() {
+    setRunning(true); setError(null);
+    try { await triggerUpdateRun(); }
+    catch (err) { setError(err.message); }
+    // Don't await refresh — the service is about to restart, the polling
+    // interval will pick the new state up once we're back online.
+    setTimeout(refresh, 4000);
+    setRunning(false);
+  }
+  async function handleToggleAuto(e) {
+    try { setStatus(await saveUpdateSettings({ autoApply: e.target.checked })); }
+    catch (err) { setError(err.message); }
+  }
+
+  if (!status) return html`
+    <div class="dash-card">
+      <div class="dash-card-title"><${StatusDot} status="stopped" /> Auto-Update</div>
+      <div style="font-size:13px;color:var(--ve-text-dim);">Loading...</div>
+    </div>
+  `;
+
+  const v = status.current || {};
+  const installing = status.runState?.updateStatus === 'installing';
+  const rolledBack = status.runState?.rollbackHappened;
+  // Status dot maps onto existing .status-dot--<x> classes (connected/error/stopped).
+  // Orange for "update available" reuses the .status-dot--error styling — close
+  // enough visually without inventing a new colour token.
+  const dotStatus = installing ? 'stopped' : (status.hasUpdate ? 'error' : (status.lastError ? 'error' : 'connected'));
+
+  return html`
+    <div class="dash-card">
+      <div class="dash-card-title">
+        <${StatusDot} status=${dotStatus} />
+        Auto-Update
+      </div>
+      <div class="dash-detail-grid">
+        <div class="dash-detail">
+          <span class="dash-detail-label">Running</span>
+          <span class="dash-detail-value">${v.version || 'dev'}</span>
+        </div>
+        <div class="dash-detail">
+          <span class="dash-detail-label">Last check</span>
+          <span class="dash-detail-value">${fmtRelativeTime(status.lastCheckedAt)}</span>
+        </div>
+        ${status.hasUpdate && html`
+          <div class="dash-detail" style="grid-column:span 2;">
+            <span class="dash-detail-label">Available</span>
+            <span class="dash-detail-value" style="color:var(--ve-orange);">
+              ${status.latestSha ? status.latestSha.slice(0, 7) : ''} ${status.latestCommitMessage ? '· ' + status.latestCommitMessage : ''}
+            </span>
+          </div>
+        `}
+        ${rolledBack && html`
+          <div class="dash-detail" style="grid-column:span 2;">
+            <span class="dash-detail-label">Last result</span>
+            <span class="dash-detail-value" style="color:var(--ve-red);">
+              rolled back: ${status.runState.rollbackReason || 'unknown'}
+            </span>
+          </div>
+        `}
+        ${status.lastError && !status.hasUpdate && html`
+          <div class="dash-detail" style="grid-column:span 2;">
+            <span class="dash-detail-label">Last error</span>
+            <span class="dash-detail-value" style="color:var(--ve-red);">${status.lastError}</span>
+          </div>
+        `}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap;">
+        <button class="msg-btn msg-btn--clear" onClick=${handleCheck} disabled=${checking}>
+          ${checking ? 'Checking...' : 'Check now'}
+        </button>
+        ${status.hasUpdate && html`
+          <button class="msg-btn msg-btn--subscribe" onClick=${handleRun} disabled=${running || installing}>
+            ${installing ? 'Updating...' : (running ? 'Starting...' : 'Update now')}
+          </button>
+        `}
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ve-text-dim);margin-left:auto;cursor:pointer;">
+          <input type="checkbox" checked=${status.autoApply} onChange=${handleToggleAuto} />
+          auto @ ${String(status.autoUpdateHour ?? 3).padStart(2, '0')}:00
+        </label>
+      </div>
+      ${error && html`<div style="margin-top:8px;font-size:12px;color:var(--ve-red);">${error}</div>`}
     </div>
   `;
 }
@@ -231,9 +351,10 @@ export function Dashboard() {
       <!-- Activity bar -->
       <${ActivityBar} rateIn=${d.load_received_1min} rateOut=${d.load_sent_1min} />
 
-      <!-- Connection info: how to reach this server + the MQTT broker from the LAN -->
-      <div class="dash-row1">
+      <!-- Connection info + auto-update side-by-side -->
+      <div class="dash-row2">
         <${ConnectionCard} info=${systemInfo} />
+        <${UpdateCard} />
       </div>
 
       <div class="dash-row2">

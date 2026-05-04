@@ -20,6 +20,15 @@ rsync -avz --delete \
 echo "📦 Installing dependencies..."
 ssh ${VM_HOST} "cd ${VM_PATH} && npm install --production --quiet 2>&1 | tail -3"
 
+echo "🔧 Installing self-updater unit (idempotent)..."
+ssh ${VM_HOST} "
+  if [ -f ${VM_PATH}/scripts/update/mqtt-master-updater.service ]; then
+    cp ${VM_PATH}/scripts/update/mqtt-master-updater.service /etc/systemd/system/mqtt-master-updater.service
+    chmod +x ${VM_PATH}/scripts/update/run-update.sh
+    systemctl daemon-reload
+  fi
+"
+
 echo "🔄 Restarting service..."
 ssh ${VM_HOST} "systemctl restart mqtt-master"
 
