@@ -141,6 +141,10 @@ fi
 if [ "${IS_UPDATE}" = true ]; then
     log "Updating from GitHub..."
     cd "${APP_DIR}"
+    # The repo is owned by APP_USER (chown happens further down), so root's
+    # git refuses to run by default. Mark it safe rather than running git
+    # as the service user — the latter requires a usable shell + HOME.
+    git config --global --add safe.directory "${APP_DIR}" >/dev/null 2>&1 || true
     git fetch origin "${BRANCH}" --quiet
     git reset --hard "origin/${BRANCH}" --quiet
     ok "Repository updated"
