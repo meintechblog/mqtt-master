@@ -118,6 +118,21 @@ Same command — detects existing installation, pulls latest code, preserves con
 wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/install.sh | bash
 ```
 
+### Auto-Update
+
+The dashboard ships with a self-update card alongside the Verbindungs-Info panel. It polls
+`https://api.github.com/repos/meintechblog/mqtt-master/commits/main` every 6 hours, persists the
+result, and — when **auto** is enabled — applies the update inside a configurable hour window
+(default `03:00 Europe/Berlin`, 23h cooldown).
+
+The actual git pull + npm install + restart runs in a sibling
+`mqtt-master-updater.service` unit. Because that unit lives in its own cgroup, the
+`systemctl restart mqtt-master` call in the middle of the pipeline cannot kill the updater
+itself. Any failure after `git fetch` triggers an automatic rollback to the previous SHA.
+
+You can also click **Update now** for an instant manual run, or **Check now** to force a
+fresh GitHub poll without applying anything.
+
 ## Quick Start
 
 1. Open the dashboard at `http://<server-ip>`
