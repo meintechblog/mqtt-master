@@ -5,8 +5,10 @@ Wants=mosquitto.service
 
 [Service]
 Type=simple
-User=mqtt-master
-Group=mqtt-master
+# Runs as root so the self-updater can be triggered via `systemctl start` from
+# the API endpoint without polkit/sudo plumbing. The whole stack is already
+# inside an unprivileged LXC container, so the blast radius stays bounded.
+User=root
 WorkingDirectory=/opt/mqtt-master
 ExecStart=/usr/bin/node server/index.js
 Restart=always
