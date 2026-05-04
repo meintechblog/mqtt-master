@@ -218,6 +218,10 @@ export default class MqttBridgePlugin {
     return this._bindings.getBindings();
   }
 
+  getInputBindingStats() {
+    return this._bindings?.getStats?.() || [];
+  }
+
   async setInputBindings(bindings) {
     await this._bindings.setBindings(bindings);
   }

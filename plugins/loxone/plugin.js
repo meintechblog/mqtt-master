@@ -465,6 +465,10 @@ export default class LoxonePlugin {
     return this._bindingsManager.getBindings();
   }
 
+  getInputBindingStats() {
+    return this._bindingsManager?.getStats?.() || [];
+  }
+
   async setInputBindings(bindings) {
     await this._bindingsManager.setBindings(bindings);
   }

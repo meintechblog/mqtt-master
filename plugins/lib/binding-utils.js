@@ -71,13 +71,19 @@ export function applyTransform(value, transform) {
 /**
  * Apply input bindings: subscribe to MQTT topics, extract values, send to targets.
  *
+ * `lastSendMap` is also used to track per-binding live stats consumed by the
+ * dashboard: each entry has { value, ts, payloadTs, sendCount, recvCount,
+ * lastError, lastErrorAt, lastReason } so the UI can show what's flowing
+ * through and why a value didn't propagate (parse error, missing path,
+ * dedup, etc.). Older entries with just { value, ts } are migrated lazily.
+ *
  * @param {object} opts
  * @param {Array} opts.bindings - binding definitions
  * @param {object} opts.mqttService - local MQTT service
  * @param {object} opts.logger
- * @param {Function} opts.sendToTarget - (uuid, value) => void
+ * @param {Function} opts.sendToTarget - (uuid, value) => void | Promise
  * @param {Map} opts.handlerMap - Map to store handlers for cleanup
- * @param {Map} opts.lastSendMap - Map to store last-send state for dedup
+ * @param {Map} opts.lastSendMap - Map to store per-binding stats
  */
 export function applyBindings({ bindings, mqttService, logger, sendToTarget, handlerMap, lastSendMap }) {
   cleanupBindings({ mqttService, handlerMap, lastSendMap });
@@ -88,28 +94,62 @@ export function applyBindings({ bindings, mqttService, logger, sendToTarget, han
     const keepaliveMs = binding.keepaliveMs || binding.intervalMs || 30000;
     mqttService.subscribe(binding.mqttTopic);
 
+    const stat = lastSendMap.get(binding.id) || { sendCount: 0, recvCount: 0 };
+    lastSendMap.set(binding.id, stat);
+
+    const recordReason = (reason, payloadTs) => {
+      stat.recvCount = (stat.recvCount || 0) + 1;
+      stat.payloadTs = payloadTs;
+      stat.lastReason = reason;
+    };
+
     const handler = (msg) => {
       if (msg.topic !== binding.mqttTopic) return;
+      const now = Date.now();
+      let data;
+      try { data = JSON.parse(msg.payload); }
+      catch {
+        recordReason('parse_error', now);
+        stat.lastError = 'payload is not valid JSON';
+        stat.lastErrorAt = now;
+        return;
+      }
+      const raw = extractField(data, binding.jsonField);
+      if (raw == null) {
+        recordReason('field_missing', now);
+        stat.lastError = `path "${binding.jsonField}" not in payload`;
+        stat.lastErrorAt = now;
+        return;
+      }
+      let value = applyTransform(raw, binding.transform);
+      if (typeof value === 'number') value = Math.round(value * 1000) / 1000;
+
+      const valueChanged = !('value' in stat) || stat.value !== value;
+      const keepaliveExpired = !stat.ts || (now - stat.ts >= keepaliveMs);
+      if (!valueChanged && !keepaliveExpired) {
+        recordReason('dedup', now);
+        return;
+      }
+
       try {
-        const data = JSON.parse(msg.payload);
-        let value = extractField(data, binding.jsonField);
-        if (value == null) return;
-        value = applyTransform(value, binding.transform);
-        if (typeof value === 'number') value = Math.round(value * 1000) / 1000;
-
-        const now = Date.now();
-        const last = lastSendMap.get(binding.id);
-        const valueChanged = !last || last.value !== value;
-        const keepaliveExpired = !last || (now - last.ts >= keepaliveMs);
-        if (!valueChanged && !keepaliveExpired) return;
-
         sendToTarget(binding.targetUuid, String(value));
-        lastSendMap.set(binding.id, { ts: now, value });
-
+        stat.value = value;
+        stat.ts = now;
+        stat.payloadTs = now;
+        stat.recvCount = (stat.recvCount || 0) + 1;
+        stat.sendCount = (stat.sendCount || 0) + 1;
+        stat.lastReason = valueChanged ? 'changed' : 'keepalive';
+        stat.lastError = null;
+        stat.lastErrorAt = null;
         if (valueChanged) {
-          logger.debug(`Binding ${binding.label || binding.id}: ${value} → ${binding.targetUuid}`);
+          logger.info(`Binding ${binding.label || binding.id}: ${value} → ${binding.targetUuid}`);
         }
-      } catch { /* ignore parse errors */ }
+      } catch (err) {
+        stat.lastError = err?.message || String(err);
+        stat.lastErrorAt = now;
+        stat.lastReason = 'send_error';
+        logger.warn?.(`Binding ${binding.label || binding.id} send failed: ${stat.lastError}`);
+      }
     };
 
     mqttService.on('message', handler);

@@ -17,7 +17,17 @@ function liveValue(ctrl) {
   return null;
 }
 
-function BindingCard({ binding, controls, onRemove, onToggle, onUpdate }) {
+function fmtAge(ts) {
+  if (!ts) return null;
+  const sec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+  if (sec < 1) return 'just now';
+  if (sec < 60) return `${sec}s ago`;
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
+  return `${Math.floor(sec / 86400)}d ago`;
+}
+
+function BindingCard({ binding, stats, controls, onRemove, onToggle, onUpdate }) {
   const [expanded, setExpanded] = useState(false);
   const target = controls.find(c => c.uuid === binding.targetUuid);
   const targetSub = controls.flatMap(c => c.subControls || []).find(s => s.uuid === binding.targetUuid);
@@ -27,6 +37,38 @@ function BindingCard({ binding, controls, onRemove, onToggle, onUpdate }) {
   const keepalive = binding.keepaliveMs || binding.intervalMs || 30000;
   const live = liveValue(targetCtrl);
   const liveStr = live != null ? (typeof live === 'number' ? (Number.isInteger(live) ? String(live) : live.toFixed(3)) : String(live)) : null;
+
+  // Live MQTT-side stats: what the binding pushed last and how often.
+  const stat = stats || {};
+  const sentValue = stat.value;
+  const sentValueStr = sentValue != null
+    ? (typeof sentValue === 'number'
+        ? (Number.isInteger(sentValue) ? String(sentValue) : Number(sentValue).toFixed(3))
+        : String(sentValue))
+    : null;
+  const recentSendMs = stat.lastSentAt ? Date.now() - stat.lastSentAt : Infinity;
+  const recentRecvMs = stat.lastReceivedAt ? Date.now() - stat.lastReceivedAt : Infinity;
+  const flashSend = recentSendMs < 3000;
+  const flashRecv = recentRecvMs < 3000;
+  // Connection diagnosis line
+  let diagText = null;
+  let diagTone = 'dim';
+  if (stat.lastError) {
+    diagText = stat.lastError;
+    diagTone = 'red';
+  } else if (!stat.lastReceivedAt) {
+    diagText = 'no MQTT message received yet';
+    diagTone = 'dim';
+  } else if (!stat.lastSentAt) {
+    diagText = `received ${stat.recvCount}× but never forwarded — ${stat.lastReason || 'unknown'}`;
+    diagTone = 'orange';
+  } else if (stat.lastReason === 'dedup') {
+    diagText = `unchanged value, holding until keepalive (${fmtAge(stat.lastSentAt)})`;
+    diagTone = 'dim';
+  } else {
+    diagText = `forwarded ${stat.sendCount}× · last ${stat.lastReason || 'sent'} ${fmtAge(stat.lastSentAt)}`;
+    diagTone = 'green';
+  }
 
   return html`
     <div class="bind-card ${binding.enabled ? '' : 'bind-card--disabled'}">
@@ -44,16 +86,24 @@ function BindingCard({ binding, controls, onRemove, onToggle, onUpdate }) {
       </div>
       <div class="bind-card-detail" onClick=${() => setExpanded(!expanded)} style="cursor:pointer">
         <div class="bind-card-flow">
-          <span class="bind-card-topic">${binding.mqttTopic.split('/').pop()}</span>
+          <span class="bind-card-topic ${flashRecv ? 'bind-flash' : ''}">${binding.mqttTopic.split('/').pop()}</span>
           <span class="bind-card-field">.${binding.jsonField}</span>
+          ${sentValueStr != null && html`
+            <span class="bind-card-mqtt-val ${flashSend ? 'bind-flash' : ''}" title="last value forwarded to Loxone">
+              ${sentValueStr}
+            </span>
+          `}
           <span class="bind-card-arrow">→</span>
           ${transform && transform.value && html`<span class="bind-card-transform">${transform.label}</span>`}
           <span class="bind-card-arrow">→</span>
           <span class="bind-card-target">${targetName}</span>
         </div>
-        ${liveStr != null && html`<span class="bind-card-live">${liveStr}</span>`}
+        ${liveStr != null && html`<span class="bind-card-live" title="current value reported by Loxone">${liveStr}</span>`}
         <span class="bind-card-interval">${(keepalive / 1000).toFixed(0)}s</span>
       </div>
+      ${diagText && html`
+        <div class="bind-card-diag bind-card-diag--${diagTone}">${diagText}</div>
+      `}
       ${expanded && html`
         <div class="bind-edit">
           <div class="bind-field-row">
@@ -319,6 +369,7 @@ function StepReview({ source, field, target, onSave, onBack }) {
 // ── Main page ──────────────────────────────────────────────────
 export function InputBindings({ pluginId = 'loxone', defaultPattern } = {}) {
   const [bindings, setBindings] = useState([]);
+  const [bindingStats, setBindingStats] = useState([]);
   const [controls, setControls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
@@ -367,7 +418,14 @@ export function InputBindings({ pluginId = 'loxone', defaultPattern } = {}) {
         setControls(await fetchLoxoneControlsDetailed());
       } catch { /* ignore */ }
     }, 3000);
-    return () => clearInterval(interval);
+    // Refresh per-binding stats (live MQTT-side values + send counters)
+    const statsInterval = setInterval(async () => {
+      try {
+        const r = await fetch(`/api/plugins/${encodeURIComponent(pluginId)}/bindings/stats`);
+        if (r.ok) setBindingStats(await r.json());
+      } catch { /* ignore */ }
+    }, 2000);
+    return () => { clearInterval(interval); clearInterval(statsInterval); };
   }, [pluginId]);
 
   const showToast = useCallback((type, text) => {
@@ -434,6 +492,7 @@ export function InputBindings({ pluginId = 'loxone', defaultPattern } = {}) {
             <${BindingCard}
               key=${b.id}
               binding=${b}
+              stats=${bindingStats.find(s => s.id === b.id)}
               controls=${controls}
               onRemove=${handleRemove}
               onToggle=${handleToggle}

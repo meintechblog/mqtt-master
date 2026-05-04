@@ -43,6 +43,40 @@ export class BindingsManager {
   }
 
   /**
+   * Per-binding live stats for the dashboard. Returned shape:
+   *   { id, value, lastSentAt, lastReceivedAt, sendCount, recvCount,
+   *     lastError, lastErrorAt, lastReason, mqttTopic, jsonField, targetUuid,
+   *     enabled }
+   *
+   * Bindings that exist in config but never received a payload yet show up
+   * with zero counts and empty lastSentAt — handy for debugging "Loxone says
+   * nothing arrives".
+   */
+  getStats() {
+    const out = [];
+    for (const b of this._bindings) {
+      const s = this._lastSend.get(b.id) || {};
+      out.push({
+        id: b.id,
+        label: b.label || b.id,
+        enabled: b.enabled !== false,
+        mqttTopic: b.mqttTopic,
+        jsonField: b.jsonField,
+        targetUuid: b.targetUuid,
+        value: 'value' in s ? s.value : null,
+        lastSentAt: s.ts || null,
+        lastReceivedAt: s.payloadTs || null,
+        sendCount: s.sendCount || 0,
+        recvCount: s.recvCount || 0,
+        lastReason: s.lastReason || null,
+        lastError: s.lastError || null,
+        lastErrorAt: s.lastErrorAt || null,
+      });
+    }
+    return out;
+  }
+
+  /**
    * Replace bindings, persist, and re-apply subscriptions.
    * @param {Array<object>} bindings
    */

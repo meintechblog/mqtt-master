@@ -1016,6 +1016,37 @@ body {
   text-align: right;
 }
 .bind-card-interval { color: var(--ve-text-dim); font-size: 11px; font-family: var(--ve-font-mono); }
+
+/* Live MQTT-side value: what the binding pushed last */
+.bind-card-mqtt-val {
+  font-family: var(--ve-font-mono);
+  font-size: 12px;
+  color: var(--ve-text-primary);
+  background: rgba(56,125,197,0.12);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+@keyframes bind-flash {
+  0%   { background: rgba(114,184,76,0.45); color: var(--ve-text-primary); }
+  100% { /* leave the per-element default in place */ }
+}
+.bind-flash { animation: bind-flash 0.9s ease-out 1; }
+
+/* Diagnostic line under the flow row */
+.bind-card-diag {
+  margin-top: 6px;
+  font-size: 11px;
+  font-family: var(--ve-font-mono);
+  padding: 4px 8px;
+  border-radius: 3px;
+  border-left: 2px solid transparent;
+  background: rgba(255,255,255,0.02);
+}
+.bind-card-diag--green  { color: var(--ve-green);  border-left-color: var(--ve-green); }
+.bind-card-diag--orange { color: var(--ve-orange); border-left-color: var(--ve-orange); }
+.bind-card-diag--red    { color: var(--ve-red);    border-left-color: var(--ve-red); }
+.bind-card-diag--dim    { color: var(--ve-text-dim); }
 .bind-edit {
   margin-top: 10px;
   padding-top: 10px;

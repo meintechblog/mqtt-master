@@ -338,6 +338,22 @@ export default async function apiPlugins(app) {
     }
   });
 
+  // GET /api/plugins/:id/bindings/stats -- live stats per binding
+  // (last value, send/recv counts, last reason, errors). Used by the UI to
+  // show what's actually flowing through.
+  app.get('/api/plugins/:id/bindings/stats', async (request, reply) => {
+    const { id } = request.params;
+    try {
+      const instance = app.pluginManager.getInstance(id);
+      if (instance && typeof instance.getInputBindingStats === 'function') {
+        return instance.getInputBindingStats();
+      }
+      return [];
+    } catch (err) {
+      return reply.status(500).send({ error: err.message });
+    }
+  });
+
   // PUT /api/plugins/:id/bindings -- save MQTT input bindings for a plugin
   app.put('/api/plugins/:id/bindings', async (request, reply) => {
     const { id } = request.params;
