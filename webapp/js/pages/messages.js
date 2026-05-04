@@ -11,6 +11,7 @@ import {
   unsubscribeTopic,
   clearMessages,
 } from '../lib/ws-messages-client.js';
+import { flattenJsonFields } from '../lib/json-fields.js';
 
 function formatTimestamp(ts) {
   const d = new Date(ts);
@@ -185,6 +186,8 @@ function CreateBindingDialog({ topic, value, onClose }) {
   const [selectedPlugin, setSelectedPlugin] = useState('');
   const [jsonField, setJsonField] = useState('value');
   const [fields, setFields] = useState([]);
+  const [fieldFilter, setFieldFilter] = useState('');
+  const [showAllTypes, setShowAllTypes] = useState(false);
   const [targetUuid, setTargetUuid] = useState('');
   const [targetFilter, setTargetFilter] = useState('');
   const [creating, setCreating] = useState(false);
@@ -209,15 +212,32 @@ function CreateBindingDialog({ topic, value, onClose }) {
       setControls(controlData);
     }).catch(() => {});
 
-    try {
-      const parsed = typeof value === 'string' ? JSON.parse(value) : value;
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        setFields(Object.entries(parsed).filter(([, v]) => typeof v === 'number').map(([k, v]) => ({ key: k, value: v })));
-      }
-    } catch { /* not JSON */ }
+    // Flatten nested JSON so users can pick e.g. ENERGY.Power, Wifi.RSSI
+    const flat = flattenJsonFields(value);
+    setFields(flat);
+    // Pre-select the first numeric leaf if there is one (most common case)
+    const firstNumeric = flat.find(f => f.type === 'number');
+    if (firstNumeric) setJsonField(firstNumeric.path);
   }, []);
 
-  const autoTransform = (jsonField.includes('_w') || jsonField.includes('power')) ? 'div1000' : '';
+  const lowerField = jsonField.toLowerCase();
+  const autoTransform = (lowerField.includes('_w') || lowerField.includes('power')) ? 'div1000' : '';
+
+  const visibleFields = fields.filter(f => {
+    if (!showAllTypes && f.type !== 'number') return false;
+    if (fieldFilter && !f.path.toLowerCase().includes(fieldFilter.toLowerCase())) return false;
+    return true;
+  });
+  const numericCount = fields.filter(f => f.type === 'number').length;
+  const hiddenNonNumeric = fields.length - numericCount;
+  // Group leaves by their first path segment so nested objects render as
+  // labelled clusters instead of one giant button wall.
+  const grouped = visibleFields.reduce((acc, f) => {
+    const head = f.path.includes('.') ? f.path.split('.')[0] : '';
+    (acc[head] = acc[head] || []).push(f);
+    return acc;
+  }, {});
+  const groupOrder = Object.keys(grouped);
 
   const filteredControls = controls.filter(c => {
     if (!targetFilter) return true;
@@ -279,22 +299,79 @@ function CreateBindingDialog({ topic, value, onClose }) {
         </div>
         ${fields.length > 0 && html`
           <div style="margin-bottom:12px;">
-            <div class="ve-modal-field-label">JSON Field</div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
-              ${fields.map(f => html`
-                <button
-                  key=${f.key}
-                  class="lox-push-btn ${jsonField === f.key ? 'lox-push-btn--active' : ''}"
-                  style="font-size:12px;padding:4px 10px;"
-                  onClick=${() => setJsonField(f.key)}
-                >${f.key} <span style="color:var(--ve-text-dim);margin-left:4px">${f.value}</span></button>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <div class="ve-modal-field-label">JSON Field</div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                ${hiddenNonNumeric > 0 && html`
+                  <label style="font-size:11px;color:var(--ve-text-dim);display:flex;align-items:center;gap:4px;cursor:pointer;">
+                    <input
+                      type="checkbox"
+                      checked=${showAllTypes}
+                      onChange=${(e) => setShowAllTypes(e.target.checked)}
+                      style="margin:0;"
+                    />
+                    show non-numeric (${hiddenNonNumeric})
+                  </label>
+                `}
+              </div>
+            </div>
+            ${fields.length > 6 && html`
+              <input
+                class="ve-modal-input"
+                style="margin:4px 0 6px;font-size:12px;"
+                placeholder="Filter fields..."
+                value=${fieldFilter}
+                onInput=${(e) => setFieldFilter(e.target.value)}
+              />
+            `}
+            <div style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-top:4px;">
+              ${groupOrder.map(group => html`
+                <div key=${group || '_root'}>
+                  ${group && html`
+                    <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--ve-text-dim);margin:4px 0 4px 2px;">${group}</div>
+                  `}
+                  <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                    ${grouped[group].map(f => {
+                      const leaf = group ? f.path.slice(group.length + 1) : f.path;
+                      const isStr = f.type !== 'number';
+                      return html`
+                        <button
+                          key=${f.path}
+                          type="button"
+                          class="lox-push-btn ${jsonField === f.path ? 'lox-push-btn--active' : ''}"
+                          style="font-size:12px;padding:4px 10px;${isStr ? 'opacity:0.75;' : ''}"
+                          title=${f.path}
+                          onClick=${() => setJsonField(f.path)}
+                        >${leaf} <span style="color:var(--ve-text-dim);margin-left:4px">${f.value}</span></button>
+                      `;
+                    })}
+                  </div>
+                </div>
               `)}
+              ${visibleFields.length === 0 && html`
+                <div style="font-size:12px;color:var(--ve-text-dim);padding:6px 0;">No matching fields.</div>
+              `}
+            </div>
+            <div style="margin-top:8px;">
+              <div style="font-size:11px;color:var(--ve-text-dim);margin-bottom:2px;">
+                Custom path (dot notation, e.g. <code>ENERGY.Power</code>)
+              </div>
+              <input
+                class="ve-modal-input"
+                style="font-family:var(--ve-font-mono);font-size:12px;"
+                value=${jsonField}
+                onInput=${(e) => setJsonField(e.target.value)}
+                placeholder="value"
+              />
             </div>
           </div>
         `}
         ${fields.length === 0 && html`
           <div style="margin-bottom:12px;">
             <div class="ve-modal-field-label">JSON Field</div>
+            <div style="font-size:11px;color:var(--ve-text-dim);margin-bottom:4px;">
+              Payload is not JSON — type the field name or leave as <code>value</code>.
+            </div>
             <input class="ve-modal-input" value=${jsonField} onInput=${(e) => setJsonField(e.target.value)} placeholder="value" />
           </div>
         `}

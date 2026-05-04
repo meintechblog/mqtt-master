@@ -2,6 +2,7 @@
  * REST API routes for plugin management.
  * Registered as a Fastify plugin -- expects app.pluginManager to be decorated.
  */
+import { flattenJsonFields } from '../../plugins/lib/binding-utils.js';
 /** In-memory activity log (last 100 entries) */
 const activityLog = [];
 const MAX_LOG_ENTRIES = 100;
@@ -338,10 +339,14 @@ export default async function apiPlugins(app) {
       try {
         const data = JSON.parse(msg.payload);
         if (data && typeof data === 'object' && !Array.isArray(data)) {
-          fields = Object.entries(data).map(([key, val]) => ({
-            key,
-            type: typeof val,
-            sample: typeof val === 'number' ? val : String(val).substring(0, 100),
+          // Recursive: dotted paths so nested numerics (e.g. Tasmota
+          // ENERGY.Power) are picked up by the binding UI. The `key` field
+          // stays for back-compat with older clients.
+          fields = flattenJsonFields(data).map(({ path, value, type }) => ({
+            key: path,
+            path,
+            type,
+            sample: typeof value === 'number' ? value : String(value).substring(0, 100),
           }));
         }
       } catch { /* not JSON */ }

@@ -20,6 +20,34 @@ export function extractField(obj, path) {
 }
 
 /**
+ * Walk a JSON object recursively and emit every leaf as
+ * `{ path: 'a.b.c', value, type }`. Useful for input-binding pickers that
+ * need to surface nested numeric fields (e.g. Tasmota `ENERGY.Power`).
+ *
+ * - Arrays are skipped (no stable path) and not recursed.
+ * - `null` and `undefined` are skipped.
+ * - `maxDepth` guards against runaway nesting (default 6 levels).
+ */
+export function flattenJsonFields(obj, { maxDepth = 6 } = {}) {
+  const out = [];
+  function walk(node, path, depth) {
+    if (node == null || depth > maxDepth) return;
+    if (typeof node === 'object' && !Array.isArray(node)) {
+      for (const [k, v] of Object.entries(node)) {
+        const next = path ? `${path}.${k}` : k;
+        if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
+          walk(v, next, depth + 1);
+        } else if (v != null && !Array.isArray(v)) {
+          out.push({ path: next, value: v, type: typeof v });
+        }
+      }
+    }
+  }
+  walk(obj, '', 0);
+  return out;
+}
+
+/**
  * Apply a value transform.
  * @param {number|string} value
  * @param {string|null} transform
