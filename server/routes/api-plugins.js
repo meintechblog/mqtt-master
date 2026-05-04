@@ -48,6 +48,40 @@ export default async function apiPlugins(app) {
     return app.pluginManager.listAll();
   });
 
+  // GET /api/bindings -- flat list of every input binding across plugins.
+  // Used by the Topic Browser to flag topics that already have a binding so
+  // users see at a glance which sources are already wired up.
+  app.get('/api/bindings', async () => {
+    const out = [];
+    // Read straight from the config so stopped or never-loaded plugins still
+    // contribute their bindings — listAll() only sees the in-memory instances.
+    const allPlugins = app.configService.get('plugins', {}) || {};
+    for (const [pluginId, cfg] of Object.entries(allPlugins)) {
+      // Live plugin instance has the freshest bindings (e.g. just-saved).
+      const instance = app.pluginManager.getInstance?.(pluginId);
+      let bindings = null;
+      if (instance && typeof instance.getInputBindings === 'function') {
+        try { bindings = instance.getInputBindings(); } catch { /* fall through */ }
+      }
+      if (!Array.isArray(bindings)) bindings = cfg.inputBindings || [];
+      const pluginName = cfg.displayName || pluginId;
+      for (const b of bindings) {
+        if (!b || !b.mqttTopic) continue;
+        out.push({
+          pluginId,
+          pluginName,
+          id: b.id,
+          enabled: b.enabled !== false,
+          mqttTopic: b.mqttTopic,
+          jsonField: b.jsonField,
+          targetUuid: b.targetUuid,
+          label: b.label || b.id,
+        });
+      }
+    }
+    return out;
+  });
+
   // GET /api/plugins/templates -- available plugin types for "Add Plugin"
   app.get('/api/plugins/templates', async () => {
     return app.pluginManager.getTemplates();

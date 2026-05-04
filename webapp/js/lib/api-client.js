@@ -30,6 +30,11 @@ export function fetchSystemInfo() {
   return request('/api/system/info');
 }
 
+/** GET /api/bindings -- flat list of every input binding across plugins */
+export function fetchAllBindings() {
+  return request('/api/bindings');
+}
+
 /** POST /api/plugins/:id/start */
 export function startPlugin(id) {
   return request(`/api/plugins/${encodeURIComponent(id)}/start`, { method: 'POST' });

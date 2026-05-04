@@ -1313,6 +1313,32 @@ body {
 .tb-row:hover .tb-bind-btn { opacity: 1; }
 .tb-bind-btn:hover { color: var(--ve-blue); border-color: var(--ve-blue); }
 .tb-row--selected { background: rgba(56,125,197,0.12) !important; border-left: 2px solid var(--ve-blue); }
+
+/* Topics already used by an input binding — visible but not blocking */
+.tb-row--bound {
+  background: rgba(114,184,76,0.06);
+  border-left: 2px solid rgba(114,184,76,0.55);
+  padding-left: 10px;
+}
+.tb-row--bound:hover { background: rgba(114,184,76,0.11); }
+.tb-bound-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(114,184,76,0.18);
+  color: var(--ve-green);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: help;
+}
+.tb-bound-icon { font-size: 11px; }
+.tb-bound-count { font-family: var(--ve-font-mono); }
+.tb-count-bound { color: var(--ve-green); }
 .lox-push-btn--active { background: var(--ve-blue) !important; color: #fff !important; border-color: var(--ve-blue) !important; }
 
 /* Live binding preview & per-field value flash */

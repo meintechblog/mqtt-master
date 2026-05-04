@@ -73,7 +73,7 @@ function filterTree(tree, search) {
   return result;
 }
 
-function TopicNode({ name, node, depth, expanded, toggleExpand, onSelect, actionLabel, prevValues }) {
+function TopicNode({ name, node, depth, expanded, toggleExpand, onSelect, actionLabel, prevValues, boundTopics }) {
   const hasChildren = Object.keys(node.children).length > 0;
   const isLeaf = node.topic != null;
   const isOpen = expanded.has(name);
@@ -82,9 +82,17 @@ function TopicNode({ name, node, depth, expanded, toggleExpand, onSelect, action
   const changed = isLeaf && prev !== undefined && prev !== node.value;
   if (isLeaf) prevValues.current[node.topic] = node.value;
 
+  // Are there bindings already pointing at this exact topic?
+  const bindings = (isLeaf && boundTopics?.get?.(node.topic)) || [];
+  const isBound = bindings.length > 0;
+  const tooltip = isBound
+    ? `Already used by ${bindings.length} binding${bindings.length === 1 ? '' : 's'}:\n` +
+      bindings.map(b => `• ${b.pluginName}: ${b.label}${b.jsonField ? ' [' + b.jsonField + ']' : ''}`).join('\n')
+    : null;
+
   return html`
     <div>
-      <div class="tb-row ${changed ? 'val-ping' : ''}" style="padding-left:${12 + depth * 16}px">
+      <div class="tb-row ${changed ? 'val-ping' : ''} ${isBound ? 'tb-row--bound' : ''}" style="padding-left:${12 + depth * 16}px">
         ${hasChildren
           ? html`<span class="tb-expand ${isOpen ? 'open' : ''}" onClick=${() => toggleExpand(name)}>▶</span>`
           : html`<span class="tb-expand-spacer"></span>`
@@ -93,12 +101,17 @@ function TopicNode({ name, node, depth, expanded, toggleExpand, onSelect, action
           class="tb-name ${isLeaf ? '' : 'tb-name--branch'}"
           onClick=${() => hasChildren && toggleExpand(name)}
         >${name.split('/').pop()}</span>
+        ${isBound && html`
+          <span class="tb-bound-badge" title=${tooltip}>
+            <span class="tb-bound-icon">⇄</span>${bindings.length > 1 ? html`<span class="tb-bound-count">${bindings.length}</span>` : ''}
+          </span>
+        `}
         ${isLeaf && html`
           <span class="tb-value">${fmtValue(node.value)}</span>
           <button
             class="tb-bind-btn"
             onClick=${() => onSelect(node.topic, node.value, node.payload, node.ts)}
-            title=${actionLabel}
+            title=${isBound ? `${actionLabel} (already used in ${bindings.length} binding${bindings.length === 1 ? '' : 's'})` : actionLabel}
           >${actionLabel}</button>
         `}
       </div>
@@ -115,6 +128,7 @@ function TopicNode({ name, node, depth, expanded, toggleExpand, onSelect, action
             onSelect=${onSelect}
             actionLabel=${actionLabel}
             prevValues=${prevValues}
+            boundTopics=${boundTopics}
           />
         `)
       }
@@ -141,11 +155,13 @@ export function TopicBrowserPanel({
   extraTopicMap = null,
   autoSubscribe = true,
   height = '500px',
+  showBoundBadges = true,
 }) {
   const [expanded, setExpanded] = useState(new Set());
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [, setVersion] = useState(0);
+  const [boundTopics, setBoundTopics] = useState(() => new Map());
   const topicMapRef = useRef(new Map());
   const prevValues = useRef({});
   const lastProcessedRef = useRef(0);
@@ -186,18 +202,37 @@ export function TopicBrowserPanel({
       if (!cancelled) setLoading(false);
     }
 
+    async function loadBindings() {
+      if (!showBoundBadges) return;
+      try {
+        const res = await fetch('/api/bindings');
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        const map = new Map();
+        for (const b of data) {
+          const key = b.mqttTopic;
+          if (!map.has(key)) map.set(key, []);
+          map.get(key).push(b);
+        }
+        setBoundTopics(map);
+      } catch { /* ignore */ }
+    }
+
     const wildcardWasMine = autoSubscribe && !subscriptions.value.has('#');
     if (wildcardWasMine) subscribeTopic('#');
 
     loadSnapshot();
+    loadBindings();
     const interval = setInterval(loadSnapshot, 15000);
+    const bindingsInterval = setInterval(loadBindings, 10000);
 
     return () => {
       cancelled = true;
       clearInterval(interval);
+      clearInterval(bindingsInterval);
       if (wildcardWasMine) unsubscribeTopic('#');
     };
-  }, [autoSubscribe]);
+  }, [autoSubscribe, showBoundBadges]);
 
   // Live updates: pull from the global messages signal each render.
   const all = messages.value;
@@ -230,11 +265,17 @@ export function TopicBrowserPanel({
   const filteredTree = search ? filterTree(tree, search.toLowerCase()) : tree;
   const renderedTree = search ? filteredTree : tree;
 
+  const boundVisibleCount = showBoundBadges
+    ? [...visibleMap.keys()].filter(t => boundTopics.has(t)).length
+    : 0;
+
   return html`
     <div class="tb-panel">
       <div class="tb-header">
         <span class="tb-title">${title}</span>
-        <span class="tb-count">${visibleMap.size} topics</span>
+        <span class="tb-count">
+          ${visibleMap.size} topics${boundVisibleCount > 0 ? html` · <span class="tb-count-bound">${boundVisibleCount} bound</span>` : ''}
+        </span>
       </div>
       ${visibleMap.size > 10 && html`
         <input
@@ -260,6 +301,7 @@ export function TopicBrowserPanel({
               onSelect=${onSelect}
               actionLabel=${actionLabel}
               prevValues=${prevValues}
+              boundTopics=${boundTopics}
             />
           `)
         }
