@@ -72,7 +72,7 @@ describe('ws-messages', () => {
     return `ws://127.0.0.1:${addr.port}/ws/messages`;
   }
 
-  it('subscribe returns confirmation and calls mqttService.subscribe', async () => {
+  it('subscribe returns confirmation (per-client filter, no broker call)', async () => {
     const client = createClient(wsUrl());
     await client.waitForOpen();
 
@@ -80,11 +80,12 @@ describe('ws-messages', () => {
     const msgs = await client.waitFor(1);
 
     expect(msgs[0]).toEqual({ type: 'subscribed', topic: '#' });
-    expect(mqttService.subscribe).toHaveBeenCalledWith('#');
+    // Broker subscription is owned by TopicCacheService, not the WS route
+    expect(mqttService.subscribe).not.toHaveBeenCalled();
     client.ws.close();
   });
 
-  it('unsubscribe returns confirmation and calls mqttService.unsubscribe', async () => {
+  it('unsubscribe returns confirmation (per-client filter, no broker call)', async () => {
     const client = createClient(wsUrl());
     await client.waitForOpen();
 
@@ -95,7 +96,7 @@ describe('ws-messages', () => {
     const msgs = await client.waitFor(2);
 
     expect(msgs[1]).toEqual({ type: 'unsubscribed', topic: 'test/#' });
-    expect(mqttService.unsubscribe).toHaveBeenCalledWith('test/#');
+    expect(mqttService.unsubscribe).not.toHaveBeenCalled();
     client.ws.close();
   });
 
@@ -138,7 +139,7 @@ describe('ws-messages', () => {
     client.ws.close();
   });
 
-  it('client disconnect triggers unsubscribe for all active topics', async () => {
+  it('client disconnect drops per-client filters but does not unsubscribe broker', async () => {
     const client = createClient(wsUrl());
     await client.waitForOpen();
 
@@ -149,8 +150,7 @@ describe('ws-messages', () => {
     client.ws.close();
     await new Promise((r) => setTimeout(r, 100));
 
-    expect(mqttService.unsubscribe).toHaveBeenCalledWith('a/#');
-    expect(mqttService.unsubscribe).toHaveBeenCalledWith('b/#');
+    expect(mqttService.unsubscribe).not.toHaveBeenCalled();
   });
 
   it('two clients with different subscriptions get only their own messages', async () => {

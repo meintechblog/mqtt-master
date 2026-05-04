@@ -323,6 +323,21 @@ export default async function apiPlugins(app) {
     }
   });
 
+  // GET /api/mqtt/topics -- full topic snapshot from the server-side cache.
+  // Returns every topic the broker has seen since startup, with the latest
+  // payload, timestamp, and message count. Used by the Topic Browser so it
+  // doesn't depend on slow publish cadences (e.g. Tasmota STATE every 5min).
+  app.get('/api/mqtt/topics', async () => {
+    return app.topicCacheService.list();
+  });
+
+  // DELETE /api/mqtt/topics -- forget every cached topic. Useful when stale
+  // entries linger after a device is removed.
+  app.delete('/api/mqtt/topics', async () => {
+    app.topicCacheService.clear();
+    return { ok: true };
+  });
+
   // POST /api/mqtt/discover -- subscribe to a pattern, collect messages, return topics with sample payloads
   app.post('/api/mqtt/discover', async (request, reply) => {
     const { pattern, durationMs = 3000 } = request.body || {};

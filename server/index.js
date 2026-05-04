@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import { ConfigService } from './services/config-service.js';
 import { MqttService } from './services/mqtt-service.js';
 import { SysBrokerService } from './services/sys-broker-service.js';
+import { TopicCacheService } from './services/topic-cache-service.js';
 import { PluginManager } from './services/plugin-manager.js';
 import wsDashboard from './routes/ws-dashboard.js';
 import wsMessages from './routes/ws-messages.js';
@@ -45,6 +46,11 @@ export async function start(opts = {}) {
   // SysBrokerService -- aggregates $SYS metrics from broker
   const sysBrokerService = new SysBrokerService(mqttService);
   app.decorate('sysBrokerService', sysBrokerService);
+
+  // TopicCacheService -- remembers every topic seen since startup so the
+  // dashboard's Topic Browser doesn't depend on slow republish cadences.
+  const topicCacheService = new TopicCacheService(mqttService);
+  app.decorate('topicCacheService', topicCacheService);
 
   // Plugin system
   const pluginManager = new PluginManager({

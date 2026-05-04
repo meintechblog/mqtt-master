@@ -542,7 +542,9 @@ export function Messages() {
     return () => disconnectMessagesWs();
   }, []);
 
-  // When switching to browser: fetch initial snapshot via discovery API, then keep updating
+  // Browser view: load full snapshot from server-side cache (instant, includes
+  // every topic seen since startup), then rely on live WebSocket subscription
+  // to `#` so new payloads land in real time. No polling needed.
   useEffect(() => {
     if (view !== 'browser') return;
     let cancelled = false;
@@ -550,11 +552,7 @@ export function Messages() {
     async function loadSnapshot() {
       setBrowserLoading(true);
       try {
-        const res = await fetch('/api/mqtt/discover', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pattern: '#', durationMs: 2000 }),
-        });
+        const res = await fetch('/api/mqtt/topics');
         if (res.ok && !cancelled) {
           const data = await res.json();
           for (const t of data) {
@@ -565,7 +563,11 @@ export function Messages() {
                 val = parsed.value !== undefined ? parsed.value : parsed;
               }
             } catch { /* not JSON */ }
-            topicMapRef.current.set(t.topic, { value: val, ts: t.ts });
+            // Don't clobber a fresher live message that already arrived
+            const existing = topicMapRef.current.get(t.topic);
+            if (!existing || existing.ts < t.ts) {
+              topicMapRef.current.set(t.topic, { value: val, ts: t.ts });
+            }
           }
           setTopicMapVersion(v => v + 1);
         }
@@ -573,34 +575,22 @@ export function Messages() {
       if (!cancelled) setBrowserLoading(false);
     }
 
+    // Subscribe to `#` so we get every new message live while the browser is
+    // open. Track whether we owned that subscription so we don't tear down a
+    // wildcard the user added explicitly via the Stream view.
+    const wildcardWasMine = !subscriptions.value.has('#');
+    if (wildcardWasMine) subscribeTopic('#');
+
     loadSnapshot();
+    // Periodic re-sync as a belt-and-braces fallback for messages that may
+    // arrive while the WebSocket was momentarily disconnected.
+    const interval = setInterval(loadSnapshot, 15000);
 
-    // Keep refreshing from discovery every 3s
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch('/api/mqtt/discover', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pattern: '#', durationMs: 1500 }),
-        });
-        if (res.ok && !cancelled) {
-          const data = await res.json();
-          for (const t of data) {
-            let val = t.payload;
-            try {
-              const parsed = JSON.parse(t.payload);
-              if (parsed && typeof parsed === 'object') {
-                val = parsed.value !== undefined ? parsed.value : parsed;
-              }
-            } catch { /* not JSON */ }
-            topicMapRef.current.set(t.topic, { value: val, ts: t.ts });
-          }
-          setTopicMapVersion(v => v + 1);
-        }
-      } catch { /* ignore */ }
-    }, 3000);
-
-    return () => { cancelled = true; clearInterval(interval); };
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      if (wildcardWasMine) unsubscribeTopic('#');
+    };
   }, [view]);
 
   const subs = subscriptions.value;

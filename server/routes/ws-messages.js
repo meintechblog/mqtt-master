@@ -71,7 +71,9 @@ export default async function wsMessages(app) {
           safeSend(socket, JSON.stringify({ type: 'error', message: 'Topic is required' }));
           return;
         }
-        app.mqttService.subscribe(topic);
+        // Per-client filter only -- the broker subscription `#` is owned by
+        // TopicCacheService, so every message already reaches us. Touching
+        // broker subs here would tear it down for every other consumer.
         clients.get(socket)?.add(topic);
         safeSend(socket, JSON.stringify({ type: 'subscribed', topic }));
         return;
@@ -82,7 +84,6 @@ export default async function wsMessages(app) {
           safeSend(socket, JSON.stringify({ type: 'error', message: 'Topic is required' }));
           return;
         }
-        app.mqttService.unsubscribe(topic);
         clients.get(socket)?.delete(topic);
         safeSend(socket, JSON.stringify({ type: 'unsubscribed', topic }));
         return;
@@ -92,12 +93,8 @@ export default async function wsMessages(app) {
     });
 
     socket.on('close', () => {
-      const topics = clients.get(socket);
-      if (topics) {
-        for (const topic of topics) {
-          app.mqttService.unsubscribe(topic);
-        }
-      }
+      // Broker-side `#` subscription is owned by TopicCacheService; per-client
+      // patterns are filter-only, so just drop the bookkeeping.
       clients.delete(socket);
     });
   });
