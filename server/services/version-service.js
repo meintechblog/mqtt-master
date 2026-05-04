@@ -40,6 +40,33 @@ export function parseDescribe(out) {
   return { tag: null, sha: null, isDirty };
 }
 
+/**
+ * Paths that the runner legitimately modifies on every install (npm
+ * regenerates package-lock, the app writes config.json + plugin instance
+ * dirs, our updater owns .update-state). Treating any of these as "dirty"
+ * would block every update on a working install — so we ignore them.
+ *
+ * Keep this list in sync with `run-update.sh#preflight`.
+ */
+export const IGNORED_DIRTY_PATTERNS = [
+  /^\s*M\s+package-lock\.json$/,
+  /^\?\?\s+config\.json$/,
+  /^\?\?\s+plugins\/[^/]+\/$/,
+  /^\?\?\s+\.update-state\/$/,
+];
+
+/**
+ * Decide whether `git status --porcelain` output indicates a non-trivially
+ * dirty tree. Lines matching `IGNORED_DIRTY_PATTERNS` are filtered out.
+ */
+export function hasUnexpectedChanges(porcelainOutput) {
+  return (porcelainOutput || '')
+    .split('\n')
+    .map(l => l.trimEnd())
+    .filter(Boolean)
+    .some(line => !IGNORED_DIRTY_PATTERNS.some(re => re.test(line)));
+}
+
 export function formatVersionLabel({ tag, sha, isDev }) {
   if (isDev) return 'dev';
   const short = sha ? sha.slice(0, 7) : '';
@@ -62,22 +89,24 @@ export async function getCurrentVersion({ refresh = false } = {}) {
   }
 
   try {
-    const [describeRes, revParseRes, commitDateRes, subjectRes] = await Promise.all([
-      execFileAsync('git', ['describe', '--tags', '--always', '--dirty', '--abbrev=7'], { cwd: dir }),
+    const [describeRes, revParseRes, commitDateRes, subjectRes, statusRes] = await Promise.all([
+      execFileAsync('git', ['describe', '--tags', '--always', '--abbrev=7'], { cwd: dir }),
       execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: dir }),
       execFileAsync('git', ['log', '-1', '--format=%cI'], { cwd: dir }),
       execFileAsync('git', ['log', '-1', '--format=%s'], { cwd: dir }),
+      execFileAsync('git', ['status', '--porcelain'], { cwd: dir }),
     ]);
     const parsed = parseDescribe(describeRes.stdout);
     const fullSha = revParseRes.stdout.trim();
     const shortSha = parsed.sha ?? fullSha.slice(0, 7);
+    const isDirty = hasUnexpectedChanges(statusRes.stdout);
     const info = {
       version: '',
       sha: fullSha,
       shortSha,
       tag: parsed.tag,
       isDev: false,
-      isDirty: parsed.isDirty,
+      isDirty,
       commitDate: commitDateRes.stdout.trim(),
       commitSubject: subjectRes.stdout.trim(),
       installDir: dir,

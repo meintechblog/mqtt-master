@@ -116,12 +116,18 @@ preflight() {
     cd "${INSTALL_DIR}" || die "cd ${INSTALL_DIR} failed"
     git config --global --add safe.directory "${INSTALL_DIR}" >/dev/null 2>&1 || true
     PRE_SHA=$(git rev-parse HEAD) || die "git rev-parse failed"
-    # Reject obviously dirty trees, but tolerate the .update-state tree we own.
+    # Reject obviously dirty trees, but tolerate runtime artifacts we own.
+    # Keep this allowlist in sync with version-service.js#IGNORED_DIRTY_PATTERNS.
     local dirty
-    dirty=$(git status --porcelain | grep -vE '^\?\? \.update-state/' || true)
+    dirty=$(git status --porcelain | grep -vE '^( M package-lock\.json|\?\? config\.json|\?\? plugins/[^/]+/|\?\? \.update-state/)$' || true)
     if [ -n "${dirty}" ]; then
         die "working tree has unexpected changes:
 ${dirty}"
+    fi
+    # Reset the npm-tickled package-lock.json so `git fetch` + reset start clean.
+    if git status --porcelain | grep -qE '^ M package-lock\.json$'; then
+        log "stashing npm-rewritten package-lock.json"
+        git checkout -- package-lock.json || die "could not reset package-lock.json"
     fi
     local avail
     avail=$(df -BM "${INSTALL_DIR}" | awk 'NR==2 {print $4}' | tr -d 'M')
