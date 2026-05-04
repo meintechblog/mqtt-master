@@ -12,6 +12,7 @@ import wsDashboard from './routes/ws-dashboard.js';
 import wsMessages from './routes/ws-messages.js';
 import apiPlugins from './routes/api-plugins.js';
 import apiSystem from './routes/api-system.js';
+import apiDiscovery from './routes/api-discovery.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -65,6 +66,7 @@ export async function start(opts = {}) {
   // REST API routes (before SPA fallback so /api/* routes match)
   await app.register(apiPlugins);
   await app.register(apiSystem);
+  await app.register(apiDiscovery);
 
   // WebSocket routes
   await app.register(wsDashboard);

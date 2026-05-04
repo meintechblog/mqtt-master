@@ -20,12 +20,15 @@ import {
 export function PluginConfig({ pluginId }) {
   const [pluginStatus, setPluginStatus] = useState('stopped');
   const [pluginName, setPluginName] = useState(pluginId);
+  const [pluginType, setPluginType] = useState(null);
   const [isDeletable, setIsDeletable] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [schema, setSchema] = useState(null);
   const [configData, setConfigData] = useState({});
   const [feedback, setFeedback] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [discovering, setDiscovering] = useState(false);
+  const [discoveryResults, setDiscoveryResults] = useState(null);
 
   /** Map plugin status to StatusDot status */
   function dotStatus(s) {
@@ -45,6 +48,7 @@ export function PluginConfig({ pluginId }) {
       if (plugin) {
         setPluginStatus(plugin.status);
         setPluginName(plugin.name || plugin.id);
+        setPluginType(plugin.type || null);
         setIsDeletable(!!plugin.deletable);
       }
       setSchema(configResult.schema);
@@ -141,6 +145,39 @@ export function PluginConfig({ pluginId }) {
 
   useEffect(() => { loadPlugin(); }, [pluginId]);
 
+  /** UDP-broadcast scan for Loxone Miniservers on the LAN. */
+  async function handleDiscover() {
+    setDiscovering(true);
+    setDiscoveryResults(null);
+    try {
+      const res = await fetch('/api/discovery/loxone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ durationMs: 3000 }),
+      });
+      const data = await res.json();
+      setDiscoveryResults(Array.isArray(data) ? data : []);
+    } catch (err) {
+      showFeedback('error', `Discovery failed: ${err.message}`);
+    } finally {
+      setDiscovering(false);
+    }
+  }
+
+  function applyDiscoveredMiniserver(ms) {
+    // Only suggest a displayName when the device gave us a real one (skip
+    // the generic HTTP realm "data") and the user hasn't typed anything yet.
+    const hasGoodName = ms.name && !/^data$/i.test(ms.name);
+    setConfigData(prev => ({
+      ...prev,
+      ip: ms.ip || prev.ip,
+      port: ms.port || prev.port || 80,
+      ...(hasGoodName && !prev.displayName ? { displayName: ms.name } : {}),
+    }));
+    setDiscoveryResults(null);
+    showFeedback('success', `Filled IP from ${ms.ip}`);
+  }
+
   if (loading) {
     return html`<div class="page-placeholder">Loading plugin...</div>`;
   }
@@ -166,6 +203,58 @@ export function PluginConfig({ pluginId }) {
         <button class="msg-btn msg-btn--unsubscribe" disabled=${pluginStatus === 'stopped'} onClick=${handleStop}>Stop</button>
         <button class="msg-btn msg-btn--clear" onClick=${handleReload}>Reload</button>
       </div>
+
+      ${pluginType === 'loxone' && html`
+        <div class="ve-card" style="margin-bottom:12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:14px;font-weight:600;">Miniserver Discovery</div>
+              <div style="font-size:12px;color:var(--ve-text-dim);margin-top:2px;">
+                Scan the LAN for Loxone Miniservers via UDP broadcast (port 7777).
+              </div>
+            </div>
+            <button class="msg-btn msg-btn--subscribe" onClick=${handleDiscover} disabled=${discovering}>
+              ${discovering ? 'Scanning...' : 'Scan Network'}
+            </button>
+          </div>
+          ${discoveryResults != null && html`
+            <div style="margin-top:12px;">
+              ${discoveryResults.length === 0
+                ? html`<div style="font-size:13px;color:var(--ve-text-dim);">
+                    No Miniservers responded. Make sure the device is powered on and on the same VLAN.
+                    You can still type the IP manually below.
+                  </div>`
+                : html`
+                  <div style="font-size:12px;color:var(--ve-text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">
+                    Found ${discoveryResults.length} Miniserver${discoveryResults.length === 1 ? '' : 's'} — click to fill
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:6px;">
+                    ${discoveryResults.map(ms => html`
+                      <div
+                        key=${ms.ip}
+                        onClick=${() => applyDiscoveredMiniserver(ms)}
+                        style="cursor:pointer;padding:8px 12px;border:1px solid var(--ve-border);border-radius:var(--ve-radius-sm);display:flex;align-items:center;gap:12px;transition:background 0.15s;"
+                        onMouseOver=${(e) => e.currentTarget.style.background = 'rgba(56,125,197,0.08)'}
+                        onMouseOut=${(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <div style="flex:1;min-width:0;">
+                          <div style="font-size:14px;font-weight:500;">
+                            ${(ms.name && !/^data$/i.test(ms.name)) ? ms.name : 'Miniserver'}
+                            <span style="color:var(--ve-text-dim);font-weight:normal;font-family:var(--ve-font-mono);font-size:13px;margin-left:6px;">${ms.ip}${ms.port && ms.port !== 80 ? `:${ms.port}` : ''}</span>
+                          </div>
+                          <div style="font-size:11px;color:var(--ve-text-dim);margin-top:2px;">
+                            ${ms.mac || ''}${ms.mac && ms.firmware ? ' · ' : ''}${ms.firmware ? `firmware ${ms.firmware}` : ''}
+                          </div>
+                        </div>
+                        <span style="font-size:11px;color:var(--ve-blue);text-transform:uppercase;letter-spacing:0.5px;">Use →</span>
+                      </div>
+                    `)}
+                  </div>
+                `}
+            </div>
+          `}
+        </div>
+      `}
 
       <div class="ve-card">
         <div style="font-size:16px;font-weight:600;margin-bottom:12px;">Configuration</div>
