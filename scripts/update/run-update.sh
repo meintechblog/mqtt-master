@@ -179,6 +179,31 @@ do_install() {
     fi
 }
 
+do_sync_unit() {
+    CURRENT_STAGE="sync_unit"
+    # Re-sync the main service unit from the repo so a User= or ExecStart=
+    # change in scripts/mqtt-master.service actually takes effect on the next
+    # restart. We keep this targeted (just the main service) — touching the
+    # updater unit while running inside it would be a foot-gun.
+    local repo_unit="${INSTALL_DIR}/scripts/mqtt-master.service"
+    local installed_unit="/etc/systemd/system/mqtt-master.service"
+    if [ -f "${repo_unit}" ] && [ -f "${installed_unit}" ]; then
+        if ! cmp -s "${repo_unit}" "${installed_unit}"; then
+            log "systemd unit changed — syncing & daemon-reload"
+            cp "${repo_unit}" "${installed_unit}"
+            systemctl daemon-reload || log "WARNING: daemon-reload failed"
+        fi
+    fi
+    # Also keep the updater unit in sync (without re-loading the running one).
+    local repo_updater="${INSTALL_DIR}/scripts/update/mqtt-master-updater.service"
+    local installed_updater="/etc/systemd/system/mqtt-master-updater.service"
+    if [ -f "${repo_updater}" ] && [ -f "${installed_updater}" ] && ! cmp -s "${repo_updater}" "${installed_updater}"; then
+        log "updater unit changed — syncing (will take effect on next run)"
+        cp "${repo_updater}" "${installed_updater}"
+        systemctl daemon-reload || log "WARNING: daemon-reload failed"
+    fi
+}
+
 do_restart() {
     CURRENT_STAGE="restart"
     log "systemctl restart ${SERVICE}"
@@ -261,6 +286,7 @@ fi
 
 do_reset
 do_install
+do_sync_unit
 do_restart
 do_verify
 
