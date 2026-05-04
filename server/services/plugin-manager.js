@@ -256,6 +256,7 @@ export class PluginManager {
           if (s.controlCount != null) entry.controlCount = s.controlCount;
           if (s.lastEvent != null) entry.lastEvent = s.lastEvent;
           if (s.connected != null) entry.connected = s.connected;
+          if (s.connection) entry.connection = s.connection;
         } catch { /* ignore */ }
       }
       result.push(entry);

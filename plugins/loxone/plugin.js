@@ -92,7 +92,7 @@ export default class LoxonePlugin {
     logger.info(`Loxone structure loaded: ${this._controlCount} controls`);
 
     // 3. Create WebSocket client
-    this._ws = new LoxoneWs({ host: ip, port, user: username, pass: password });
+    this._ws = new LoxoneWs({ host: ip, port, user: username, pass: password, logger });
 
     // 4. Wire events (store refs for cleanup)
     this._wsHandlers = {
@@ -236,6 +236,7 @@ export default class LoxonePlugin {
       controlCount: this._controlCount,
       lastEvent: this._lastEvent,
       messageCount: this._messageCount,
+      connection: this._ws?.getConnectionStats?.() || null,
     };
   }
 

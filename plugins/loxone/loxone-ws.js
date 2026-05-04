@@ -34,12 +34,21 @@ export class LoxoneWs extends EventEmitter {
   /**
    * @param {{ host: string, port: number, user: string, pass: string }} opts
    */
-  constructor({ host, port, user, pass }) {
+  constructor({ host, port, user, pass, logger } = {}) {
     super();
     this._host = host;
     this._port = port;
     this._user = user;
     this._pass = pass;
+
+    // Optional structured logger. Defaults to a minimal console adapter so
+    // plugin authors that don't pass one still get the lifecycle events.
+    this._log = logger ? logger : {
+      info: (...a) => console.log('[loxone-ws]', ...a),
+      warn: (...a) => console.warn('[loxone-ws]', ...a),
+      error: (...a) => console.error('[loxone-ws]', ...a),
+      debug: () => {},
+    };
 
     /** @type {WebSocket|null} */
     this._ws = null;
@@ -49,6 +58,20 @@ export class LoxoneWs extends EventEmitter {
     this._authenticated = false;
     this._reconnectAttempt = 0;
     this._shouldReconnect = true;
+
+    // Lifecycle audit fields surfaced via getConnectionStats() so the UI and
+    // future debug sessions can answer "did the Miniserver bounce?" without
+    // hand-grepping journalctl.
+    this._connectedSince = null;
+    this._lastConnectedAt = null;
+    this._lastDisconnectAt = null;
+    this._lastDisconnectCode = null;
+    this._lastConnectError = null;
+    this._totalConnects = 0;
+    this._totalDisconnects = 0;
+    this._totalReconnects = 0;
+    this._currentReconnectAttempt = 0;
+    this._nextReconnectAt = null;
 
     // AES session key material
     this._aesKey = null;   // Buffer, 32 bytes
@@ -167,14 +190,33 @@ export class LoxoneWs extends EventEmitter {
    * @returns {Promise<void>}
    */
   async _doConnect(isReconnect) {
-    // Step 1: fetch public key via HTTP
-    this._publicKey = await this._fetchPublicKey();
+    const start = Date.now();
+    this._log.info(`[loxone] ${isReconnect ? 'reconnecting' : 'connecting'} to ${this._host}:${this._port}${isReconnect ? ` (attempt #${this._currentReconnectAttempt})` : ''}`);
+    try {
+      // Step 1: fetch public key via HTTP
+      this._publicKey = await this._fetchPublicKey();
 
-    // Step 2: open WebSocket (NO auth headers)
-    await this._openWebSocket(isReconnect);
+      // Step 2: open WebSocket (NO auth headers)
+      await this._openWebSocket(isReconnect);
 
-    // Steps 3-9: authenticate
-    await this._authenticate();
+      // Steps 3-9: authenticate
+      await this._authenticate();
+
+      // Connection + auth complete — record lifecycle stats and log.
+      const now = Date.now();
+      this._connectedSince = now;
+      this._lastConnectedAt = now;
+      this._totalConnects += 1;
+      if (isReconnect) this._totalReconnects += 1;
+      this._currentReconnectAttempt = 0;
+      this._nextReconnectAt = null;
+      this._lastConnectError = null;
+      this._log.info(`[loxone] ${isReconnect ? 'reconnected' : 'connected'} in ${now - start}ms (totalConnects=${this._totalConnects}, totalReconnects=${this._totalReconnects})`);
+    } catch (err) {
+      this._lastConnectError = err?.message || String(err);
+      this._log.warn(`[loxone] ${isReconnect ? 'reconnect' : 'connect'} failed: ${this._lastConnectError}`);
+      throw err;
+    }
   }
 
   /**
@@ -252,6 +294,16 @@ export class LoxoneWs extends EventEmitter {
         this._connected = false;
         this._authenticated = false;
         this._stopTimers();
+
+        const now = Date.now();
+        this._lastDisconnectAt = now;
+        this._lastDisconnectCode = code;
+        const sessionMs = this._connectedSince ? now - this._connectedSince : null;
+        this._connectedSince = null;
+        if (wasConnected) {
+          this._totalDisconnects += 1;
+          this._log.warn(`[loxone] disconnected from ${this._host} (code=${code}, session=${sessionMs}ms)`);
+        }
         this.emit('disconnected');
 
         if (!wasConnected) {
@@ -710,15 +762,43 @@ export class LoxoneWs extends EventEmitter {
   _scheduleReconnect() {
     const delay = this._calcBackoff(this._reconnectAttempt);
     this._reconnectAttempt++;
+    this._currentReconnectAttempt = this._reconnectAttempt;
+    this._nextReconnectAt = Date.now() + delay;
+    this._log.info(`[loxone] scheduling reconnect attempt #${this._reconnectAttempt} in ${(delay / 1000).toFixed(1)}s`);
 
     this._reconnectTimer = setTimeout(async () => {
       try {
         await this._doConnect(true);
         this.emit('reconnected');
       } catch {
-        // Connection failed, will trigger close event -> reschedule
+        // Connection failed; close handler will fire and reschedule. The
+        // failure itself is already logged inside _doConnect's catch.
       }
     }, delay);
+  }
+
+  /**
+   * Snapshot of connection lifecycle for the API. The dashboard surfaces this
+   * so users can see "Miniserver bounced 3 minutes ago, reconnected after 12s"
+   * without trawling journalctl.
+   */
+  getConnectionStats() {
+    return {
+      connected: this._connected,
+      authenticated: this._authenticated,
+      connectedSince: this._connectedSince,
+      lastConnectedAt: this._lastConnectedAt,
+      lastDisconnectAt: this._lastDisconnectAt,
+      lastDisconnectCode: this._lastDisconnectCode,
+      lastConnectError: this._lastConnectError,
+      totalConnects: this._totalConnects,
+      totalReconnects: this._totalReconnects,
+      totalDisconnects: this._totalDisconnects,
+      currentReconnectAttempt: this._currentReconnectAttempt,
+      nextReconnectAt: this._nextReconnectAt,
+      host: this._host,
+      port: this._port,
+    };
   }
 
   /**

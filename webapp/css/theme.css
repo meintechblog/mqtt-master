@@ -990,6 +990,13 @@ body {
   gap: 10px;
 }
 .bind-card-label { font-weight: 500; flex: 1; font-size: 14px; }
+.bind-card-loxone-name {
+  margin-left: 6px;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--ve-green);
+  cursor: help;
+}
 .bind-remove {
   background: none;
   border: none;
@@ -1001,6 +1008,94 @@ body {
 }
 .bind-remove:hover { color: var(--ve-red); }
 .bind-card-detail { margin-top: 6px; display: flex; align-items: center; gap: 8px; }
+
+/* New 3-column flow: FROM (MQTT source) → VALUE (bridge) → TO (Loxone target) */
+.bind-card-flow-grid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.015);
+  border-radius: var(--ve-radius-sm);
+  border: 1px solid rgba(100,99,95,0.18);
+}
+.bind-flow-col { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bind-flow-col--from { text-align: left; }
+.bind-flow-col--to   { text-align: right; align-items: flex-end; }
+.bind-flow-col--value {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  padding: 0 4px;
+}
+.bind-flow-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--ve-text-dim);
+}
+.bind-flow-topic {
+  font-family: var(--ve-font-mono);
+  font-size: 12px;
+  color: var(--ve-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bind-flow-field {
+  font-family: var(--ve-font-mono);
+  font-size: 11px;
+  color: var(--ve-blue);
+}
+.bind-flow-arrow { color: var(--ve-text-dim); font-size: 16px; }
+.bind-flow-transform {
+  font-family: var(--ve-font-mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(240,150,46,0.12);
+  color: var(--ve-orange);
+  white-space: nowrap;
+}
+.bind-flow-value {
+  font-family: var(--ve-font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ve-text-primary);
+  background: rgba(56,125,197,0.14);
+  padding: 4px 10px;
+  border-radius: var(--ve-radius-sm);
+  min-width: 56px;
+  text-align: center;
+  white-space: nowrap;
+}
+.bind-flow-target-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ve-green);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bind-flow-live {
+  font-size: 11px;
+  color: var(--ve-text-dim);
+  font-family: var(--ve-font-mono);
+}
+.bind-card-diag-meta {
+  margin-left: auto;
+  padding-left: 12px;
+  color: var(--ve-text-dim);
+  font-weight: normal;
+}
+@media (max-width: 720px) {
+  .bind-card-flow-grid { grid-template-columns: 1fr; gap: 8px; }
+  .bind-flow-col--to   { text-align: left; align-items: flex-start; }
+  .bind-flow-col--value { justify-content: flex-start; }
+}
 .bind-card-flow { display: flex; align-items: center; gap: 6px; flex: 1; flex-wrap: wrap; font-size: 12px; }
 .bind-card-topic { color: var(--ve-text-secondary); font-family: var(--ve-font-mono); }
 .bind-card-field { color: var(--ve-blue); font-family: var(--ve-font-mono); }
@@ -1042,6 +1137,9 @@ body {
   border-radius: 3px;
   border-left: 2px solid transparent;
   background: rgba(255,255,255,0.02);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .bind-card-diag--green  { color: var(--ve-green);  border-left-color: var(--ve-green); }
 .bind-card-diag--orange { color: var(--ve-orange); border-left-color: var(--ve-orange); }

@@ -17,6 +17,20 @@ function liveValue(ctrl) {
   return null;
 }
 
+/**
+ * Render a number the way the binding actually transmits it: at most 3
+ * decimals, with trailing zeros stripped. `21.400` → `21.4`, `21.000` → `21`.
+ * Mirrors the `Math.round(v * 1000) / 1000 → String(v)` step in binding-utils
+ * so the UI doesn't lie about what reaches Loxone.
+ */
+function fmtNumNice(n) {
+  if (n == null) return null;
+  if (typeof n !== 'number') return String(n);
+  if (!Number.isFinite(n)) return String(n);
+  if (Number.isInteger(n)) return String(n);
+  return parseFloat(n.toFixed(3)).toString();
+}
+
 function fmtAge(ts) {
   if (!ts) return null;
   const sec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
@@ -36,16 +50,11 @@ function BindingCard({ binding, stats, controls, onRemove, onToggle, onUpdate })
   const transform = TRANSFORMS.find(t => t.value === binding.transform);
   const keepalive = binding.keepaliveMs || binding.intervalMs || 30000;
   const live = liveValue(targetCtrl);
-  const liveStr = live != null ? (typeof live === 'number' ? (Number.isInteger(live) ? String(live) : live.toFixed(3)) : String(live)) : null;
+  const liveStr = fmtNumNice(live);
 
   // Live MQTT-side stats: what the binding pushed last and how often.
   const stat = stats || {};
-  const sentValue = stat.value;
-  const sentValueStr = sentValue != null
-    ? (typeof sentValue === 'number'
-        ? (Number.isInteger(sentValue) ? String(sentValue) : Number(sentValue).toFixed(3))
-        : String(sentValue))
-    : null;
+  const sentValueStr = fmtNumNice(stat.value);
   const recentSendMs = stat.lastSentAt ? Date.now() - stat.lastSentAt : Infinity;
   const recentRecvMs = stat.lastReceivedAt ? Date.now() - stat.lastReceivedAt : Infinity;
   const flashSend = recentSendMs < 3000;
@@ -81,28 +90,50 @@ function BindingCard({ binding, stats, controls, onRemove, onToggle, onUpdate })
         />
         <span class="bind-card-label" onClick=${() => setExpanded(!expanded)} style="cursor:pointer">
           ${binding.label || binding.id}
+          ${targetCtrl?.name && html`
+            <span class="bind-card-loxone-name" title="Live name from Loxone — updates if you rename the control in Loxone Config">
+              (${targetCtrl.name})
+            </span>
+          `}
         </span>
         <button class="bind-remove" onClick=${() => onRemove(binding.id)} title="Remove">×</button>
       </div>
-      <div class="bind-card-detail" onClick=${() => setExpanded(!expanded)} style="cursor:pointer">
-        <div class="bind-card-flow">
-          <span class="bind-card-topic ${flashRecv ? 'bind-flash' : ''}">${binding.mqttTopic.split('/').pop()}</span>
-          <span class="bind-card-field">.${binding.jsonField}</span>
-          ${sentValueStr != null && html`
-            <span class="bind-card-mqtt-val ${flashSend ? 'bind-flash' : ''}" title="last value forwarded to Loxone">
-              ${sentValueStr}
+      <div class="bind-card-flow-grid" onClick=${() => setExpanded(!expanded)} style="cursor:pointer">
+        <!-- FROM: MQTT source -->
+        <div class="bind-flow-col bind-flow-col--from">
+          <span class="bind-flow-label">From MQTT</span>
+          <span class="bind-flow-topic ${flashRecv ? 'bind-flash' : ''}">${binding.mqttTopic}</span>
+          <span class="bind-flow-field">.${binding.jsonField}</span>
+        </div>
+
+        <!-- VALUE: the bridge -->
+        <div class="bind-flow-col bind-flow-col--value">
+          <span class="bind-flow-arrow">→</span>
+          ${transform && transform.value && html`
+            <span class="bind-flow-transform" title="transform applied before forwarding">${transform.label}</span>
+          `}
+          <span class="bind-flow-value ${flashSend ? 'bind-flash' : ''}" title="last value forwarded to Loxone">
+            ${sentValueStr ?? '—'}
+          </span>
+          <span class="bind-flow-arrow">→</span>
+        </div>
+
+        <!-- TO: Loxone target -->
+        <div class="bind-flow-col bind-flow-col--to">
+          <span class="bind-flow-label">To Loxone</span>
+          <span class="bind-flow-target-name">${targetName}</span>
+          ${liveStr != null && html`
+            <span class="bind-flow-live" title="value Loxone is currently reporting back">
+              now ${liveStr}
             </span>
           `}
-          <span class="bind-card-arrow">→</span>
-          ${transform && transform.value && html`<span class="bind-card-transform">${transform.label}</span>`}
-          <span class="bind-card-arrow">→</span>
-          <span class="bind-card-target">${targetName}</span>
         </div>
-        ${liveStr != null && html`<span class="bind-card-live" title="current value reported by Loxone">${liveStr}</span>`}
-        <span class="bind-card-interval">${(keepalive / 1000).toFixed(0)}s</span>
       </div>
       ${diagText && html`
-        <div class="bind-card-diag bind-card-diag--${diagTone}">${diagText}</div>
+        <div class="bind-card-diag bind-card-diag--${diagTone}">
+          ${diagText}
+          <span class="bind-card-diag-meta">keepalive ${(keepalive / 1000).toFixed(0)}s</span>
+        </div>
       `}
       ${expanded && html`
         <div class="bind-edit">
