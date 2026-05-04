@@ -9,6 +9,7 @@ MQTT Master provides a real-time web interface for monitoring your Mosquitto MQT
 ### Dashboard
 - Real-time metrics with sparkline trend charts (receive/send rate, clients, uptime)
 - Live activity bar showing IN/OUT message throughput
+- **Verbindungs-Info card**: hostname, LAN IPs, MQTT broker URL (`mqtt://…:1883`), MQTT WebSocket URL (`ws://…:9001`), and topic prefix — all click-to-copy
 - Plugin overview with status indicators and message counts
 - Auto-updating every 2 seconds
 
@@ -157,7 +158,7 @@ Config file: `/opt/mqtt-master/config.json`
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `mqtt.broker` | `mqtt://localhost:1883` | Local MQTT broker URL |
-| `web.port` | `3000` | Web dashboard port |
+| `web.port` | `80` | Web dashboard port |
 | `logLevel` | `info` | Log level (trace, debug, info, warn, error) |
 | `pluginDir` | `plugins/` | Plugin directory |
 

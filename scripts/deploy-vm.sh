@@ -26,7 +26,7 @@ ssh ${VM_HOST} "systemctl restart mqtt-master"
 sleep 1
 STATUS=$(ssh ${VM_HOST} "systemctl is-active mqtt-master")
 if [ "$STATUS" = "active" ]; then
-  echo "✅ Deployed! Live at http://mqtt-master.local:3000"
+  echo "✅ Deployed! Live at http://mqtt-master.local"
 else
   echo "❌ Service failed to start!"
   ssh ${VM_HOST} "journalctl -u mqtt-master --no-pager -n 20"

@@ -7,7 +7,7 @@ const DEFAULTS = {
     broker: 'mqtt://localhost:1883',
   },
   web: {
-    port: 3000,
+    port: 80,
   },
   logLevel: 'info',
   pluginDir: '/opt/mqtt-master/plugins',

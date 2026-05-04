@@ -18,7 +18,7 @@ describe('ConfigService', () => {
     const svc = new ConfigService(join(TMP_DIR, 'nonexistent.json'));
     await svc.load();
     expect(svc.get('mqtt.broker')).toBe('mqtt://localhost:1883');
-    expect(svc.get('web.port')).toBe(3000);
+    expect(svc.get('web.port')).toBe(80);
   });
 
   it('merges file config over defaults', async () => {
@@ -27,7 +27,7 @@ describe('ConfigService', () => {
     const svc = new ConfigService(cfgPath);
     await svc.load();
     expect(svc.get('mqtt.broker')).toBe('mqtt://other:1883');
-    expect(svc.get('web.port')).toBe(3000); // default preserved
+    expect(svc.get('web.port')).toBe(80); // default preserved
   });
 
   it('handles invalid JSON gracefully', async () => {
@@ -35,7 +35,7 @@ describe('ConfigService', () => {
     await writeFile(cfgPath, 'not json');
     const svc = new ConfigService(cfgPath);
     await svc.load(); // should not throw
-    expect(svc.get('web.port')).toBe(3000);
+    expect(svc.get('web.port')).toBe(80);
   });
 
   it('get() returns fallback for missing keys', async () => {

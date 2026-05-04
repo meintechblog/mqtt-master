@@ -533,9 +533,72 @@ body {
 .dash-load-item { text-align: center; }
 .dash-load-value { font-size: 24px; font-weight: 600; font-family: var(--ve-font-mono); color: var(--ve-text-primary); }
 .dash-load-period { font-size: 11px; color: var(--ve-text-dim); margin-top: 2px; }
+
+/* Connection info card */
+.dash-row1 { margin-bottom: 12px; }
+.dash-conn-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 16px;
+}
+.dash-conn-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  min-width: 0;
+}
+.dash-conn-label {
+  font-size: 12px;
+  color: var(--ve-text-dim);
+  flex-shrink: 0;
+}
+.dash-conn-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: var(--ve-radius-sm);
+  background: rgba(56,125,197,0.06);
+  border: 1px solid transparent;
+  color: var(--ve-text-primary);
+  font-family: var(--ve-font-mono);
+  font-size: 13px;
+  cursor: pointer;
+  min-width: 0;
+  max-width: 100%;
+  text-align: right;
+  transition: background 0.15s, border-color 0.15s;
+}
+.dash-conn-copy:hover {
+  background: rgba(56,125,197,0.14);
+  border-color: var(--ve-blue);
+}
+.dash-conn-copy-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.dash-conn-copy-icon {
+  font-size: 12px;
+  color: var(--ve-text-dim);
+  flex-shrink: 0;
+}
+.dash-conn-hint {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(100,99,95,0.2);
+  font-size: 12px;
+  color: var(--ve-text-dim);
+  line-height: 1.45;
+}
+
 @media (max-width: 768px) {
   .dash-hero { grid-template-columns: repeat(2, 1fr); }
   .dash-row2 { grid-template-columns: 1fr; }
+  .dash-conn-grid { grid-template-columns: 1fr; }
 }
 
 /* Messages page */

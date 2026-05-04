@@ -53,6 +53,7 @@ export function Docs() {
         <a href="#install-debian" class="docs-toc-link docs-toc-sub">Debian / Ubuntu</a>
         <a href="#update" class="docs-toc-link">Updating</a>
         <a href="#config" class="docs-toc-link">Configuration</a>
+        <a href="#connection-info" class="docs-toc-link">Connection Info</a>
         <a href="#quickstart" class="docs-toc-link">Quick Start</a>
         <a href="#plugins" class="docs-toc-link">Plugins</a>
         <a href="#plugins-loxone" class="docs-toc-link docs-toc-sub">Loxone</a>
@@ -125,7 +126,7 @@ wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/instal
         <p>Default configuration:</p>
         <${CodeBlock} code=${`{
   "mqtt": { "broker": "mqtt://localhost:1883" },
-  "web": { "port": 3000 },
+  "web": { "port": 80 },
   "logLevel": "info"
 }`} />
 
@@ -134,10 +135,16 @@ wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/instal
             <thead><tr><th>Setting</th><th>Default</th><th>Description</th></tr></thead>
             <tbody>
               <tr><td><code>mqtt.broker</code></td><td>mqtt://localhost:1883</td><td>MQTT broker connection URL</td></tr>
-              <tr><td><code>web.port</code></td><td>3000</td><td>Web dashboard port</td></tr>
+              <tr><td><code>web.port</code></td><td>80</td><td>Web dashboard port (HTTP)</td></tr>
               <tr><td><code>logLevel</code></td><td>info</td><td>Log level: debug, info, warn, error</td></tr>
             </tbody>
           </table>
+        </div>
+
+        <div class="docs-callout docs-callout--info">
+          <strong>Migration:</strong> Older installations defaulted to port 3000. Re-running the
+          installer migrates <code>web.port: 3000</code> to <code>80</code> automatically; any
+          custom port (e.g. 8080) is preserved.
         </div>
 
         <p>After editing, restart the service:</p>
@@ -148,6 +155,39 @@ wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/instal
 systemctl restart mqtt-master    # Restart
 systemctl stop mqtt-master       # Stop
 journalctl -u mqtt-master -f     # View live logs`} />
+      </${Section}>
+
+      <!-- Connection Info -->
+      <${Section} id="connection-info" title="Connection Info">
+        <p>
+          The dashboard shows a <strong>Verbindungs-Info</strong> card at the top with all the
+          addresses other devices on your LAN need:
+        </p>
+        <ul class="docs-list">
+          <li><strong>Hostname</strong> — the friendly name of the host (e.g. <code>mqtt-master</code>)</li>
+          <li><strong>Dashboard</strong> — the URL of this web UI (port 80 by default, no port shown)</li>
+          <li><strong>MQTT-Broker</strong> — the TCP MQTT URL for native MQTT clients (port 1883)</li>
+          <li><strong>MQTT WebSocket</strong> — the WebSocket URL for browser-based MQTT clients (port 9001)</li>
+          <li><strong>LAN-IPs</strong> — every non-loopback IPv4 address bound on the host</li>
+          <li><strong>Topic-Prefix</strong> — the prefix MQTT Master uses for its own topics</li>
+        </ul>
+        <p>Click any value to copy it to the clipboard.</p>
+
+        <p>The same data is exposed as JSON for scripts and integrations:</p>
+        <${CodeBlock} code="GET /api/system/info" />
+        <${CodeBlock} code=${`{
+  "hostname": "mqtt-master",
+  "lanIps": [{ "iface": "eth0", "address": "192.168.3.178" }],
+  "web": { "port": 80 },
+  "mqtt": {
+    "configuredUrl": "mqtt://localhost:1883",
+    "protocol": "mqtt",
+    "host": "localhost",
+    "port": 1883,
+    "websocketPort": 9001
+  },
+  "topicPrefix": "mqtt-master"
+}`} />
       </${Section}>
 
       <!-- Quick Start -->
@@ -211,6 +251,7 @@ mqtt-master/<plugin-id>/bridge/<remote-topic>       # Bridged values`} />
               <tr><td><code>/api/plugins/:id</code></td><td>DELETE</td><td>Delete a plugin</td></tr>
               <tr><td><code>/api/plugins/:id/start</code></td><td>POST</td><td>Start plugin</td></tr>
               <tr><td><code>/api/plugins/:id/stop</code></td><td>POST</td><td>Stop plugin</td></tr>
+              <tr><td><code>/api/system/info</code></td><td>GET</td><td>Hostname, LAN IPs, broker URLs</td></tr>
             </tbody>
           </table>
         </div>

@@ -25,6 +25,11 @@ export function fetchPlugins() {
   return request('/api/plugins');
 }
 
+/** GET /api/system/info -- LAN connection info (hostname, IPs, broker URLs) */
+export function fetchSystemInfo() {
+  return request('/api/system/info');
+}
+
 /** POST /api/plugins/:id/start */
 export function startPlugin(id) {
   return request(`/api/plugins/${encodeURIComponent(id)}/start`, { method: 'POST' });

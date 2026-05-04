@@ -170,6 +170,14 @@ if [ ! -f "${APP_DIR}/config.json" ]; then
 }
 CFGEOF
     ok "Default config created"
+else
+    # Migrate legacy default port 3000 → 80. Only touches the value when it's
+    # exactly the previous default — a customised port (e.g. 8080) is preserved.
+    if grep -Eq '"port"[[:space:]]*:[[:space:]]*3000' "${APP_DIR}/config.json"; then
+        log "Migrating legacy web.port 3000 → 80..."
+        sed -i -E 's/("port"[[:space:]]*:[[:space:]]*)3000/\180/' "${APP_DIR}/config.json"
+        ok "Web port migrated to 80"
+    fi
 fi
 
 # ---------------------------------------------------------------------------

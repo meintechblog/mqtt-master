@@ -10,6 +10,7 @@ import { PluginManager } from './services/plugin-manager.js';
 import wsDashboard from './routes/ws-dashboard.js';
 import wsMessages from './routes/ws-messages.js';
 import apiPlugins from './routes/api-plugins.js';
+import apiSystem from './routes/api-system.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -57,6 +58,7 @@ export async function start(opts = {}) {
 
   // REST API routes (before SPA fallback so /api/* routes match)
   await app.register(apiPlugins);
+  await app.register(apiSystem);
 
   // WebSocket routes
   await app.register(wsDashboard);
@@ -67,7 +69,7 @@ export async function start(opts = {}) {
     return reply.sendFile('index.html');
   });
 
-  const port = opts.port || config.get('web.port', 3000);
+  const port = opts.port ?? config.get('web.port', 80);
   const host = opts.host || '0.0.0.0';
   await app.listen({ port, host });
 

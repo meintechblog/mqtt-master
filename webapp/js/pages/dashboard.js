@@ -1,7 +1,7 @@
 import { html } from 'htm/preact';
 import { useEffect, useState, useRef } from 'preact/hooks';
 import { dashboardState, brokerConnected } from '../lib/ws-client.js';
-import { fetchPlugins } from '../lib/api-client.js';
+import { fetchPlugins, fetchSystemInfo } from '../lib/api-client.js';
 import { StatusDot } from '../components/status-dot.js';
 import { fmtRate, fmtTotal, fmtUptime } from '../lib/format.js';
 
@@ -9,6 +9,102 @@ const MAX_SPARKLINE_POINTS = 60;
 
 function stripVersion(v) {
   return v ? v.replace(/^mosquitto version\s*/i, '') : '--';
+}
+
+/**
+ * Pick the host string a user should use to reach this server from another
+ * machine. Prefer the address they already typed in the browser (works for
+ * both `mqtt-master.local` and bare IPs); fall back to the first LAN IP
+ * reported by the server when the page is opened via `localhost`.
+ */
+function preferredHost(info) {
+  const browserHost = window.location.hostname;
+  const isLocal = !browserHost
+    || browserHost === 'localhost'
+    || browserHost === '127.0.0.1'
+    || browserHost === '::1';
+  if (!isLocal) return browserHost;
+  const lan = info?.lanIps?.[0]?.address;
+  return lan || info?.hostname || browserHost || 'localhost';
+}
+
+function CopyValue({ text, label }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = (e) => {
+    e.preventDefault();
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }).catch(() => {});
+  };
+  return html`
+    <button
+      class="dash-conn-copy"
+      type="button"
+      onClick=${handleCopy}
+      title=${label ? `Copy ${label}` : 'Copy'}
+    >
+      <span class="dash-conn-copy-text">${text || '--'}</span>
+      <span class="dash-conn-copy-icon">${copied ? '✓' : '⧉'}</span>
+    </button>
+  `;
+}
+
+function ConnectionCard({ info }) {
+  const host = preferredHost(info);
+  const webPort = info?.web?.port ?? 80;
+  const dashboardUrl = webPort === 80 ? `http://${host}` : `http://${host}:${webPort}`;
+  const mqttPort = info?.mqtt?.port ?? 1883;
+  const mqttScheme = info?.mqtt?.protocol === 'mqtts' ? 'mqtts' : 'mqtt';
+  const mqttUrl = `${mqttScheme}://${host}:${mqttPort}`;
+  const wsPort = info?.mqtt?.websocketPort ?? 9001;
+  const wsUrl = `ws://${host}:${wsPort}`;
+  const friendlyName = info?.hostname || host;
+  const lanList = (info?.lanIps || []).map(i => i.address).join(', ');
+
+  return html`
+    <div class="dash-card">
+      <div class="dash-card-title">
+        <${StatusDot} status="connected" />
+        Verbindungs-Info
+      </div>
+      <div class="dash-conn-grid">
+        <div class="dash-conn-row">
+          <span class="dash-conn-label">Hostname</span>
+          <${CopyValue} text=${friendlyName} label="hostname" />
+        </div>
+        <div class="dash-conn-row">
+          <span class="dash-conn-label">Dashboard</span>
+          <${CopyValue} text=${dashboardUrl} label="dashboard URL" />
+        </div>
+        <div class="dash-conn-row">
+          <span class="dash-conn-label">MQTT-Broker</span>
+          <${CopyValue} text=${mqttUrl} label="broker URL" />
+        </div>
+        <div class="dash-conn-row">
+          <span class="dash-conn-label">MQTT WebSocket</span>
+          <${CopyValue} text=${wsUrl} label="WebSocket URL" />
+        </div>
+        ${lanList && html`
+          <div class="dash-conn-row">
+            <span class="dash-conn-label">LAN-IPs</span>
+            <${CopyValue} text=${lanList} label="LAN IPs" />
+          </div>
+        `}
+        ${info?.topicPrefix && html`
+          <div class="dash-conn-row">
+            <span class="dash-conn-label">Topic-Prefix</span>
+            <${CopyValue} text=${info.topicPrefix} label="topic prefix" />
+          </div>
+        `}
+      </div>
+      <div class="dash-conn-hint">
+        Diese Adressen erreichen MQTT Master und den lokalen Mosquitto-Broker aus dem LAN.
+        Anonymer Zugriff ist auf Port 1883 (MQTT) und 9001 (WebSocket) konfiguriert.
+      </div>
+    </div>
+  `;
 }
 
 function pluginDotStatus(p) {
@@ -66,11 +162,13 @@ function ActivityBar({ rateIn, rateOut }) {
 
 export function Dashboard() {
   const [plugins, setPlugins] = useState([]);
+  const [systemInfo, setSystemInfo] = useState(null);
   const rateHistory = useRef({ in: [], out: [] });
   const [historyVersion, setHistoryVersion] = useState(0);
 
   useEffect(() => {
     fetchPlugins().then(setPlugins).catch(() => {});
+    fetchSystemInfo().then(setSystemInfo).catch(() => {});
     const pluginInterval = setInterval(() => {
       fetchPlugins().then(setPlugins).catch(() => {});
     }, 5000);
@@ -132,6 +230,11 @@ export function Dashboard() {
 
       <!-- Activity bar -->
       <${ActivityBar} rateIn=${d.load_received_1min} rateOut=${d.load_sent_1min} />
+
+      <!-- Connection info: how to reach this server + the MQTT broker from the LAN -->
+      <div class="dash-row1">
+        <${ConnectionCard} info=${systemInfo} />
+      </div>
 
       <div class="dash-row2">
         <!-- Broker -->

@@ -13,7 +13,7 @@ BRANCH="main"
 SERVICE_NAME="mqtt-master"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 APP_USER="mqtt-master"
-APP_PORT=3000
+APP_PORT=80
 NODE_MAJOR=20
 
 # Colors
@@ -184,7 +184,11 @@ fi
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 IP=$(hostname -I | awk '{print $1}')
-echo -e "  Dashboard:   ${BLUE}http://${IP}:${APP_PORT}${NC}"
+if [ "${APP_PORT}" = "80" ]; then
+    echo -e "  Dashboard:   ${BLUE}http://${IP}${NC}"
+else
+    echo -e "  Dashboard:   ${BLUE}http://${IP}:${APP_PORT}${NC}"
+fi
 echo -e "  MQTT Broker: ${BLUE}mqtt://${IP}:1883${NC}"
 echo -e "  WebSocket:   ${BLUE}ws://${IP}:9001${NC}"
 echo ""
