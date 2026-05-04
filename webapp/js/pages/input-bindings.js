@@ -2,6 +2,8 @@ import { html } from 'htm/preact';
 import { useEffect, useState, useCallback } from 'preact/hooks';
 import { fetchInputBindings, saveInputBindings, fetchLoxoneControlsDetailed } from '../lib/api-client.js';
 import { TRANSFORMS, suggestTransform, previewTransform } from '../lib/transform-utils.js';
+import { TopicBrowserPanel } from '../components/topic-browser.js';
+import { flattenJsonFields } from '../lib/json-fields.js';
 
 // ── Existing binding row (compact, expandable for edit) ────────
 /** Extract the primary live value from a control's states */
@@ -96,78 +98,38 @@ function BindingCard({ binding, controls, onRemove, onToggle, onUpdate }) {
   `;
 }
 
-// ── Wizard: Step 1 - Discover MQTT topics ──────────────────────
-function StepDiscover({ onSelect, defaultPattern }) {
-  const [pattern, setPattern] = useState(defaultPattern || 'pv-inverter-proxy/#');
-  const [scanning, setScanning] = useState(false);
-  const [topics, setTopics] = useState([]);
+// ── Wizard: Step 1 - Browse MQTT topics ────────────────────────
+/**
+ * Synthesise the wizard's `source` shape from a raw cached payload so the
+ * downstream steps (StepPickField, StepReview) work unchanged with nested
+ * fields like `ENERGY.Power` or `Wifi.RSSI`.
+ */
+function topicToSource(topic, payload, ts) {
+  const flat = flattenJsonFields(payload);
+  const fields = flat.length > 0
+    ? flat.map(({ path, value, type }) => ({
+        key: path,
+        path,
+        type,
+        sample: typeof value === 'number' ? value : String(value).substring(0, 100),
+      }))
+    : [{ key: 'value', path: 'value', type: typeof payload, sample: payload }];
+  return { topic, payload, ts, fields };
+}
 
-  const scan = useCallback(async () => {
-    setScanning(true);
-    setTopics([]);
-    try {
-      const res = await fetch('/api/mqtt/discover', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pattern, durationMs: 3000 }),
-      });
-      const data = await res.json();
-      if (res.ok) setTopics(data);
-    } catch { /* ignore */ }
-    setScanning(false);
-  }, [pattern]);
-
+function StepDiscover({ onSelect }) {
   return html`
     <div class="wiz-step">
-      <div class="wiz-step-title">1. Discover MQTT Sources</div>
-      <div class="wiz-step-desc">Enter a topic pattern to scan the broker for available data sources.</div>
-      <div class="wiz-discover-row">
-        <input
-          type="text"
-          class="bind-input"
-          style="flex:1"
-          placeholder="topic/pattern/#"
-          value=${pattern}
-          onInput=${(e) => setPattern(e.target.value)}
-          onKeyDown=${(e) => { if (e.key === 'Enter') scan(); }}
-        />
-        <button class="lox-cmd-btn" onClick=${scan} disabled=${scanning || !pattern.trim()}>
-          ${scanning ? 'Scanning...' : 'Scan'}
-        </button>
+      <div class="wiz-step-title">1. Pick MQTT Source</div>
+      <div class="wiz-step-desc">
+        Click <strong>Use →</strong> on any topic. The browser shows every
+        topic seen since the service started, with live values.
       </div>
-      ${topics.length > 0 && html`
-        <div class="wiz-results">
-          ${topics.filter(t => t.fields && t.fields.length > 0).map(t => {
-            // Extract device name from payload if available
-            const nameField = t.fields.find(f => f.key === 'name');
-            const displayName = nameField ? nameField.sample : t.topic;
-            return html`
-              <div class="wiz-topic-card" key=${t.topic} onClick=${() => onSelect(t)}>
-                <div class="wiz-topic-name">${displayName}</div>
-                <div class="wiz-topic-path">${t.topic}</div>
-                <div class="wiz-topic-fields">
-                  ${t.fields.filter(f => f.type === 'number').slice(0, 6).map(f => html`
-                    <span class="wiz-field-preview" key=${f.key}>
-                      <span class="wiz-field-key">${f.key}</span>
-                      <span class="wiz-field-val">${typeof f.sample === 'number' ? f.sample.toLocaleString() : f.sample}</span>
-                    </span>
-                  `)}
-                </div>
-              </div>
-            `;
-          })}
-          ${topics.filter(t => !t.fields || t.fields.length === 0).length > 0 && html`
-            <div style="font-size:12px;color:var(--ve-text-dim);margin-top:8px;">
-              ${topics.filter(t => !t.fields || t.fields.length === 0).length} non-JSON topics hidden
-            </div>
-          `}
-        </div>
-      `}
-      ${!scanning && topics.length === 0 && pattern && html`
-        <div style="font-size:13px;color:var(--ve-text-dim);margin-top:12px;">
-          Click Scan to discover topics matching the pattern.
-        </div>
-      `}
+      <${TopicBrowserPanel}
+        actionLabel="Use →"
+        title="Available MQTT Topics"
+        onSelect=${(topic, _value, payload, ts) => onSelect(topicToSource(topic, payload, ts))}
+      />
     </div>
   `;
 }
@@ -498,7 +460,7 @@ export function InputBindings({ pluginId = 'loxone', defaultPattern } = {}) {
           </div>
 
           ${wizStep === 1 && html`
-            <${StepDiscover} defaultPattern=${defaultPattern} onSelect=${(source) => { setWizSource(source); setWizStep(2); }} />
+            <${StepDiscover} onSelect=${(source) => { setWizSource(source); setWizStep(2); }} />
           `}
           ${wizStep === 2 && wizSource && html`
             <${StepPickField}

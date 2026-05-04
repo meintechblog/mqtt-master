@@ -12,6 +12,7 @@ import {
   clearMessages,
 } from '../lib/ws-messages-client.js';
 import { flattenJsonFields, extractField, applyTransform } from '../lib/json-fields.js';
+import { TopicBrowserPanel } from '../components/topic-browser.js';
 
 function formatTimestamp(ts) {
   const d = new Date(ts);
@@ -20,163 +21,6 @@ function formatTimestamp(ts) {
   const s = String(d.getSeconds()).padStart(2, '0');
   const ms = String(d.getMilliseconds()).padStart(3, '0');
   return `${h}:${m}:${s}.${ms}`;
-}
-
-/** Build a tree structure from flat topic list */
-function buildTopicTree(topicMap) {
-  const root = { children: {}, count: 0 };
-  for (const [topic, data] of topicMap) {
-    const parts = topic.split('/');
-    let node = root;
-    for (const part of parts) {
-      if (!node.children[part]) {
-        node.children[part] = { children: {}, count: 0, topic: null, value: null, ts: null };
-      }
-      node = node.children[part];
-    }
-    node.topic = topic;
-    node.value = data.value;
-    node.ts = data.ts;
-    root.count++;
-  }
-  return root;
-}
-
-function fmtValue(v) {
-  if (v == null) return '';
-  if (typeof v === 'number') return Number.isInteger(v) ? String(v) : v.toFixed(2);
-  const s = String(v);
-  return s.length > 60 ? s.substring(0, 57) + '...' : s;
-}
-
-function TopicNode({ name, node, depth, expanded, toggleExpand, onCreateBinding, prevValues }) {
-  const hasChildren = Object.keys(node.children).length > 0;
-  const isLeaf = node.topic != null;
-  const isOpen = expanded.has(name);
-
-  // Ping animation for value changes
-  const prev = prevValues.current[node.topic];
-  const changed = isLeaf && prev !== undefined && prev !== node.value;
-  if (isLeaf) prevValues.current[node.topic] = node.value;
-
-  return html`
-    <div>
-      <div class="tb-row ${changed ? 'val-ping' : ''}" style="padding-left:${12 + depth * 16}px">
-        ${hasChildren
-          ? html`<span class="tb-expand ${isOpen ? 'open' : ''}" onClick=${() => toggleExpand(name)}>\u25B6</span>`
-          : html`<span class="tb-expand-spacer"></span>`
-        }
-        <span class="tb-name ${isLeaf ? '' : 'tb-name--branch'}" onClick=${() => hasChildren && toggleExpand(name)}>${name.split('/').pop()}</span>
-        ${isLeaf && html`
-          <span class="tb-value">${fmtValue(node.value)}</span>
-          <button class="tb-bind-btn" onClick=${() => onCreateBinding(node.topic, node.value)} title="Create Input Binding">+Bind</button>
-        `}
-      </div>
-      ${isOpen && Object.entries(node.children)
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([childName, childNode]) => html`
-          <${TopicNode}
-            key=${childName}
-            name=${node.topic ? node.topic + '/' + childName : (depth === 0 ? childName : name + '/' + childName)}
-            node=${childNode}
-            depth=${depth + 1}
-            expanded=${expanded}
-            toggleExpand=${toggleExpand}
-            onCreateBinding=${onCreateBinding}
-            prevValues=${prevValues}
-          />
-        `)
-      }
-    </div>
-  `;
-}
-
-function TopicBrowser({ topicMap, onCreateBinding }) {
-  const [expanded, setExpanded] = useState(new Set());
-  const [search, setSearch] = useState('');
-  const prevValues = useRef({});
-
-  const toggleExpand = useCallback((name) => {
-    setExpanded(prev => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
-    });
-  }, []);
-
-  const tree = buildTopicTree(topicMap);
-
-  // Filter: if searching, auto-expand matching paths
-  const filteredTree = search ? filterTree(tree, search.toLowerCase()) : tree;
-
-  return html`
-    <div class="tb-panel">
-      <div class="tb-header">
-        <span class="tb-title">Topic Browser</span>
-        <span class="tb-count">${topicMap.size} topics</span>
-      </div>
-      ${topicMap.size > 10 && html`
-        <input
-          type="text"
-          class="bind-input"
-          style="margin:0 12px 8px;width:calc(100% - 24px)"
-          placeholder="Filter topics..."
-          value=${search}
-          onInput=${(e) => setSearch(e.target.value)}
-        />
-      `}
-      <div class="tb-tree">
-        ${Object.entries((search ? filteredTree : tree).children)
-          .sort((a, b) => a[0].localeCompare(b[0]))
-          .map(([name, node]) => html`
-            <${TopicNode}
-              key=${name}
-              name=${name}
-              node=${node}
-              depth=${0}
-              expanded=${search ? autoExpandAll(tree) : expanded}
-              toggleExpand=${toggleExpand}
-              onCreateBinding=${onCreateBinding}
-              prevValues=${prevValues}
-            />
-          `)
-        }
-        ${topicMap.size === 0 && html`
-          <div style="padding:16px;text-align:center;color:var(--ve-text-dim);font-size:13px;">
-            Subscribe to a topic to browse.
-          </div>
-        `}
-      </div>
-    </div>
-  `;
-}
-
-/** Auto-expand all nodes (used during search) */
-function autoExpandAll(tree, prefix = '') {
-  const set = new Set();
-  for (const [name, node] of Object.entries(tree.children)) {
-    const path = prefix ? prefix + '/' + name : name;
-    set.add(path);
-    const sub = autoExpandAll(node, path);
-    for (const s of sub) set.add(s);
-  }
-  return set;
-}
-
-/** Filter tree to only show nodes matching search */
-function filterTree(tree, search) {
-  const result = { children: {}, count: 0 };
-  for (const [name, node] of Object.entries(tree.children)) {
-    const fullPath = node.topic || name;
-    const matches = fullPath.toLowerCase().includes(search);
-    const filtered = filterTree(node, search);
-    if (matches || Object.keys(filtered.children).length > 0) {
-      result.children[name] = { ...node, children: matches ? node.children : filtered.children };
-      result.count++;
-    }
-  }
-  return result;
 }
 
 // ── Binding creation dialog ─────────────────────────────────────
@@ -532,91 +376,15 @@ export function Messages() {
   const [bindDialog, setBindDialog] = useState(null);
   const listRef = useRef(null);
 
-  // Track unique topics with latest values for the browser
-  const topicMapRef = useRef(new Map());
-  const [topicMapVersion, setTopicMapVersion] = useState(0);
-  const [browserLoading, setBrowserLoading] = useState(false);
-
   useEffect(() => {
     connectMessagesWs();
     return () => disconnectMessagesWs();
   }, []);
 
-  // Browser view: load full snapshot from server-side cache (instant, includes
-  // every topic seen since startup), then rely on live WebSocket subscription
-  // to `#` so new payloads land in real time. No polling needed.
-  useEffect(() => {
-    if (view !== 'browser') return;
-    let cancelled = false;
-
-    async function loadSnapshot() {
-      setBrowserLoading(true);
-      try {
-        const res = await fetch('/api/mqtt/topics');
-        if (res.ok && !cancelled) {
-          const data = await res.json();
-          for (const t of data) {
-            let val = t.payload;
-            try {
-              const parsed = JSON.parse(t.payload);
-              if (parsed && typeof parsed === 'object') {
-                val = parsed.value !== undefined ? parsed.value : parsed;
-              }
-            } catch { /* not JSON */ }
-            // Don't clobber a fresher live message that already arrived
-            const existing = topicMapRef.current.get(t.topic);
-            if (!existing || existing.ts < t.ts) {
-              topicMapRef.current.set(t.topic, { value: val, ts: t.ts });
-            }
-          }
-          setTopicMapVersion(v => v + 1);
-        }
-      } catch { /* ignore */ }
-      if (!cancelled) setBrowserLoading(false);
-    }
-
-    // Subscribe to `#` so we get every new message live while the browser is
-    // open. Track whether we owned that subscription so we don't tear down a
-    // wildcard the user added explicitly via the Stream view.
-    const wildcardWasMine = !subscriptions.value.has('#');
-    if (wildcardWasMine) subscribeTopic('#');
-
-    loadSnapshot();
-    // Periodic re-sync as a belt-and-braces fallback for messages that may
-    // arrive while the WebSocket was momentarily disconnected.
-    const interval = setInterval(loadSnapshot, 15000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-      if (wildcardWasMine) unsubscribeTopic('#');
-    };
-  }, [view]);
-
   const subs = subscriptions.value;
   const isSubscribed = subs.has(topicInput);
   const rate = messageRate.value;
   const allMessages = messages.value;
-
-  // Update topic map from live WebSocket messages (only process new ones)
-  const lastProcessedRef = useRef(0);
-  if (allMessages.length > 0 && allMessages[0].timestamp > lastProcessedRef.current) {
-    for (const m of allMessages) {
-      if (m.timestamp <= lastProcessedRef.current) break;
-      let val = m.payload;
-      try {
-        const parsed = JSON.parse(m.payload);
-        if (parsed && typeof parsed === 'object' && parsed.value !== undefined) val = parsed.value;
-      } catch { /* not JSON */ }
-      topicMapRef.current.set(m.topic, { value: val, ts: m.timestamp });
-    }
-    lastProcessedRef.current = allMessages[0].timestamp;
-    // Cap topic map size
-    if (topicMapRef.current.size > 5000) {
-      const entries = [...topicMapRef.current.entries()].sort((a, b) => b[1].ts - a[1].ts);
-      topicMapRef.current = new Map(entries.slice(0, 3000));
-    }
-  }
 
   const displayedMessages = filter
     ? allMessages.filter(m => m.topic.includes(filter) || (typeof m.payload === 'string' && m.payload.includes(filter)))
@@ -674,7 +442,7 @@ export function Messages() {
           onClick=${handleSubscribe}
           disabled=${!topicInput.trim()}
         >${isSubscribed ? 'Unsubscribe' : 'Subscribe'}</button>
-        <button class="msg-btn msg-btn--clear" onClick=${() => { clearMessages(); topicMapRef.current.clear(); }}>Clear</button>
+        <button class="msg-btn msg-btn--clear" onClick=${() => clearMessages()}>Clear</button>
         <span class="msg-rate" style=${rate > 0 ? 'color: var(--ve-green)' : ''}>${rate} msg/s</span>
       </div>
 
@@ -721,10 +489,10 @@ export function Messages() {
       `}
 
       ${view === 'browser' && html`
-        ${browserLoading && topicMapRef.current.size === 0
-          ? html`<div class="ve-card" style="padding:24px;text-align:center;color:var(--ve-text-dim);">Discovering topics...</div>`
-          : html`<${TopicBrowser} topicMap=${topicMapRef.current} onCreateBinding=${handleCreateBinding} />`
-        }
+        <${TopicBrowserPanel}
+          actionLabel="+Bind"
+          onSelect=${(topic, value, payload) => handleCreateBinding(topic, payload ?? value)}
+        />
       `}
 
       ${bindDialog && html`
