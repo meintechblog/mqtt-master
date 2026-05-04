@@ -34,3 +34,38 @@ export function flattenJsonFields(input, { maxDepth = 6 } = {}) {
   walk(parsed, '', 0);
   return out;
 }
+
+/**
+ * Resolve a dot-notation path against an already-parsed object/value.
+ * Returns `null` if any segment is missing.
+ */
+export function extractField(obj, path) {
+  if (obj == null || !path) return null;
+  const parts = path.split('.');
+  let current = obj;
+  for (const part of parts) {
+    if (current == null || typeof current !== 'object') return null;
+    current = current[part];
+  }
+  return current ?? null;
+}
+
+/**
+ * Apply a value transform — mirrors `applyTransform` in
+ * plugins/lib/binding-utils.js so the UI can preview what the server will
+ * actually send. Keep the two in sync when adding new transforms.
+ */
+export function applyTransform(value, transform) {
+  if (!transform) return value;
+  const num = Number(value);
+  if (Number.isNaN(num)) return value;
+  switch (transform) {
+    case 'div1000': return Math.round(num / 1000 * 1e3) / 1e3;
+    case 'div100':  return Math.round(num / 100 * 1e2) / 1e2;
+    case 'mul1000': return num * 1000;
+    case 'mul100':  return num * 100;
+    case 'round':   return Math.round(num);
+    case 'round1':  return Math.round(num * 10) / 10;
+    default: return num;
+  }
+}

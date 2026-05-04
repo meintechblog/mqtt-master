@@ -11,7 +11,7 @@ import {
   unsubscribeTopic,
   clearMessages,
 } from '../lib/ws-messages-client.js';
-import { flattenJsonFields } from '../lib/json-fields.js';
+import { flattenJsonFields, extractField, applyTransform } from '../lib/json-fields.js';
 
 function formatTimestamp(ts) {
   const d = new Date(ts);
@@ -185,7 +185,6 @@ function CreateBindingDialog({ topic, value, onClose }) {
   const [controls, setControls] = useState([]);
   const [selectedPlugin, setSelectedPlugin] = useState('');
   const [jsonField, setJsonField] = useState('value');
-  const [fields, setFields] = useState([]);
   const [fieldFilter, setFieldFilter] = useState('');
   const [showAllTypes, setShowAllTypes] = useState(false);
   const [targetUuid, setTargetUuid] = useState('');
@@ -193,6 +192,7 @@ function CreateBindingDialog({ topic, value, onClose }) {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const initialPickRef = useRef(false);
 
   useEffect(() => {
     Promise.all([
@@ -212,13 +212,37 @@ function CreateBindingDialog({ topic, value, onClose }) {
       setControls(controlData);
     }).catch(() => {});
 
-    // Flatten nested JSON so users can pick e.g. ENERGY.Power, Wifi.RSSI
-    const flat = flattenJsonFields(value);
-    setFields(flat);
-    // Pre-select the first numeric leaf if there is one (most common case)
-    const firstNumeric = flat.find(f => f.type === 'number');
-    if (firstNumeric) setJsonField(firstNumeric.path);
+    // Make sure the topic is actively subscribed so the live preview keeps
+    // updating even if the user opened the dialog from the Topic Browser
+    // without an active subscription. We only undo our own subscription on
+    // close — any pre-existing wildcard or exact subscription stays.
+    const wasAlreadySubscribed = subscriptions.value.has(topic);
+    if (!wasAlreadySubscribed) {
+      subscribeTopic(topic);
+    }
+    return () => {
+      if (!wasAlreadySubscribed) {
+        unsubscribeTopic(topic);
+      }
+    };
   }, []);
+
+  // Live payload: prefer the most recent matching message from the global
+  // stream so values update as MQTT messages arrive. Fall back to the static
+  // sample passed in when the dialog opened (in case the stream hasn't yielded
+  // a fresh message for this topic yet).
+  const latest = messages.value.find(m => m.topic === topic);
+  const livePayload = latest ? latest.payload : value;
+  const liveTs = latest ? latest.timestamp : null;
+  const fields = flattenJsonFields(livePayload);
+
+  // Pre-select the first numeric leaf as soon as we have data — but only once,
+  // so a live update doesn't yank the user's current selection away.
+  if (!initialPickRef.current && fields.length > 0) {
+    const firstNumeric = fields.find(f => f.type === 'number');
+    if (firstNumeric) setJsonField(firstNumeric.path);
+    initialPickRef.current = true;
+  }
 
   const lowerField = jsonField.toLowerCase();
   const autoTransform = (lowerField.includes('_w') || lowerField.includes('power')) ? 'div1000' : '';
@@ -300,7 +324,13 @@ function CreateBindingDialog({ topic, value, onClose }) {
         ${fields.length > 0 && html`
           <div style="margin-bottom:12px;">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-              <div class="ve-modal-field-label">JSON Field</div>
+              <div class="ve-modal-field-label" style="display:flex;align-items:center;gap:6px;">
+                <span>JSON Field</span>
+                ${liveTs && html`
+                  <span class="bind-live-pulse" key=${liveTs} title=${`Live from ${topic}`}></span>
+                  <span style="font-size:10px;color:var(--ve-text-dim);font-weight:normal;text-transform:none;letter-spacing:0;">live</span>
+                `}
+              </div>
               <div style="display:flex;align-items:center;gap:8px;">
                 ${hiddenNonNumeric > 0 && html`
                   <label style="font-size:11px;color:var(--ve-text-dim);display:flex;align-items:center;gap:4px;cursor:pointer;">
@@ -334,6 +364,9 @@ function CreateBindingDialog({ topic, value, onClose }) {
                     ${grouped[group].map(f => {
                       const leaf = group ? f.path.slice(group.length + 1) : f.path;
                       const isStr = f.type !== 'number';
+                      const display = typeof f.value === 'number'
+                        ? (Math.abs(f.value) >= 1000 ? f.value.toLocaleString() : f.value)
+                        : String(f.value);
                       return html`
                         <button
                           key=${f.path}
@@ -342,7 +375,13 @@ function CreateBindingDialog({ topic, value, onClose }) {
                           style="font-size:12px;padding:4px 10px;${isStr ? 'opacity:0.75;' : ''}"
                           title=${f.path}
                           onClick=${() => setJsonField(f.path)}
-                        >${leaf} <span style="color:var(--ve-text-dim);margin-left:4px">${f.value}</span></button>
+                        >
+                          ${leaf}
+                          <span
+                            class="bind-field-val"
+                            key=${liveTs ? `${f.path}:${liveTs}` : f.path}
+                          >${display}</span>
+                        </button>
                       `;
                     })}
                   </div>
@@ -373,6 +412,58 @@ function CreateBindingDialog({ topic, value, onClose }) {
               Payload is not JSON — type the field name or leave as <code>value</code>.
             </div>
             <input class="ve-modal-input" value=${jsonField} onInput=${(e) => setJsonField(e.target.value)} placeholder="value" />
+          </div>
+        `}
+        ${jsonField && html`
+          <div class="bind-preview">
+            <div class="bind-preview-label">
+              <span>Live Preview</span>
+              ${liveTs && html`<span class="bind-live-pulse" key=${`prev:${liveTs}`}></span>`}
+            </div>
+            ${(() => {
+              let parsed = livePayload;
+              if (typeof livePayload === 'string') {
+                try { parsed = JSON.parse(livePayload); } catch { parsed = null; }
+              }
+              const raw = parsed != null
+                ? (typeof parsed === 'object' ? extractField(parsed, jsonField) : parsed)
+                : null;
+              const transformed = autoTransform ? applyTransform(raw, autoTransform) : raw;
+              const fmt = (v) => {
+                if (v == null) return '—';
+                if (typeof v === 'number') {
+                  const rounded = Math.round(v * 1000) / 1000;
+                  return Math.abs(rounded) >= 1000 ? rounded.toLocaleString() : String(rounded);
+                }
+                return String(v);
+              };
+              const isMissing = raw == null;
+              return html`
+                <div class="bind-preview-body">
+                  <div class="bind-preview-row">
+                    <span class="bind-preview-key">${jsonField}</span>
+                    <span
+                      class="bind-preview-val ${isMissing ? 'bind-preview-val--missing' : ''}"
+                      key=${liveTs ? `raw:${liveTs}` : 'raw'}
+                    >${fmt(raw)}</span>
+                  </div>
+                  ${autoTransform && !isMissing && html`
+                    <div class="bind-preview-row bind-preview-row--out">
+                      <span class="bind-preview-key">→ ${autoTransform}</span>
+                      <span
+                        class="bind-preview-val bind-preview-val--out"
+                        key=${liveTs ? `out:${liveTs}` : 'out'}
+                      >${fmt(transformed)}</span>
+                    </div>
+                  `}
+                  ${isMissing && html`
+                    <div class="bind-preview-hint">
+                      Path not found in current payload — check the dotted notation.
+                    </div>
+                  `}
+                </div>
+              `;
+            })()}
           </div>
         `}
         <div style="margin-bottom:12px;">
