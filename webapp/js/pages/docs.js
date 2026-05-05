@@ -52,12 +52,14 @@ export function Docs() {
         <a href="#install-proxmox" class="docs-toc-link docs-toc-sub">Proxmox LXC</a>
         <a href="#install-debian" class="docs-toc-link docs-toc-sub">Debian / Ubuntu</a>
         <a href="#update" class="docs-toc-link">Updating</a>
+        <a href="#auto-update" class="docs-toc-link docs-toc-sub">Auto-Update</a>
         <a href="#config" class="docs-toc-link">Configuration</a>
         <a href="#connection-info" class="docs-toc-link">Connection Info</a>
         <a href="#quickstart" class="docs-toc-link">Quick Start</a>
         <a href="#plugins" class="docs-toc-link">Plugins</a>
         <a href="#plugins-loxone" class="docs-toc-link docs-toc-sub">Loxone</a>
         <a href="#plugins-mqtt-bridge" class="docs-toc-link docs-toc-sub">MQTT Bridge</a>
+        <a href="#bindings" class="docs-toc-link">Input Bindings</a>
         <a href="#mqtt" class="docs-toc-link">MQTT Topics</a>
         <a href="#api" class="docs-toc-link">REST API</a>
         <a href="#troubleshooting" class="docs-toc-link">Troubleshooting</a>
@@ -117,6 +119,32 @@ export function Docs() {
         <p>For Proxmox LXC containers, enter the container first:</p>
         <${CodeBlock} code=${`pct enter <CTID>
 wget -qO- https://raw.githubusercontent.com/meintechblog/mqtt-master/main/install.sh | bash`} />
+
+        <h3 class="docs-h3" id="auto-update">Auto-Update</h3>
+        <p>
+          The Dashboard ships with an <strong>Auto-Update</strong> card next to Verbindungs-Info.
+          MQTT Master polls <code>api.github.com/repos/meintechblog/mqtt-master/commits/main</code>
+          every 6 hours (with ETag-based conditional GETs, so it doesn't burn rate limit), shows the
+          latest commit when an update is available, and — if auto-apply is enabled — installs it
+          inside a configurable hour window (default <code>03:00 Europe/Berlin</code>) with a 23 h
+          cooldown so a single release can't ping-pong the host.
+        </p>
+        <ul class="docs-list">
+          <li><strong>Check now</strong> — force a fresh GitHub poll without applying.</li>
+          <li><strong>Update now</strong> — appears when a new commit exists; runs the pipeline immediately.</li>
+          <li><strong>auto @ HH:00</strong> toggle + dropdown — picks the daily auto-apply hour (0-23, Europe/Berlin).</li>
+        </ul>
+        <p>
+          The actual update runs in a sibling <code>mqtt-master-updater.service</code> systemd unit
+          so the <code>systemctl restart mqtt-master</code> in the middle of the pipeline cannot
+          terminate the updater itself. Pipeline: preflight → <code>git fetch</code> →
+          <code>git reset --hard</code> → <code>npm install</code> (skipped when no
+          <code>package.json</code> / <code>package-lock.json</code> change) → systemd unit re-sync
+          → restart → health-probe <code>/api/version</code> until it reports the new SHA.
+          Any failure after <code>git fetch</code> triggers an automatic rollback to the previous SHA.
+        </p>
+        <p>Tail the journal during a manual run:</p>
+        <${CodeBlock} code=${`journalctl -fu mqtt-master-updater`} />
       </${Section}>
 
       <!-- Configuration -->
@@ -227,6 +255,36 @@ journalctl -u mqtt-master -f     # View live logs`} />
       </${Section}>
 
       <!-- MQTT Topics -->
+      <${Section} id="bindings" title="Input Bindings">
+        <p>
+          Input Bindings push values from any MQTT topic into a target plugin's control —
+          typically forwarding Tasmota / Venus OS / Shelly readings into Loxone Virtual
+          Inputs. Open <code>#/plugins/&lt;plugin&gt;/bindings</code> on any running plugin
+          and click <strong>+ New</strong> for the wizard.
+        </p>
+        <h3 class="docs-h3">The wizard (4 steps)</h3>
+        <ol class="docs-list docs-list--ordered">
+          <li><strong>Topic Browser</strong> — pick the source MQTT topic from a tree of every topic the broker has seen. Bound topics show a green ⇄ badge with the existing binding.</li>
+          <li><strong>Field</strong> — pick which JSON path inside the payload to forward. Nested objects are flattened automatically (<code>ENERGY.Power</code>, <code>Wifi.RSSI</code>).</li>
+          <li><strong>Target</strong> — pick a Loxone control to write to. Already-bound controls are greyed out.</li>
+          <li><strong>Review</strong> — set the label, transform (<code>÷ 1000</code> for W → kW etc.), display unit, and keepalive. Save.</li>
+        </ol>
+        <h3 class="docs-h3">Live diagnostics on each card</h3>
+        <p>The binding card is a 3-column flow: <strong>From MQTT → forwarded value → To Loxone</strong>:</p>
+        <ul class="docs-list">
+          <li>The middle pill shows the value our plugin most recently forwarded, with the chosen unit.</li>
+          <li>"Loxone reports: X" on the right shows the current state Loxone broadcasts back, fetched in the same instant — drift between the two means another source on the Loxone side is overwriting our writes.</li>
+          <li>Below the flow row a colour-coded diagnostic line shows forward count, last reason (<code>changed</code> / <code>keepalive</code> / <code>dedup</code>), and any send/parse error in red.</li>
+        </ul>
+        <div class="docs-callout docs-callout--info">
+          <strong>Heads-up:</strong> <code>jdev/sps/io/&lt;uuid&gt;/&lt;value&gt;</code> only persists on
+          writable controls (Virtual Inputs, Switches, push buttons, …). On read-only types like
+          <code>InfoOnlyAnalog</code> Loxone accepts the request silently but reverts to its
+          internal source — the binding card surfaces this as drift between "we sent" and
+          "Loxone reports".
+        </div>
+      </${Section}>
+
       <${Section} id="mqtt" title="MQTT Topics">
         <p>MQTT Master publishes all data under structured topic hierarchies:</p>
         <${CodeBlock} code=${`# Loxone plugin
@@ -251,7 +309,19 @@ mqtt-master/<plugin-id>/bridge/<remote-topic>       # Bridged values`} />
               <tr><td><code>/api/plugins/:id</code></td><td>DELETE</td><td>Delete a plugin</td></tr>
               <tr><td><code>/api/plugins/:id/start</code></td><td>POST</td><td>Start plugin</td></tr>
               <tr><td><code>/api/plugins/:id/stop</code></td><td>POST</td><td>Stop plugin</td></tr>
+              <tr><td><code>/api/plugins/:id/bindings</code></td><td>GET / PUT</td><td>List / replace input bindings</td></tr>
+              <tr><td><code>/api/plugins/:id/bindings/stats</code></td><td>GET</td><td>Live per-binding stats (value, sendCount, lastError, loxoneValue)</td></tr>
+              <tr><td><code>/api/bindings</code></td><td>GET</td><td>Flat list of all bindings across plugins</td></tr>
+              <tr><td><code>/api/mqtt/topics</code></td><td>GET</td><td>Server-side topic-cache snapshot (every topic since startup)</td></tr>
+              <tr><td><code>/api/mqtt/publish</code></td><td>POST</td><td>Publish a message to the broker</td></tr>
+              <tr><td><code>/api/discovery/loxone</code></td><td>POST</td><td>Scan LAN for Loxone Miniservers (UDP+HTTP)</td></tr>
               <tr><td><code>/api/system/info</code></td><td>GET</td><td>Hostname, LAN IPs, broker URLs</td></tr>
+              <tr><td><code>/api/version</code></td><td>GET</td><td>Running git SHA, tag, dirty flag — used by the updater health probe</td></tr>
+              <tr><td><code>/api/update/status</code></td><td>GET</td><td>Current version + GitHub-poll state + auto-update settings</td></tr>
+              <tr><td><code>/api/update/check</code></td><td>POST</td><td>Force a fresh GitHub /commits/main poll</td></tr>
+              <tr><td><code>/api/update/run</code></td><td>POST</td><td>Trigger the sibling updater unit (manual update)</td></tr>
+              <tr><td><code>/api/update/log?lines=N</code></td><td>GET</td><td>Last N journalctl lines from mqtt-master-updater</td></tr>
+              <tr><td><code>/api/update/settings</code></td><td>PUT</td><td>Toggle autoApply / autoUpdateHour</td></tr>
             </tbody>
           </table>
         </div>

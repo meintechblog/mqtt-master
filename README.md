@@ -10,13 +10,23 @@ MQTT Master provides a real-time web interface for monitoring your Mosquitto MQT
 - Real-time metrics with sparkline trend charts (receive/send rate, clients, uptime)
 - Live activity bar showing IN/OUT message throughput
 - **Verbindungs-Info card**: hostname, LAN IPs, MQTT broker URL (`mqtt://…:1883`), MQTT WebSocket URL (`ws://…:9001`), and topic prefix — all click-to-copy
+- **Auto-Update card**: running version, last GitHub poll, "Update now" / "Check now" buttons, hour picker for the daily auto-apply window
 - Plugin overview with status indicators and message counts
 - Auto-updating every 2 seconds
 
+### Auto-Update
+- Periodic GitHub poll (every 6 h, ETag-based conditional GET — no rate-limit churn)
+- Optional auto-apply at a configurable Berlin-time hour (default 03:00, 23 h cooldown so a release can't ping-pong the host)
+- Manual **Check now** / **Update now** buttons on the Dashboard
+- The actual update runs in a sibling `mqtt-master-updater.service` unit so the `systemctl restart mqtt-master` in the middle of the pipeline can't kill it
+- Pipeline: preflight → `git fetch` → `git reset --hard` → `npm install` (skipped when no dep changes) → systemd unit re-sync → restart → health-probe `/api/version`
+- Automatic rollback to the previous SHA on any failure after `git fetch`
+
 ### Live Messages
 - **Stream view**: subscribe to topic patterns, watch messages flow in real-time with filtering
-- **Topic Browser**: auto-discovered tree view of all broker topics with live values
-- **Inline binding creation**: click any topic to create an Input Binding directly
+- **Topic Browser**: server-side cache of every topic seen since startup (decoupled from slow republish cadences like Tasmota's 5-min `tele/.../STATE`), live updates over WebSocket, search filter, click-to-copy values
+- **Bound-topic markers**: topics that already have an input binding are tinted green with a ⇄ badge listing every binding (plugin, label, jsonField) that targets them
+- **Inline binding creation**: click any topic → Create-Binding dialog with live JSON-field picker (auto-flattens nested objects like `ENERGY.Power`, `Wifi.RSSI`), live preview of the selected field including transform output
 
 ### Plugin System
 - Add/remove plugins from the web UI (no filesystem access needed)
@@ -29,6 +39,7 @@ MQTT Master provides a real-time web interface for monitoring your Mosquitto MQT
 - Auto-start: plugins restart automatically on server reboot
 
 ### Loxone Miniserver Bridge
+- **Network discovery**: scan the LAN for Miniservers via UDP broadcast (port 7777) AND HTTP fan-out on `/jdev/cfg/api`. Click a result to fill IP/port into the plugin config.
 - Bidirectional bridge with auto-discovery from LoxAPP3.json
 - Human-readable MQTT topics: `loxone/{room}/{control}/state`
 - **UUID-based stable topics**: `loxone/by-uuid/{uuid}/cmd` — survive control renames in Loxone Config
@@ -62,13 +73,16 @@ MQTT Master provides a real-time web interface for monitoring your Mosquitto MQT
 - Elements page with collapsible category tree and live values
 
 ### Input Bindings
-- Feed external MQTT data into plugin controls
-- 4-step guided wizard: Discover topics → Pick field → Select target → Configure
+- Feed external MQTT data into plugin controls (typically: forward Tasmota / Venus OS / Shelly readings into Loxone Virtual Inputs)
+- 4-step guided wizard: Topic Browser → Pick field (with nested-path support) → Select target → Configure
 - Smart throttling: instant on value change, configurable keepalive
-- Auto-suggest transforms (e.g. W → kW)
+- Auto-suggest transforms (e.g. W → kW) and units (°C, %, kW, V, A, …) based on the field name
+- 32 standard units selectable per binding for human readability (display-only, doesn't affect what's sent)
 - Per-plugin binding storage
 - Already-bound targets greyed out to prevent duplicates
-- Editable: change label, transform, keepalive on existing bindings
+- Editable: label, transform, unit, keepalive on existing bindings
+- **Live diagnostics per binding**: 3-column card (FROM MQTT → forwarded VALUE → TO Loxone) showing the value being pushed in real-time, plus what Loxone reports back from the same instant — surfaces silent dead-ends like read-only InfoOnlyAnalog targets immediately
+- **Connection lifecycle logging**: every Loxone connect/disconnect/reconnect with code, session duration, and backoff delay lands in `journalctl -u mqtt-master`
 
 ### General
 - Venus OS-inspired dark theme
