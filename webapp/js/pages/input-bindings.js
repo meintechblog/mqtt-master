@@ -122,16 +122,19 @@ function BindingCard({ binding, stats, controls, onRemove, onToggle, onUpdate })
           <span class="bind-flow-field">.${binding.jsonField}</span>
         </div>
 
-        <!-- VALUE: the bridge -->
+        <!-- VALUE: the bridge — what we last forwarded -->
         <div class="bind-flow-col bind-flow-col--value">
-          <span class="bind-flow-arrow">→</span>
-          ${transform && transform.value && html`
-            <span class="bind-flow-transform" title="transform applied before forwarding">${transform.label}</span>
-          `}
-          <span class="bind-flow-value ${flashSend ? 'bind-flash' : ''}" title="last value forwarded to Loxone">
-            ${sentValueStr ?? '—'}${binding.unit ? html`<span class="bind-flow-unit">${binding.unit}</span>` : ''}
-          </span>
-          <span class="bind-flow-arrow">→</span>
+          <span class="bind-flow-label">We sent</span>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span class="bind-flow-arrow">→</span>
+            ${transform && transform.value && html`
+              <span class="bind-flow-transform" title="transform applied before forwarding">${transform.label}</span>
+            `}
+            <span class="bind-flow-value ${flashSend ? 'bind-flash' : ''}" title="last value our plugin forwarded to Loxone via jdev/sps/io">
+              ${sentValueStr ?? '—'}${binding.unit ? html`<span class="bind-flow-unit">${binding.unit}</span>` : ''}
+            </span>
+            <span class="bind-flow-arrow">→</span>
+          </div>
         </div>
 
         <!-- TO: target control (usually a Loxone Miniserver, possibly via the bridge plugin) -->
@@ -148,8 +151,8 @@ function BindingCard({ binding, stats, controls, onRemove, onToggle, onUpdate })
             onClick=${(e) => { e.stopPropagation(); navigator.clipboard?.writeText(binding.targetUuid).catch(() => {}); }}
           >${binding.targetUuid}</span>
           ${liveStr != null && html`
-            <span class="bind-flow-live" title="value Loxone is currently reporting back">
-              now ${liveStr}${binding.unit ? ' ' + binding.unit : ''}
+            <span class="bind-flow-live" title="The value Loxone is currently reporting for this control. May differ from the value we sent if the control is fed by another source (e.g. a hardware 1-Wire sensor) — common with InfoOnlyAnalog read-only displays.">
+              Loxone reports: ${liveStr}${binding.unit ? ' ' + binding.unit : ''}
             </span>
           `}
         </div>
