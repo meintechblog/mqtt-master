@@ -581,6 +581,13 @@ export default class LoxonePlugin {
   _onMqttMessage({ topic, payload }) {
     if (!topic.startsWith(this._prefix + '/') || !topic.endsWith('/cmd')) return;
 
+    // Drop empty/whitespace payloads. They typically come from retained
+    // cleanups (structure-monitor clearing stale topics) and would otherwise
+    // forward as `jdev/sps/io/<uuid>/` — Loxone interprets that as 0 and
+    // clobbers the InfoOnlyAnalog value seconds after a binding update.
+    const payloadStr = (payload == null ? '' : String(payload)).trim();
+    if (!payloadStr) return;
+
     let uuid;
     const uuidPrefix = `${this._prefix}/by-uuid/`;
 
@@ -599,8 +606,8 @@ export default class LoxonePlugin {
     }
 
     // Translate changeTo/{moodName} → changeTo/{moodId} using mood mapping
-    let resolvedPayload = payload;
-    const changeToMatch = payload.match(/^changeTo\/(.+)$/);
+    let resolvedPayload = payloadStr;
+    const changeToMatch = payloadStr.match(/^changeTo\/(.+)$/);
     if (changeToMatch) {
       const moodRef = changeToMatch[1];
       // If it's not already a number, look up the name in mappings
