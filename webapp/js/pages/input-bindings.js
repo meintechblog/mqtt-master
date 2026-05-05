@@ -137,8 +137,16 @@ function BindingCard({ binding, stats, controls, onRemove, onToggle, onUpdate })
         <!-- TO: target control (usually a Loxone Miniserver, possibly via the bridge plugin) -->
         <div class="bind-flow-col bind-flow-col--to">
           <span class="bind-flow-label">${targetPluginName ? `To ${targetPluginName}` : 'To Loxone'}</span>
-          <span class="bind-flow-target-name" title=${binding.targetUuid}>${targetName}</span>
+          <span class="bind-flow-target-name" title=${binding.targetUuid}>
+            ${targetName}
+            ${targetCtrl?.category && html`<span class="bind-flow-target-category"> · ${targetCtrl.category}</span>`}
+          </span>
           ${targetMeta && html`<span class="bind-flow-target-meta">${targetMeta}</span>`}
+          <span
+            class="bind-flow-target-uuid"
+            title="Loxone UUID — click to copy"
+            onClick=${(e) => { e.stopPropagation(); navigator.clipboard?.writeText(binding.targetUuid).catch(() => {}); }}
+          >${binding.targetUuid}</span>
           ${liveStr != null && html`
             <span class="bind-flow-live" title="value Loxone is currently reporting back">
               now ${liveStr}${binding.unit ? ' ' + binding.unit : ''}

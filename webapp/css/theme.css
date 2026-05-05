@@ -1097,6 +1097,21 @@ body {
   color: var(--ve-text-dim);
   font-family: var(--ve-font-mono);
 }
+.bind-flow-target-category {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ve-text-secondary);
+}
+.bind-flow-target-uuid {
+  font-family: var(--ve-font-mono);
+  font-size: 10px;
+  color: var(--ve-text-dim);
+  opacity: 0.65;
+  cursor: pointer;
+  letter-spacing: 0.2px;
+  user-select: all;
+}
+.bind-flow-target-uuid:hover { opacity: 1; color: var(--ve-blue); }
 .bind-card-diag-meta {
   margin-left: auto;
   padding-left: 12px;
