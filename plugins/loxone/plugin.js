@@ -80,7 +80,7 @@ export default class LoxonePlugin {
     this._structure = new LoxoneStructure(prefix);
     try {
       const loxApp3 = await this._structure.fetchStructure(ip, port, username, password);
-      this._structure.buildMap(loxApp3);
+      this._structure.buildMap(loxApp3, { logger });
     } catch (err) {
       logger.error(`Failed to fetch Loxone structure: ${err.message}`);
       throw err;
@@ -344,6 +344,7 @@ export default class LoxonePlugin {
         type: ctrl.type,
         room: ctrl.room,
         category: ctrl.category || '',
+        description: ctrl.description || '',
         topic: ctrl.topic,
         enabled: !this._disabledControls.includes(ctrl.uuid),
         states,
@@ -468,33 +469,49 @@ export default class LoxonePlugin {
 
   getInputBindingStats() {
     const stats = this._bindingsManager?.getStats?.() || [];
-    // Augment with the *current* Loxone-reported value for each target so the
-    // UI sees both "what we sent" and "what Loxone reports" from the same
-    // instant — eliminates poll-cadence drift as a source of confusion.
-    if (this._stateCache && this._structure) {
-      const tree = this._structure.getControlTree?.() || [];
-      // Build a uuid → primary-state-uuid lookup once. The "value" state on
-      // a control is the InfoOnlyAnalog reading we're forwarding to.
-      const valueStateByCtrl = new Map();
-      for (const c of tree) {
-        const states = c.states || [];
-        const v = states.find(s => s.key === 'value') || states[0];
-        if (v) valueStateByCtrl.set(c.uuid, v.uuid);
-        for (const sub of c.subControls || []) {
-          const sStates = sub.states || [];
-          const sv = sStates.find(s => s.key === 'value') || sStates[0];
-          if (sv) valueStateByCtrl.set(sub.uuid, sv.uuid);
-        }
-      }
-      for (const stat of stats) {
-        const stateUuid = valueStateByCtrl.get(stat.targetUuid);
-        if (stateUuid) {
-          const cached = this._stateCache.get(stateUuid);
-          if (cached) stat.loxoneValue = cached.value ?? cached;
-        }
-      }
+    // Augment with the *current* Loxone-reported value for each target so
+    // the UI sees both "what we sent" and "what Loxone reports" from the
+    // same instant — eliminates poll-cadence drift as a source of confusion.
+    for (const stat of stats) {
+      const v = this.peekControlValue(stat.targetUuid);
+      if (v != null) stat.loxoneValue = v;
     }
     return stats;
+  }
+
+  /**
+   * Synchronous helper for sibling plugins (mqtt-bridge) that need to read
+   * the live Loxone value for a control without going through the async
+   * /controls/detailed payload. Returns null when the structure isn't
+   * loaded yet or the uuid isn't a known control.
+   */
+  peekControlValue(controlUuid) {
+    if (!this._stateCache || !this._structure) return null;
+    const tree = this._structure.getControlTree?.() || [];
+    const findValueState = (c) => {
+      if (c.uuid === controlUuid) {
+        const states = c.states || [];
+        const v = states.find(s => s.key === 'value') || states[0];
+        return v?.uuid || null;
+      }
+      for (const sub of c.subControls || []) {
+        if (sub.uuid === controlUuid) {
+          const states = sub.states || [];
+          const v = states.find(s => s.key === 'value') || states[0];
+          return v?.uuid || null;
+        }
+      }
+      return null;
+    };
+    for (const c of tree) {
+      const stateUuid = findValueState(c);
+      if (stateUuid) {
+        const cached = this._stateCache.get(stateUuid);
+        if (cached) return cached.value ?? cached;
+        return null;
+      }
+    }
+    return null;
   }
 
   async setInputBindings(bindings) {
@@ -614,7 +631,7 @@ export default class LoxonePlugin {
 
     try {
       const loxApp3 = await this._structure.fetchStructure(ip, port, username, password);
-      this._structure.buildMap(loxApp3);
+      this._structure.buildMap(loxApp3, { logger });
     } catch (err) {
       logger.warn(`Structure refresh failed: ${err.message}`);
       return;

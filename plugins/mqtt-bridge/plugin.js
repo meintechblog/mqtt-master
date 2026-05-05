@@ -242,7 +242,35 @@ export default class MqttBridgePlugin {
   }
 
   getInputBindingStats() {
-    return this._bindings?.getStats?.() || [];
+    const stats = this._bindings?.getStats?.() || [];
+    // Bindings on this bridge target Loxone control UUIDs that live on a
+    // sibling loxone-type plugin. Look up the live Loxone-side value for
+    // each target so the UI can show "we sent" and "Loxone reports" from
+    // the same instant — eliminates poll-cadence drift between cards.
+    const pm = this._ctx?.pluginManager;
+    if (!pm || !stats.length) return stats;
+    const all = pm._plugins ? [...pm._plugins.values?.() || []] : null;
+    // Use the public discovery surface — listAll is async so we can't await
+    // here. Walk the synchronous plugins map via getInstance for each
+    // candidate id we know about.
+    const candidates = [];
+    if (typeof pm.getInstance === 'function') {
+      // Iterate the same set listAll() would: fall back to scanning the
+      // plugin manager's internal map which is sync.
+      for (const [id, meta] of (pm.plugins?.entries?.() || [])) {
+        if (meta && meta.type === 'loxone' && meta.status === 'running') {
+          const inst = pm.getInstance(id);
+          if (inst) candidates.push(inst);
+        }
+      }
+    }
+    for (const stat of stats) {
+      for (const inst of candidates) {
+        const v = inst.peekControlValue?.(stat.targetUuid);
+        if (v != null) { stat.loxoneValue = v; break; }
+      }
+    }
+    return stats;
   }
 
   async setInputBindings(bindings) {

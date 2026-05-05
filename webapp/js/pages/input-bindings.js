@@ -145,6 +145,9 @@ function BindingCard({ binding, stats, controls, onRemove, onToggle, onUpdate })
             ${targetName}
             ${targetCtrl?.category && html`<span class="bind-flow-target-category"> · ${targetCtrl.category}</span>`}
           </span>
+          ${targetCtrl?.description && html`
+            <span class="bind-flow-target-desc" title="Loxone Bezeichnung / description">${targetCtrl.description}</span>
+          `}
           ${targetMeta && html`<span class="bind-flow-target-meta">${targetMeta}</span>`}
           <span
             class="bind-flow-target-uuid"

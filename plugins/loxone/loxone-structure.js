@@ -209,7 +209,12 @@ export class LoxoneStructure {
         }
       }
 
-      // Store tree entry
+      // Store tree entry. We pass through any longer descriptive name
+      // Loxone keeps in `details` (the user calls it "Bezeichnung"), as
+      // well as the technical `defaultRating` so the UI can show it next
+      // to the short display name.
+      const description = (ctrl.details && (ctrl.details.description
+        || ctrl.details.text || ctrl.details.format)) || '';
       this._controlTree.set(uuid, {
         uuid,
         name: ctrl.name,
@@ -217,6 +222,7 @@ export class LoxoneStructure {
         room: roomName || 'unknown',
         topic: controlTopic,
         category: categoryName || '',
+        description,
         states: stateKeys,
         subControls,
       });

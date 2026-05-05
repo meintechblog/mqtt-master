@@ -1102,6 +1102,11 @@ body {
   font-weight: 400;
   color: var(--ve-text-secondary);
 }
+.bind-flow-target-desc {
+  font-size: 12px;
+  color: var(--ve-text-secondary);
+  font-style: italic;
+}
 .bind-flow-target-uuid {
   font-family: var(--ve-font-mono);
   font-size: 10px;
