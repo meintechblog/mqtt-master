@@ -150,10 +150,22 @@ export class LoxoneWs extends EventEmitter {
    * @param {string} cmd
    */
   sendCommand(cmd) {
-    if (!this._ws || this._ws.readyState !== WebSocket.OPEN) return;
+    if (!this._ws || this._ws.readyState !== WebSocket.OPEN) {
+      // SILENT no-op was the bug: writes from input bindings vanished while
+      // the binding stats happily said "sent=X". Surface it now so a future
+      // session can spot it in journalctl.
+      this._log.warn?.(`[loxone] sendCommand DROPPED (ws not open, readyState=${this._ws?.readyState ?? 'null'}): ${cmd}`);
+      return;
+    }
     try {
       this._ws.send(cmd);
-    } catch {
+      // Binding-write tracing: only log jdev/sps/io commands at info level
+      // (keepalives etc. would spam the journal).
+      if (cmd.startsWith('jdev/sps/io/')) {
+        this._log.info?.(`[loxone] → ${cmd}`);
+      }
+    } catch (err) {
+      this._log.warn?.(`[loxone] sendCommand FAILED, forcing close: ${err.message}`);
       // Underlying socket failed -- force a hard close so the reconnect path runs.
       this._forceClose();
     }
