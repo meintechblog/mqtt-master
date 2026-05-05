@@ -51,7 +51,7 @@ function BindingCard({ binding, stats, controls, onRemove, onToggle, onUpdate })
   // both as proof that the UUID matches a real device and as the same
   // identifier the Loxone app shows.
   const targetMeta = targetCtrl
-    ? [targetCtrl.room, targetCtrl.type].filter(Boolean).join(' · ')
+    ? [targetCtrl.room && `Raum: ${targetCtrl.room}`, targetCtrl.type].filter(Boolean).join(' · ')
     : null;
   const targetPluginName = targetCtrl?._pluginName || null;
   const transform = TRANSFORMS.find(t => t.value === binding.transform);
