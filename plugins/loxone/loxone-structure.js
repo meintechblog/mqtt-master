@@ -222,24 +222,28 @@ export class LoxoneStructure {
 
       // Store tree entry. We pass through any longer descriptive name
       // Loxone keeps in `details` (the user calls it "Bezeichnung"). Loxone
-      // doesn't standardise the field name, so we walk a few candidates and
-      // fall back to the first long string that's clearly not the same as
-      // the display name.
+      // doesn't standardise the field name, so we walk a few candidates.
+      // `details.format` is deliberately excluded — for InfoOnlyAnalog and
+      // similar controls it holds a printf-style display format like
+      // "%.1f°", which is meaningless as a description and was leaking
+      // into the UI as a fake "Bezeichnung".
       let description = '';
       const d = ctrl.details || {};
-      const candidates = [d.description, d.text, d.title, d.format, d.label, d.name];
+      const looksLikeFormatSpec = (v) =>
+        typeof v === 'string' && /%[+\-# 0]?\d*\.?\d*[difsxXeEgGc%]/.test(v);
+      const candidates = [d.description, d.text, d.title, d.label, d.name];
       for (const c of candidates) {
-        if (typeof c === 'string' && c.trim() && c.trim() !== ctrl.name) {
+        if (typeof c === 'string' && c.trim() && c.trim() !== ctrl.name && !looksLikeFormatSpec(c)) {
           description = c.trim();
           break;
         }
       }
       // Final fallback: any string field in details that is longer than the
-      // name and isn't a format spec like "%.1f °C".
+      // name and is not a format spec.
       if (!description) {
         for (const [, v] of Object.entries(d)) {
           if (typeof v === 'string' && v.length > (ctrl.name?.length || 0)
-              && !v.includes('%.') && v.trim() !== ctrl.name) {
+              && !looksLikeFormatSpec(v) && v.trim() !== ctrl.name) {
             description = v.trim();
             break;
           }
