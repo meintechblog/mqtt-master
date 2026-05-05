@@ -62,10 +62,21 @@ export class LoxoneStructure {
     const log = opts.logger;
     if (log?.info) {
       const all = loxApp3Json.controls || {};
-      const sampleEntry = Object.entries(all)[0];
-      if (sampleEntry) {
-        const [uuid, ctrl] = sampleEntry;
-        log.info(`[loxone-structure] sample control ${uuid} field keys: ${Object.keys(ctrl).join(', ')}`);
+      // Pick a sample InfoOnlyAnalog (or fall back to the first control) so the
+      // dump is representative of what users actually wire up. Includes the
+      // full `details` object so we can spot which field carries the longer
+      // "Bezeichnung" the user expects.
+      const ent = Object.entries(all);
+      const sample = ent.find(([, c]) => c.type === 'InfoOnlyAnalog') || ent[0];
+      if (sample) {
+        const [uuid, ctrl] = sample;
+        log.info(`[loxone-structure] sample control ${uuid} (${ctrl.type}) keys: ${Object.keys(ctrl).join(', ')}`);
+        try {
+          // One-shot full dump of details so the user can grep for their
+          // "Bezeichnung" string and tell us which field name to surface.
+          const detailsStr = JSON.stringify(ctrl.details || {}, null, 0);
+          log.info(`[loxone-structure] sample details: ${detailsStr.slice(0, 500)}`);
+        } catch { /* ignore */ }
       }
     }
 
@@ -210,11 +221,30 @@ export class LoxoneStructure {
       }
 
       // Store tree entry. We pass through any longer descriptive name
-      // Loxone keeps in `details` (the user calls it "Bezeichnung"), as
-      // well as the technical `defaultRating` so the UI can show it next
-      // to the short display name.
-      const description = (ctrl.details && (ctrl.details.description
-        || ctrl.details.text || ctrl.details.format)) || '';
+      // Loxone keeps in `details` (the user calls it "Bezeichnung"). Loxone
+      // doesn't standardise the field name, so we walk a few candidates and
+      // fall back to the first long string that's clearly not the same as
+      // the display name.
+      let description = '';
+      const d = ctrl.details || {};
+      const candidates = [d.description, d.text, d.title, d.format, d.label, d.name];
+      for (const c of candidates) {
+        if (typeof c === 'string' && c.trim() && c.trim() !== ctrl.name) {
+          description = c.trim();
+          break;
+        }
+      }
+      // Final fallback: any string field in details that is longer than the
+      // name and isn't a format spec like "%.1f °C".
+      if (!description) {
+        for (const [, v] of Object.entries(d)) {
+          if (typeof v === 'string' && v.length > (ctrl.name?.length || 0)
+              && !v.includes('%.') && v.trim() !== ctrl.name) {
+            description = v.trim();
+            break;
+          }
+        }
+      }
       this._controlTree.set(uuid, {
         uuid,
         name: ctrl.name,
