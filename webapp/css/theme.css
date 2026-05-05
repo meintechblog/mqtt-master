@@ -1085,6 +1085,11 @@ body {
   color: var(--ve-text-dim);
   font-family: var(--ve-font-mono);
 }
+.bind-flow-target-meta {
+  font-size: 11px;
+  color: var(--ve-text-dim);
+  font-family: var(--ve-font-mono);
+}
 .bind-card-diag-meta {
   margin-left: auto;
   padding-left: 12px;

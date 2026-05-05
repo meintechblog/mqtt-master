@@ -160,16 +160,39 @@ export default class MqttBridgePlugin {
       }
     });
 
-    // Set up input bindings (local MQTT topic → Loxone control via main MQTT)
+    // Set up input bindings (local MQTT topic → Loxone control via main MQTT).
+    // The forwarder hops through any running loxone-type plugin instance —
+    // not just one named "loxone". Multi-Miniserver setups work too: we
+    // prefer the instance whose getControls() actually claims this UUID,
+    // and fall back to any running loxone for virtual inputs that don't
+    // appear in the structure dump.
     this._bindings = new BindingsManager({
       configKey: `plugins.${this._pluginId}`,
-      sendToTarget: (uuid, value) => {
-        try {
-          const loxone = this._ctx?.pluginManager?.getInstance('loxone');
-          if (loxone && typeof loxone.sendControlCommand === 'function') {
-            loxone.sendControlCommand(uuid, value);
+      sendToTarget: async (uuid, value) => {
+        const pm = this._ctx?.pluginManager;
+        if (!pm) throw new Error('plugin manager unavailable');
+        const all = (typeof pm.listAll === 'function') ? await pm.listAll() : [];
+        const candidates = all.filter(p => p.type === 'loxone' && p.status === 'running');
+        if (candidates.length === 0) throw new Error('no running Loxone plugin to forward to');
+
+        let chosen = null;
+        for (const meta of candidates) {
+          const inst = pm.getInstance?.(meta.id);
+          if (inst && typeof inst.getControls === 'function') {
+            try {
+              const ctrls = inst.getControls() || [];
+              const hit = ctrls.find(c => c.uuid === uuid)
+                || ctrls.flatMap(c => c.subControls || []).find(s => s.uuid === uuid);
+              if (hit) { chosen = inst; break; }
+            } catch { /* ignore per-plugin errors */ }
           }
-        } catch { /* Loxone plugin not available */ }
+        }
+        // Fallback: first running loxone instance
+        if (!chosen) chosen = pm.getInstance?.(candidates[0].id);
+        if (!chosen || typeof chosen.sendControlCommand !== 'function') {
+          throw new Error('Loxone plugin has no sendControlCommand()');
+        }
+        chosen.sendControlCommand(uuid, value);
       },
     });
     this._bindings.init(context, this._config);

@@ -46,7 +46,14 @@ function BindingCard({ binding, stats, controls, onRemove, onToggle, onUpdate })
   const target = controls.find(c => c.uuid === binding.targetUuid);
   const targetSub = controls.flatMap(c => c.subControls || []).find(s => s.uuid === binding.targetUuid);
   const targetCtrl = target || targetSub;
-  const targetName = targetCtrl ? targetCtrl.name : binding.targetUuid.substring(0, 12) + '...';
+  const targetName = targetCtrl ? targetCtrl.name : binding.targetUuid.substring(0, 12) + '…';
+  // Loxone-side metadata: room + type, when we resolved the control. Useful
+  // both as proof that the UUID matches a real device and as the same
+  // identifier the Loxone app shows.
+  const targetMeta = targetCtrl
+    ? [targetCtrl.room, targetCtrl.type].filter(Boolean).join(' · ')
+    : null;
+  const targetPluginName = targetCtrl?._pluginName || null;
   const transform = TRANSFORMS.find(t => t.value === binding.transform);
   const keepalive = binding.keepaliveMs || binding.intervalMs || 30000;
   const live = liveValue(targetCtrl);
@@ -118,10 +125,11 @@ function BindingCard({ binding, stats, controls, onRemove, onToggle, onUpdate })
           <span class="bind-flow-arrow">→</span>
         </div>
 
-        <!-- TO: Loxone target -->
+        <!-- TO: target control (usually a Loxone Miniserver, possibly via the bridge plugin) -->
         <div class="bind-flow-col bind-flow-col--to">
-          <span class="bind-flow-label">To Loxone</span>
-          <span class="bind-flow-target-name">${targetName}</span>
+          <span class="bind-flow-label">${targetPluginName ? `To ${targetPluginName}` : 'To Loxone'}</span>
+          <span class="bind-flow-target-name" title=${binding.targetUuid}>${targetName}</span>
+          ${targetMeta && html`<span class="bind-flow-target-meta">${targetMeta}</span>`}
           ${liveStr != null && html`
             <span class="bind-flow-live" title="value Loxone is currently reporting back">
               now ${liveStr}
@@ -421,6 +429,31 @@ export function InputBindings({ pluginId = 'loxone', defaultPattern } = {}) {
     setToast(null);
   }, [pluginId]);
 
+  /**
+   * Pull controls from EVERY running Loxone plugin (`type === 'loxone'`)
+   * and merge into one list keyed by uuid. Each control gets `_pluginName`
+   * tagged so the UI can show "To Knausi" instead of a hardcoded "To Loxone"
+   * when the user named their Miniserver instance `knausi` rather than the
+   * default `loxone`.
+   */
+  async function fetchAllLoxoneControls() {
+    const r = await fetch('/api/plugins');
+    if (!r.ok) return [];
+    const plugins = await r.json();
+    const loxones = plugins.filter(p => p.type === 'loxone' && p.status === 'running');
+    if (loxones.length === 0) return [];
+    const all = await Promise.all(loxones.map(async p => {
+      try {
+        const cr = await fetch(`/api/plugins/${encodeURIComponent(p.id)}/controls/detailed`);
+        if (!cr.ok) return [];
+        const ctrls = await cr.json();
+        const tagName = p.displayName || p.name || p.id;
+        return ctrls.map(c => ({ ...c, _pluginId: p.id, _pluginName: tagName }));
+      } catch { return []; }
+    }));
+    return all.flat();
+  }
+
   useEffect(() => {
     async function load() {
       try {
@@ -432,7 +465,7 @@ export function InputBindings({ pluginId = 'loxone', defaultPattern } = {}) {
 
         const [b, c] = await Promise.all([
           fetchInputBindings(pluginId),
-          fetchLoxoneControlsDetailed().catch(() => []),
+          fetchAllLoxoneControls().catch(() => []),
         ]);
         setBindings(b);
         setControls(c);
@@ -446,7 +479,7 @@ export function InputBindings({ pluginId = 'loxone', defaultPattern } = {}) {
     // Refresh controls for live values
     const interval = setInterval(async () => {
       try {
-        setControls(await fetchLoxoneControlsDetailed());
+        setControls(await fetchAllLoxoneControls());
       } catch { /* ignore */ }
     }, 3000);
     // Refresh per-binding stats (live MQTT-side values + send counters)

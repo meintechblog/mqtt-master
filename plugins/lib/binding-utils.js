@@ -131,23 +131,38 @@ export function applyBindings({ bindings, mqttService, logger, sendToTarget, han
         return;
       }
 
+      // Optimistically record the send attempt first so dedup state stays
+      // consistent — then track Promise rejection / sync throw on top.
+      stat.value = value;
+      stat.ts = now;
+      stat.payloadTs = now;
+      stat.recvCount = (stat.recvCount || 0) + 1;
+      stat.sendCount = (stat.sendCount || 0) + 1;
+      stat.lastReason = valueChanged ? 'changed' : 'keepalive';
+      stat.lastError = null;
+      stat.lastErrorAt = null;
+      if (valueChanged) {
+        logger.info(`Binding ${binding.label || binding.id}: ${value} → ${binding.targetUuid}`);
+      }
       try {
-        sendToTarget(binding.targetUuid, String(value));
-        stat.value = value;
-        stat.ts = now;
-        stat.payloadTs = now;
-        stat.recvCount = (stat.recvCount || 0) + 1;
-        stat.sendCount = (stat.sendCount || 0) + 1;
-        stat.lastReason = valueChanged ? 'changed' : 'keepalive';
-        stat.lastError = null;
-        stat.lastErrorAt = null;
-        if (valueChanged) {
-          logger.info(`Binding ${binding.label || binding.id}: ${value} → ${binding.targetUuid}`);
+        const result = sendToTarget(binding.targetUuid, String(value));
+        // Async sendToTarget returns a Promise — capture rejections so they
+        // surface in the stats (otherwise mqtt-bridge → loxone forwarders
+        // would silently fail when the loxone plugin can't be reached).
+        if (result && typeof result.then === 'function') {
+          result.then(() => {}, (err) => {
+            stat.lastError = err?.message || String(err);
+            stat.lastErrorAt = Date.now();
+            stat.lastReason = 'send_error';
+            stat.sendCount = Math.max(0, (stat.sendCount || 1) - 1);
+            logger.warn?.(`Binding ${binding.label || binding.id} send failed: ${stat.lastError}`);
+          });
         }
       } catch (err) {
         stat.lastError = err?.message || String(err);
-        stat.lastErrorAt = now;
+        stat.lastErrorAt = Date.now();
         stat.lastReason = 'send_error';
+        stat.sendCount = Math.max(0, (stat.sendCount || 1) - 1);
         logger.warn?.(`Binding ${binding.label || binding.id} send failed: ${stat.lastError}`);
       }
     };
