@@ -46,13 +46,28 @@ export class LoxoneStructure {
   /**
    * Build UUID-to-topic maps from a parsed LoxAPP3.json structure.
    * @param {object} loxApp3Json
+   * @param {object} [opts]
+   * @param {object} [opts.logger] - emits a one-time sample of the raw
+   *   control fields on first build so operators can spot which Loxone
+   *   fields are available when something looks off ("Bezeichnung",
+   *   description, …).
    */
-  buildMap(loxApp3Json) {
+  buildMap(loxApp3Json, opts = {}) {
     this._uuidToTopic.clear();
     this._topicToUuid.clear();
     this._meta.clear();
     this._controls = [];
     this._controlTree.clear();
+
+    const log = opts.logger;
+    if (log?.info) {
+      const all = loxApp3Json.controls || {};
+      const sampleEntry = Object.entries(all)[0];
+      if (sampleEntry) {
+        const [uuid, ctrl] = sampleEntry;
+        log.info(`[loxone-structure] sample control ${uuid} field keys: ${Object.keys(ctrl).join(', ')}`);
+      }
+    }
 
     const rooms = loxApp3Json.rooms || {};
     const cats = loxApp3Json.cats || {};

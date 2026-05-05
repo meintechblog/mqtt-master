@@ -56,7 +56,11 @@ function BindingCard({ binding, stats, controls, onRemove, onToggle, onUpdate })
   const targetPluginName = targetCtrl?._pluginName || null;
   const transform = TRANSFORMS.find(t => t.value === binding.transform);
   const keepalive = binding.keepaliveMs || binding.intervalMs || 30000;
-  const live = liveValue(targetCtrl);
+  // Prefer the loxoneValue baked into the stats response — it was read at
+  // the same instant as `stat.value`, so any drift between "we sent" and
+  // "Loxone reports" reflects reality rather than poll-cadence skew.
+  const liveFromStats = stats?.loxoneValue;
+  const live = liveFromStats != null ? liveFromStats : liveValue(targetCtrl);
   const liveStr = fmtNumNice(live);
 
   // Live MQTT-side stats: what the binding pushed last and how often.
@@ -124,17 +128,14 @@ function BindingCard({ binding, stats, controls, onRemove, onToggle, onUpdate })
 
         <!-- VALUE: the bridge — what we last forwarded -->
         <div class="bind-flow-col bind-flow-col--value">
-          <span class="bind-flow-label">We sent</span>
-          <div style="display:flex;align-items:center;gap:6px;">
-            <span class="bind-flow-arrow">→</span>
-            ${transform && transform.value && html`
-              <span class="bind-flow-transform" title="transform applied before forwarding">${transform.label}</span>
-            `}
-            <span class="bind-flow-value ${flashSend ? 'bind-flash' : ''}" title="last value our plugin forwarded to Loxone via jdev/sps/io">
-              ${sentValueStr ?? '—'}${binding.unit ? html`<span class="bind-flow-unit">${binding.unit}</span>` : ''}
-            </span>
-            <span class="bind-flow-arrow">→</span>
-          </div>
+          <span class="bind-flow-arrow">→</span>
+          ${transform && transform.value && html`
+            <span class="bind-flow-transform" title="transform applied before forwarding">${transform.label}</span>
+          `}
+          <span class="bind-flow-value ${flashSend ? 'bind-flash' : ''}" title="last value our plugin forwarded to Loxone via jdev/sps/io">
+            ${sentValueStr ?? '—'}${binding.unit ? html`<span class="bind-flow-unit">${binding.unit}</span>` : ''}
+          </span>
+          <span class="bind-flow-arrow">→</span>
         </div>
 
         <!-- TO: target control (usually a Loxone Miniserver, possibly via the bridge plugin) -->

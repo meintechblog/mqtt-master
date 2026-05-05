@@ -467,7 +467,34 @@ export default class LoxonePlugin {
   }
 
   getInputBindingStats() {
-    return this._bindingsManager?.getStats?.() || [];
+    const stats = this._bindingsManager?.getStats?.() || [];
+    // Augment with the *current* Loxone-reported value for each target so the
+    // UI sees both "what we sent" and "what Loxone reports" from the same
+    // instant — eliminates poll-cadence drift as a source of confusion.
+    if (this._stateCache && this._structure) {
+      const tree = this._structure.getControlTree?.() || [];
+      // Build a uuid → primary-state-uuid lookup once. The "value" state on
+      // a control is the InfoOnlyAnalog reading we're forwarding to.
+      const valueStateByCtrl = new Map();
+      for (const c of tree) {
+        const states = c.states || [];
+        const v = states.find(s => s.key === 'value') || states[0];
+        if (v) valueStateByCtrl.set(c.uuid, v.uuid);
+        for (const sub of c.subControls || []) {
+          const sStates = sub.states || [];
+          const sv = sStates.find(s => s.key === 'value') || sStates[0];
+          if (sv) valueStateByCtrl.set(sub.uuid, sv.uuid);
+        }
+      }
+      for (const stat of stats) {
+        const stateUuid = valueStateByCtrl.get(stat.targetUuid);
+        if (stateUuid) {
+          const cached = this._stateCache.get(stateUuid);
+          if (cached) stat.loxoneValue = cached.value ?? cached;
+        }
+      }
+    }
+    return stats;
   }
 
   async setInputBindings(bindings) {
