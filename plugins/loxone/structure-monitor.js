@@ -15,13 +15,22 @@ export class StructureMonitor {
 
   /**
    * Snapshot current UUID->topic mapping for later comparison.
+   *
+   * Reads via `getMeta()` rather than `getAll()[i].topic` so the snapshot
+   * uses the same source as detectChanges() below. For InfoOnlyAnalog
+   * controls Loxone reuses the control UUID as a state UUID, and the state
+   * pass in buildMap() overwrites the control's meta entry with the state
+   * topic (e.g. `loxone/<room>/<name>/value`). The cached `_controls` array
+   * still holds the pre-overwrite control entry with the bare topic, so
+   * mixing the two sources triggered a phantom rename on every refresh.
    * @param {object} structure - LoxoneStructure instance
    */
   snapshot(structure) {
     this._prevTopics.clear();
     if (!structure) return;
     for (const ctrl of structure.getAll()) {
-      this._prevTopics.set(ctrl.uuid, ctrl.topic);
+      const meta = structure.getMeta?.(ctrl.uuid);
+      this._prevTopics.set(ctrl.uuid, meta?.topic || ctrl.topic);
     }
   }
 
