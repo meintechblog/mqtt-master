@@ -154,6 +154,12 @@ function UpdateCard() {
     try { setStatus(await saveUpdateSettings({ autoApply: e.target.checked })); }
     catch (err) { setError(err.message); }
   }
+  async function handleHourChange(e) {
+    const h = Number(e.target.value);
+    if (!Number.isInteger(h) || h < 0 || h > 23) return;
+    try { setStatus(await saveUpdateSettings({ autoUpdateHour: h })); }
+    catch (err) { setError(err.message); }
+  }
 
   if (!status) return html`
     <div class="dash-card">
@@ -165,10 +171,12 @@ function UpdateCard() {
   const v = status.current || {};
   const installing = status.runState?.updateStatus === 'installing';
   const rolledBack = status.runState?.rollbackHappened;
-  // Status dot maps onto existing .status-dot--<x> classes (connected/error/stopped).
-  // Orange for "update available" reuses the .status-dot--error styling — close
-  // enough visually without inventing a new colour token.
-  const dotStatus = installing ? 'stopped' : (status.hasUpdate ? 'error' : (status.lastError ? 'error' : 'connected'));
+  // dev_mode = no .git checkout (e.g. rsync-deployed dev VM). Treat it as a
+  // neutral info, not a real error: the auto-update path is intentionally
+  // disabled, GitHub is never contacted, nothing actually broke.
+  const isDevMode = status.lastError === 'dev_mode' || v.isDev;
+  const realError = status.lastError && !isDevMode;
+  const dotStatus = installing ? 'stopped' : (status.hasUpdate ? 'error' : (realError ? 'error' : (isDevMode ? 'stopped' : 'connected')));
 
   return html`
     <div class="dash-card">
@@ -201,7 +209,15 @@ function UpdateCard() {
             </span>
           </div>
         `}
-        ${status.lastError && !status.hasUpdate && html`
+        ${isDevMode && !status.hasUpdate && html`
+          <div class="dash-detail" style="grid-column:span 2;">
+            <span class="dash-detail-label">Mode</span>
+            <span class="dash-detail-value" style="color:var(--ve-text-dim);" title="No .git checkout in /opt/mqtt-master — auto-update is intentionally disabled. Re-run install.sh to enable.">
+              dev mode (auto-update off)
+            </span>
+          </div>
+        `}
+        ${realError && !status.hasUpdate && html`
           <div class="dash-detail" style="grid-column:span 2;">
             <span class="dash-detail-label">Last error</span>
             <span class="dash-detail-value" style="color:var(--ve-red);">${status.lastError}</span>
@@ -219,7 +235,19 @@ function UpdateCard() {
         `}
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ve-text-dim);margin-left:auto;cursor:pointer;">
           <input type="checkbox" checked=${status.autoApply} onChange=${handleToggleAuto} />
-          auto @ ${String(status.autoUpdateHour ?? 3).padStart(2, '0')}:00
+          auto @
+          <select
+            class="bind-select"
+            style="padding:2px 4px;font-size:12px;font-family:var(--ve-font-mono);"
+            value=${String(status.autoUpdateHour ?? 3)}
+            disabled=${!status.autoApply}
+            onChange=${handleHourChange}
+            title="Local hour (Europe/Berlin) at which auto-updates fire"
+          >
+            ${Array.from({ length: 24 }, (_, h) => html`
+              <option key=${h} value=${String(h)}>${String(h).padStart(2, '0')}:00</option>
+            `)}
+          </select>
         </label>
       </div>
       ${error && html`<div style="margin-top:8px;font-size:12px;color:var(--ve-red);">${error}</div>`}
