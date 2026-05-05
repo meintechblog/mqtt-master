@@ -84,10 +84,16 @@ export class StructureMonitor {
 
   /**
    * Clear retained MQTT messages for a control topic and its subtopics.
+   *
+   * Deliberately does NOT clear the `/cmd` retained slot: cmd topics are
+   * input-only, and a retained empty payload there gets re-delivered to the
+   * loxone plugin's own /cmd subscriber on every publish, which would forward
+   * an empty `jdev/sps/io/<uuid>/` write to the Miniserver and zero the
+   * control. State-side cleanup is enough to drop stale topics from the UI.
    * @private
    */
   _clearRetainedTopics(mqttService, baseTopic) {
-    const suffixes = ['/state', '/cmd', ''];
+    const suffixes = ['/state', ''];
     for (const suffix of suffixes) {
       mqttService.publish(baseTopic + suffix, '', { retain: true });
     }
