@@ -156,11 +156,15 @@ export default class LoxonePlugin {
     this._topicRoutes = this._config.topicRoutes || [];
     this._applyTopicRoutes();
 
-    // 12. Set up MQTT input bindings
+    // 12. Set up MQTT input bindings.
+    // Route through sendControlCommand so the optimistic state-cache update
+    // also fires for binding-driven writes — otherwise peekControlValue()
+    // would still read the pre-write Loxone value for 1-2s after each send,
+    // showing the user a phantom drift on the dashboard.
     this._bindingsManager = new BindingsManager({
       configKey: `plugins.${this._pluginId}`,
       sendToTarget: (uuid, value) => {
-        if (this._ws) this._ws.sendCommand(`jdev/sps/io/${uuid}/${value}`);
+        if (this._ws) this.sendControlCommand(uuid, value);
       },
     });
     this._bindingsManager.init(context, this._config);
@@ -377,6 +381,48 @@ export default class LoxonePlugin {
     const cmd = `jdev/sps/io/${uuid}/${command}`;
     this._ctx.logger.info(`API→Loxone: ${uuid} → ${cmd}`);
     this._ws.sendCommand(cmd);
+    this._cacheSentValue(uuid, command);
+  }
+
+  /**
+   * Optimistically reflect a just-sent value in the state cache so that
+   * peekControlValue() reads `command` immediately after a successful send,
+   * rather than the previous Loxone-reported value. Loxone's WS state-event
+   * broadcasts can lag a written value by 1-2s, which surfaced in
+   * /bindings/stats as a phantom drift between `value` (sent) and
+   * `loxoneValue` (cached). When Loxone's confirming event eventually
+   * arrives, _onValueEvent overwrites this cache entry with the truth — so
+   * if anything else touched the control on Loxone's side, the next refresh
+   * still corrects the display.
+   *
+   * Resolves the same state UUID that peekControlValue uses, so the cache
+   * key matches both for InfoOnlyAnalog (control UUID === value-state UUID)
+   * and other control types where the two UUIDs differ.
+   * @private
+   */
+  _cacheSentValue(controlUuid, command) {
+    if (!this._stateCache || !this._structure) return;
+    const num = Number(command);
+    if (!Number.isFinite(num)) return;
+    const tree = this._structure.getControlTree?.() || [];
+    const stateUuidFor = (uuid) => {
+      for (const c of tree) {
+        if (c.uuid === uuid) {
+          const states = c.states || [];
+          const v = states.find(s => s.key === 'value') || states[0];
+          return v?.uuid || uuid;
+        }
+        for (const sub of c.subControls || []) {
+          if (sub.uuid === uuid) {
+            const states = sub.states || [];
+            const v = states.find(s => s.key === 'value') || states[0];
+            return v?.uuid || uuid;
+          }
+        }
+      }
+      return uuid;
+    };
+    this._stateCache.set(stateUuidFor(controlUuid), { value: num });
   }
 
   // --- Mood mapping ---
@@ -629,6 +675,7 @@ export default class LoxonePlugin {
     const cmd = `jdev/sps/io/${uuid}/${resolvedPayload}`;
     this._ctx.logger.info(`MQTT→Loxone: ${topic} → ${cmd}`);
     this._ws.sendCommand(cmd);
+    this._cacheSentValue(uuid, resolvedPayload);
   }
 
   async _refreshStructure() {
