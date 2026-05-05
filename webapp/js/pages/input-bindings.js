@@ -96,12 +96,21 @@ function BindingCard({ binding, stats, controls, onRemove, onToggle, onUpdate })
           class="lox-control-toggle"
         />
         <span class="bind-card-label" onClick=${() => setExpanded(!expanded)} style="cursor:pointer">
-          ${binding.label || binding.id}
-          ${targetCtrl?.name && html`
-            <span class="bind-card-loxone-name" title="Live name from Loxone — updates if you rename the control in Loxone Config">
-              (${targetCtrl.name})
-            </span>
-          `}
+          ${(() => {
+            // Strip a leading "<targetName> " prefix from legacy auto-generated
+            // labels so existing bindings don't show "Wasserboiler
+            // Wasserboiler.Temperature" — display-only, the stored label is
+            // unchanged so saves still round-trip.
+            const raw = binding.label || binding.id;
+            const ctrlName = targetCtrl?.name;
+            if (ctrlName) {
+              const prefix = ctrlName + ' ';
+              if (raw.toLowerCase().startsWith(prefix.toLowerCase())) {
+                return raw.slice(prefix.length);
+              }
+            }
+            return raw;
+          })()}
         </span>
         <button class="bind-remove" onClick=${() => onRemove(binding.id)} title="Remove">×</button>
       </div>
@@ -342,7 +351,11 @@ function StepReview({ source, field, target, onSave, onBack }) {
   const autoTransform = suggestTransform(field.key);
   const [transform, setTransform] = useState(autoTransform);
   const [keepalive, setKeepalive] = useState(30000);
-  const [label, setLabel] = useState(`${deviceName} ${field.key.replace(/_/g, ' ')}`);
+  // Default label = the JSON field path. The target's Loxone control name
+  // is rendered separately on the binding card, so we don't prefix it here
+  // (otherwise the label reads "Wasserboiler Wasserboiler.Temperature
+  // (Wasserboiler)" — three times the same word).
+  const [label, setLabel] = useState(field.key.replace(/_/g, ' '));
 
   const preview = previewTransform(field.sample, transform);
 

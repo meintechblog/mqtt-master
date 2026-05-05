@@ -129,7 +129,9 @@ function CreateBindingDialog({ topic, value, onClose }) {
         targetUuid,
         transform: autoTransform,
         keepaliveMs: 30000,
-        label: (targetCtrl ? targetCtrl.name : topic.split('/').slice(-2).join('/')) + ' ' + jsonField,
+        // Label = JSON path. The target's Loxone control name is shown
+        // separately on the binding card so no need to prefix it here.
+        label: jsonField,
       };
       const saveRes = await fetch(`/api/plugins/${selectedPlugin}/bindings`, {
         method: 'PUT',
