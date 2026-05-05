@@ -1072,6 +1072,13 @@ body {
   text-align: center;
   white-space: nowrap;
 }
+.bind-flow-unit {
+  margin-left: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ve-text-dim);
+  letter-spacing: 0.2px;
+}
 .bind-flow-target-name {
   font-size: 14px;
   font-weight: 600;

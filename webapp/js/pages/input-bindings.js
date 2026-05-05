@@ -1,7 +1,7 @@
 import { html } from 'htm/preact';
 import { useEffect, useState, useCallback } from 'preact/hooks';
 import { fetchInputBindings, saveInputBindings, fetchLoxoneControlsDetailed } from '../lib/api-client.js';
-import { TRANSFORMS, suggestTransform, previewTransform } from '../lib/transform-utils.js';
+import { TRANSFORMS, suggestTransform, previewTransform, UNITS, suggestUnit } from '../lib/transform-utils.js';
 import { TopicBrowserPanel } from '../components/topic-browser.js';
 import { flattenJsonFields } from '../lib/json-fields.js';
 
@@ -129,7 +129,7 @@ function BindingCard({ binding, stats, controls, onRemove, onToggle, onUpdate })
             <span class="bind-flow-transform" title="transform applied before forwarding">${transform.label}</span>
           `}
           <span class="bind-flow-value ${flashSend ? 'bind-flash' : ''}" title="last value forwarded to Loxone">
-            ${sentValueStr ?? '—'}
+            ${sentValueStr ?? '—'}${binding.unit ? html`<span class="bind-flow-unit">${binding.unit}</span>` : ''}
           </span>
           <span class="bind-flow-arrow">→</span>
         </div>
@@ -141,7 +141,7 @@ function BindingCard({ binding, stats, controls, onRemove, onToggle, onUpdate })
           ${targetMeta && html`<span class="bind-flow-target-meta">${targetMeta}</span>`}
           ${liveStr != null && html`
             <span class="bind-flow-live" title="value Loxone is currently reporting back">
-              now ${liveStr}
+              now ${liveStr}${binding.unit ? ' ' + binding.unit : ''}
             </span>
           `}
         </div>
@@ -165,6 +165,13 @@ function BindingCard({ binding, stats, controls, onRemove, onToggle, onUpdate })
               <select class="bind-select" value=${binding.transform || ''}
                 onChange=${(e) => onUpdate(binding.id, 'transform', e.target.value)}>
                 ${TRANSFORMS.map(t => html`<option key=${t.value} value=${t.value}>${t.label}</option>`)}
+              </select>
+            </div>
+            <div class="bind-field">
+              <label class="bind-field-label" title="Display-only — does not affect what's sent to Loxone">Unit</label>
+              <select class="bind-select" value=${binding.unit || ''}
+                onChange=${(e) => onUpdate(binding.id, 'unit', e.target.value)}>
+                ${UNITS.map(u => html`<option key=${u.value} value=${u.value}>${u.label}</option>`)}
               </select>
             </div>
             <div class="bind-field">
@@ -356,6 +363,7 @@ function StepReview({ source, field, target, onSave, onBack }) {
   // (otherwise the label reads "Wasserboiler Wasserboiler.Temperature
   // (Wasserboiler)" — three times the same word).
   const [label, setLabel] = useState(field.key.replace(/_/g, ' '));
+  const [unit, setUnit] = useState(suggestUnit(field.key));
 
   const preview = previewTransform(field.sample, transform);
 
@@ -389,6 +397,12 @@ function StepReview({ source, field, target, onSave, onBack }) {
           <input type="text" class="bind-input" value=${label} onInput=${(e) => setLabel(e.target.value)} />
         </div>
         <div class="bind-field">
+          <label class="bind-field-label" title="Display-only — does not affect what's sent to Loxone">Unit</label>
+          <select class="bind-select" value=${unit} onChange=${(e) => setUnit(e.target.value)}>
+            ${UNITS.map(u => html`<option key=${u.value} value=${u.value}>${u.label}</option>`)}
+          </select>
+        </div>
+        <div class="bind-field">
           <label class="bind-field-label">Keepalive</label>
           <select class="bind-select" value=${keepalive} onChange=${(e) => setKeepalive(Number(e.target.value))}>
             <option value="10000">10s</option>
@@ -409,6 +423,7 @@ function StepReview({ source, field, target, onSave, onBack }) {
           transform,
           keepaliveMs: keepalive,
           label,
+          unit,
         })}>Save Binding</button>
       </div>
       <div style="font-size:12px;color:var(--ve-text-dim);margin-top:8px;">
